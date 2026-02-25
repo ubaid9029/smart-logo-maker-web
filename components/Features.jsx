@@ -19,7 +19,7 @@ const Features = () => {
     <section id="features" className="py-24 bg-white overflow-hidden">
       <div className="max-w-7xl mx-auto px-6">
 
-        {/* Section Header */}
+
         <div className="text-center mb-20 ">
           <motion.span
             initial={{ opacity: 0 }}
@@ -31,6 +31,7 @@ const Features = () => {
           </motion.span>
           <h2 className="text-[36px] md:text-[52px] font-black text-[#0f172a] mb-6 leading-tight">
             Everything You Need
+
           </h2>
           <p className="text-gray-500 max-w-2xl mx-auto text-lg font-medium">
             Create, customize, and perfect your brand identity with our <br /> comprehensive toolkit
