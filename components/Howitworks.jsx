@@ -77,7 +77,6 @@ const HowItWorks = () => {
                   
                   // --- 2. DIAGONAL HOVER MOVEMENT ---
                   whileHover={{ 
-                    // x: 15,          // Right side movement
                     y: -15,         // Top side movement (negative value means up)
                     rotate: 12,    // Slight tilt
                     scale: 1.08,    

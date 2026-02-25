@@ -1,8 +1,8 @@
 'use client';
 import { motion } from 'framer-motion';
-import { 
-  HiOutlineSparkles, HiOutlineColorSwatch, HiLightningBolt, 
-  HiOutlinePencilAlt, HiOutlineTemplate, HiCloudDownload 
+import {
+  HiOutlineSparkles, HiOutlineColorSwatch, HiLightningBolt,
+  HiOutlinePencilAlt, HiOutlineTemplate, HiCloudDownload
 } from 'react-icons/hi';
 
 const featuresData = [
@@ -18,12 +18,12 @@ const Features = () => {
   return (
     <section id="features" className="py-24 bg-white overflow-hidden">
       <div className="max-w-7xl mx-auto px-6">
-        
+
         {/* Section Header */}
         <div className="text-center mb-20 ">
-          <motion.span 
-            initial={{ opacity: 0 }} 
-            whileInView={{ opacity: 1 }} 
+          <motion.span
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             className="inline-block px-4 py-1.5 rounded-full text-[15px] font-bold tracking-[0.2em] uppercase bg-orange-300 border border-pink-100 mb-6 text-bold bg-linear-to-r from-[#ff5c01] via-[#ff007a] to-[#c400ff] bg-clip-text text-transparent"
           >
@@ -33,7 +33,7 @@ const Features = () => {
             Everything You Need
           </h2>
           <p className="text-gray-500 max-w-2xl mx-auto text-lg font-medium">
-            Create, customize, and perfect your brand identity with our <br/> comprehensive toolkit
+            Create, customize, and perfect your brand identity with our <br /> comprehensive toolkit
           </p>
         </div>
 
@@ -50,10 +50,10 @@ const Features = () => {
               className="p-10 rounded-[40px] bg-white border border-gray-100 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.05)] transition-all duration-300 group"
             >
               {/* Animated Icon Box (Only rotates on Hover) */}
-              <motion.div 
+              <motion.div
                 variants={{
                   initial: { rotate: 0 },
-                  hover: { 
+                  hover: {
                     rotate: 360,
                     transition: { duration: 2, repeat: Infinity, ease: "linear" }
                   }
