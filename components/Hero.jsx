@@ -18,7 +18,7 @@ const Hero = () => {
       duration: Math.random() * 5 + 5,
       delay: Math.random() * 5
     }));
-    
+
     setDotsData(generatedDots);
     setMounted(true);
   }, []);
@@ -26,15 +26,39 @@ const Hero = () => {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-white pt-20">
 
-      {/* 1. BACKGROUND IMAGE - Isay 'mounted' se bahar rakha hai taaki ye foran nazar aaye */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <img
-          src="/bg.jpg"
-          alt="background"
-          className="w-full h-full object-cover " 
-          onError={(e) => console.log("Image not found at /public/bg.jpg")}
-        />
-      </div>
+      {/* 1. BACKGROUND IMAGE */}
+  <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden select-none">
+  <img
+    src="/logo1.svg"
+    alt="background-decoration"
+    className="
+      absolute
+      /* Position: Right corner se thoda bahar nikalta hua */
+      -right-[5%] -bottom-[10%]
+      md:-right-[10%] md:-bottom-[15%]
+      
+      /* Size: Responsive scaling */
+      w-[300px] 
+      sm:w-[450px] 
+      md:w-[600px] 
+      lg:w-[800px]
+      
+      /* Tilted Look: 15 to 45 degree rotate karein */
+      rotate-[25deg] 
+      md:rotate-[15deg]
+      
+      /* Visibility: Background mein mix karne ke liye */
+      opacity-10 
+      md:opacity-15
+      
+      /* Smoothness */
+      transition-all duration-700 ease-in-out
+      object-contain
+      blur-[2px] /* Optional: Thoda depth dene ke liye */
+    "
+    onError={(e) => console.log("Check if /logo1.svg exists in public folder")}
+  />
+</div>
 
       {/* 2. ANIMATED DOTS - Sirf ye client par render honge */}
       <div className="absolute inset-0 z-0 pointer-events-none">
@@ -65,12 +89,12 @@ const Hero = () => {
 
       {/* 3. BACKGROUND BLOBS */}
       <motion.div animate={{ x: [0, 40, 0], y: [0, 30, 0] }}
-        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }} 
-        className="absolute top-[5%] right-[-10%] w-125 h-125 bg-purple-200/50 rounded-full blur-[120px]" 
+        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute top-[5%] right-[-10%] w-125 h-125 bg-purple-200/50 rounded-full blur-[120px]"
       />
       <motion.div animate={{ x: [0, -30, 0], y: [0, -20, 0] }}
-        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }} 
-        className="absolute bottom-[5%] left-[-10%] w-112.5 h-112.5 bg-orange-200/40 rounded-full blur-[100px]" 
+        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute bottom-[5%] left-[-10%] w-112.5 h-112.5 bg-orange-200/40 rounded-full blur-[100px]"
       />
 
       {/* --- MAIN CONTENT --- */}
