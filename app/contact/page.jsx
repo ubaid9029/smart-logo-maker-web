@@ -3,7 +3,7 @@ import ContactForm from "../../components/ContactForm";
 import HowIthelps from "../../components/HowIthelps";
 import FAQSection from "../../components/FAQSection";
 
-export default function Conatct() {
+export default function Contact() {
   return (
     <>
       <ContactForm/>

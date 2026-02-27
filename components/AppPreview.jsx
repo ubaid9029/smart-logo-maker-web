@@ -28,7 +28,7 @@ const AppPreview = () => {
     };
 
     return (
-        <section id="app-preview" className="relative bg-[#0b0f1a] py-32 px-6 overflow-hidden">
+        <section id="app-preview" className="relative c py-32 px-6 overflow-hidden">
             {/* Background Glows & Grid */}
             <div className="absolute inset-0 z-0 pointer-events-none">
                 <div className="absolute inset-0 opacity-[0.30]" style={{ backgroundImage: `linear-gradient(#1e293b 1px, transparent 1px), linear-gradient(90deg, #1e293b 1px, transparent 1px)`, backgroundSize: '40px 40px' }}></div>
