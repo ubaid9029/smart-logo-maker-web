@@ -50,7 +50,7 @@ const FAQSection = () => {
 
   return (
     // FIX: py-12 ko responsive banaya (py-8 md:py-12) aur min-h-screen ko maintain rakha
-    <section className="min-h-screen bg-[#f8faff] py-8 md:py-12 px-6 flex flex-col items-center md:-mb-20 sm:-mb-20">
+    <section className="min-h-screen bg-[#f8faff] py-8 md:py-12 px-6 flex flex-col items-center">
       
       {/* Header Section */}
       <motion.div 

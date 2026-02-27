@@ -9,7 +9,7 @@ const TermsOfService = () => {
         <title>Terms of Service | Smart Logo Maker</title>
       </Head>
 
-      <div className="min-h-screen bg-white text-gray-900 scroll-smooth mt-20">
+      <div className="min-h-screen bg-white text-gray-900 scroll-smooth pt-20">
         {/* Hero Section */}
         <section className="bg-linear-to-r from-gray-900 via-gray-800 to-gray-900 py-20 px-4 text-center text-white">
           <h1 className="text-5xl font-extrabold mb-4 tracking-tight animate-fade-in-up">
