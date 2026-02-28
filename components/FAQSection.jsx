@@ -49,12 +49,11 @@ const FAQSection = () => {
   };
 
   return (
-    // FIX: py-12 ko responsive banaya (py-8 md:py-12) aur min-h-screen ko maintain rakha
     <section className="min-h-screen bg-[#f8faff] py-8 md:py-12 px-6 flex flex-col items-center">
       
       {/* Header Section */}
       <motion.div 
-        className="text-center mb-10 md:mb-12" // Margin kam kiya choti screens k liye
+        className="text-center mb-10 md:mb-12" 
         initial={{ opacity: 0, y: -20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}

@@ -33,7 +33,6 @@ export default function ContactForm() {
     <div className="min-h-screen bg-[#F8F9FD] font-sans text-slate-900 overflow-hidden">
 
       {/* --- HERO / CONTACT FORM SECTION --- */}
-      {/* Reduced pb-32 to pb-20 for better spacing on medium devices */}
       <section className="relative pt-32 pb-20 px-6 bg-linear-to-br from-purple-50 via-white to-blue-50">
         <div className="max-w-6xl mx-auto">
           

@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { HiArrowRight } from "react-icons/hi";
 import { useState, useEffect } from 'react';
@@ -123,11 +124,12 @@ const Hero = () => {
           transition={{ delay: 0.6, duration: 0.5 }}
           className="flex flex-col sm:flex-row items-center justify-center gap-5"
         >
-          <button className="group flex items-center gap-3 bg-linear-to-r from-[#ff5c01] via-[#ff007a] to-[#c400ff] text-white px-10 py-4 rounded-full font-bold text-lg shadow-xl hover:scale-105 active:scale-95 transition-all duration-300">
-            Get Started Free
-            <HiArrowRight className="text-xl group-hover:translate-x-1 transition-transform" />
-          </button>
-
+          <Link href="app\create">
+            <button className="group flex items-center gap-3 bg-linear-to-r from-[#ff5c01] via-[#ff007a] to-[#c400ff] text-white px-10 py-4 rounded-full font-bold text-lg shadow-xl hover:scale-105 active:scale-95 transition-all duration-300">
+              Get Started Free
+              <HiArrowRight className="text-xl group-hover:translate-x-1 transition-transform" />
+            </button>
+          </Link>
           <button className="px-10 py-4 text-[#0f172a] font-bold text-lg border-2 border-gray-100 rounded-full bg-white hover:border-[#0f172a] hover:scale-105 active:scale-95 transition-all duration-300 shadow-sm">
             See How It Works
           </button>

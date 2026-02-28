@@ -43,14 +43,14 @@ const Footer = () => {
             <h4 className="text-white font-bold text-lg mb-6">Company</h4>
             <ul className="flex flex-col space-y-4">
               {[
-                { name: 'About Us', path: '/about' },
+                { name: 'About Us', path: 'about' },
                 { name: 'Contact', path: '/contact' },
                 { name: 'Privacy Policy', path: '/privacy' },
                 { name: 'Terms of Service', path: '/terms' }
               ].map((item) => (
                 <li key={item.name}>
                   <Link
-                    href={item.path} // Yahan path change ho gya
+                    href={item.path} 
                     className="text-gray-400 hover:text-white transition-colors duration-300 text-sm font-medium"
                   >
                     {item.name}

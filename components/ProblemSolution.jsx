@@ -24,7 +24,7 @@ const ProblemSolution = () => {
 
   return (
     <section className="relative py-24 px-6 bg-[#f8faff] overflow-hidden">
-      {/* Background Grid Pattern (Matching e.jpg) */}
+      {/* Background Grid Pattern */}
       <div 
         className="absolute top-0 right-0 w-1/3 h-1/3 opacity-10 pointer-events-none"
         style={{
@@ -69,7 +69,7 @@ const ProblemSolution = () => {
                   whileHover={{ scale: 1.1, rotate: 5 }}
                   className="w-32 h-32 flex items-center justify-center"
                 >
-                  {/* If you have local SVG/Images, use <Image /> here */}
+                  
                   <img src={item.image} alt={item.title} className="w-full h-full object-contain" />
                 </motion.div>
                 

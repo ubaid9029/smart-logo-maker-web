@@ -29,6 +29,6 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "**/*.mts"
-  ],
+, "components/ui/progress.jsx", "components/ui/input.jsx", "components/ui/button.jsx"  ],
   "exclude": ["node_modules"]
 }

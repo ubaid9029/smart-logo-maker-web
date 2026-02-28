@@ -1,10 +1,8 @@
-"use client"; // Next.js ke liye zaroori hai agar animation use karein
+"use client"; 
 import React from 'react';
-// 1. Fixed: Sparkles import kiya
 import { Zap, ShieldCheck, Settings2, Gem, Sparkles } from 'lucide-react'; 
 
 const WhyChoose = () => {
-  // 2. Fixed: Array ka naam 'cards' rakha taaki map mein problem na ho
   const cards = [
     {
       title: "Unmatched Speed:",

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Settings, CreditCard, MessageSquare, Users, Sparkles, ShieldCheck } from 'lucide-react';
-import { motion } from 'framer-motion'; // 1. Import motion
+import { motion } from 'framer-motion'; 
 
 const HowIthelps = () => {
   const cards = [
