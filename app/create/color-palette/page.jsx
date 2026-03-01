@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
-import { Type, ChevronLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation'; 
+import { Palette, ChevronLeft } from 'lucide-react';
 
 const palettes = [
   { name: 'Vibrant Energy', gradient: 'from-orange-400 via-pink-500 to-yellow-400', colors: ['bg-red-400', 'bg-teal-500', 'bg-yellow-300', 'bg-emerald-300'] },
@@ -15,36 +16,49 @@ const palettes = [
 
 const ColorPaletteGrid = () => {
   const [selectedPalette, setSelectedPalette] = useState(null);
+  const router = useRouter();
 
-  // FIX: handleBack function define kiya
   const handleBack = () => {
-    console.log("Navigating back...");
+    router.back();
+  };
+
+  const handleContinue = () => {
+    if (selectedPalette) {
+      router.push('/create/generating');
+    }
   };
 
   return (
-    <div className="min-h-screen bg-pink-50 p-6">
-      {/* 1. Top Left Back Button */}
-      <button
-        onClick={handleBack}
-        className="flex items-center gap-2 hover:text-slate-900 transition-colors bg-white text-black hover:bg-gray-200 rounded-md px-3 py-3 border-2"
-      >
-        <ChevronLeft size={20} />
-        Back
-      </button>
+    <div className="min-h-screen bg-pink-50 w-full">
+      {/* Wrapper to center everything */}
+      <div className="max-w-6xl mx-auto p-6 flex flex-col items-center">
+        
+        {/* Top Left Back Button Section */}
+        <div className="w-full flex justify-start mb-6">
+          <button
+            onClick={handleBack}
+            className="flex items-center gap-2 hover:text-slate-900 transition-colors bg-white text-black hover:bg-gray-200 rounded-md px-4 py-2 border-2"
+          >
+            <ChevronLeft size={20} />
+            Back
+          </button>
+        </div>
 
-      {/* Main Container */}
-      <div className="w-full max-w-5xl mx-auto flex flex-col items-center">
         {/* Title Section */}
         <div className="flex flex-col items-center mb-12 text-center">
           <div className="p-4 rounded-3xl bg-white shadow-inner mb-6">
-            <Type size={40} className="text-pink-600" />
+            <Palette size={40} className="text-pink-600" />
           </div>
-          <h1 className="text-5xl font-extrabold text-slate-950 mb-3">Choose Your Color Palette</h1>
-          <p className="text-xl text-slate-600">Select a color scheme that matches your brand personality</p>
+          <h1 className="text-4xl md:text-5xl font-extrabold text-slate-950 mb-3 tracking-tight">
+            Choose Your Color Palette
+          </h1>
+          <p className="text-lg md:text-xl text-slate-600">
+            Select a color scheme that matches your brand personality
+          </p>
         </div>
 
         {/* Grid Section */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 w-full max-w-7xl mx-auto mb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full mb-12">
           {palettes.map((palette) => {
             const isSelected = selectedPalette === palette.name;
 
@@ -57,12 +71,12 @@ const ColorPaletteGrid = () => {
                   transition-all duration-300 ease-in-out transform hover:-translate-y-2 hover:shadow-lg
                   ${isSelected
                     ? 'bg-white shadow-xl ring-2 ring-orange-400'
-                    : 'bg-white shadow-md  border-2 border-transparent'
+                    : 'bg-white shadow-md border-2 border-transparent'
                   }
                 `}
               >
-                {/* Large Gradient Preview */}
-                <div className={`w-full h-32 rounded-2xl bg-linear-to-r ${palette.gradient} shadow-inner`}></div>
+                {/* Gradient Preview */}
+                <div className={`w-full h-32 rounded-2xl bg-gradient-to-r ${palette.gradient} shadow-inner`}></div>
 
                 {/* Small Color Circles */}
                 <div className="flex gap-2 justify-center w-full">
@@ -71,14 +85,12 @@ const ColorPaletteGrid = () => {
                   ))}
                 </div>
 
-                {/* Text */}
                 <span className="text-sm font-bold text-slate-950 mt-1">
                   {palette.name}
                 </span>
 
-                {/* Selection Checkmark */}
                 {isSelected && (
-                  <div className="absolute -top-3 -right-3 bg-linear-to-r from-pink-500 to-orange-400 p-1.5 rounded-full shadow-lg">
+                  <div className="absolute -top-3 -right-3 bg-gradient-to-r from-pink-500 to-orange-400 p-1.5 rounded-full shadow-lg">
                     <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
                     </svg>
@@ -89,25 +101,24 @@ const ColorPaletteGrid = () => {
           })}
         </div>
 
-        {/* Bottom Action Section */}
-         <div className="flex items-center gap-6 max-w-full">
-          {/* 2. Back Button near Continue */}
+        {/* Bottom Action Section - Centered Fix */}
+        <div className="flex flex-col md:flex-row items-center justify-center gap-4 w-full max-w-2xl">
           <button 
             onClick={handleBack}
-            className="w-2xl px-12 py-4 rounded-md text-lg font-semibold text-slate-700 bg-white shadow-md hover:bg-slate-100 transition-all"
+            className="w-full md:w-1/2 py-4 rounded-xl text-lg font-semibold text-slate-700 bg-white shadow-md hover:bg-slate-100 transition-all border border-gray-100"
           >
             Back
           </button>
 
-          {/* Continue Button */}
           <button
-            disabled={!handleBack}
+            onClick={handleContinue}
+            disabled={!selectedPalette}
             className={`
-              w-2xl px-12 py-4 rounded-md text-lg font-bold text-white
-              transition-all duration-300 ease-in-out
-              ${handleBack 
-                ? 'bg-linear-to-r from-pink-500 to-orange-400 hover:opacity-90 shadow-lg' 
-                : 'bg-slate-300 cursor-not-allowed'
+              w-full md:w-1/2 py-4 rounded-xl text-lg font-bold text-white
+              transition-all duration-300 ease-in-out shadow-lg
+              ${selectedPalette 
+                ? 'bg-gradient-to-r from-pink-500 to-orange-400 hover:opacity-90 active:scale-95' 
+                : 'bg-slate-300 cursor-not-allowed shadow-none opacity-50'
               }
             `}
           >

@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation'; // Router import karein
+import { useRouter } from 'next/navigation'; 
 import { LayoutGrid, ShoppingBag, Utensils, Heart, Palette, Code, Camera, Music, Coffee, Building, Dumbbell, GraduationCap, Briefcase, ChevronLeft } from 'lucide-react';
 
 const industries = [
@@ -22,16 +22,23 @@ const IndustrySelection = () => {
   const [selectedIndustry, setSelectedIndustry] = useState(null);
   const router = useRouter();
 
+  // FIX 1: handleBack logic
   const handleBack = () => {
     router.back();
   };
 
+  // FIX 2: handleContinue function define kiya
+  const handleContinue = () => {
+    if (selectedIndustry) {
+      router.push('/create/font'); // Agle step ka route
+    }
+  };
+
   return (
     <div className='bg-pink-50 min-h-screen w-full'>
-      {/* Main Wrapper: mx-auto isse center mein layega */}
       <div className="max-w-4xl mx-auto p-6 flex flex-col items-center">
         
-        {/* 1. Top Left Back Button Section */}
+        {/* Top Left Back Button */}
         <div className="w-full flex justify-start mb-6">
           <button 
             onClick={handleBack}
@@ -91,24 +98,25 @@ const IndustrySelection = () => {
         </div>
 
         {/* Bottom Action Section */}
-        <div className="flex items-center gap-6 max-w-full">
-          {/* 2. Back Button near Continue */}
+        {/* FIX 3: Buttons width aur alignment center kiya */}
+        <div className="flex flex-col md:flex-row items-center justify-center gap-4 w-full max-w-2xl">
           <button 
             onClick={handleBack}
-            className="w-2xl px-12 py-4 rounded-md text-lg font-semibold text-slate-700 bg-white shadow-md hover:bg-slate-100 transition-all"
+            className="w-full md:w-1/2 py-4 rounded-xl text-lg font-semibold text-slate-700 bg-white shadow-md hover:bg-slate-100 transition-all border border-gray-100"
           >
             Back
           </button>
 
-          {/* Continue Button */}
           <button
-            disabled={!selectedFont}
+            onClick={handleContinue}
+            // FIX 4: Disabled state selectedIndustry par depend karni chahiye
+            disabled={!selectedIndustry}
             className={`
-              w-2xl px-12 py-4 rounded-md text-lg font-bold text-white
-              transition-all duration-300 ease-in-out
-              ${selectedFont 
-                ? 'bg-linear-to-r from-pink-500 to-orange-400 hover:opacity-90 shadow-lg' 
-                : 'bg-slate-300 cursor-not-allowed'
+              w-full md:w-1/2 py-4 rounded-xl text-lg font-bold text-white
+              transition-all duration-300 ease-in-out shadow-lg
+              ${selectedIndustry 
+                ? 'bg-gradient-to-r from-pink-500 to-orange-400 hover:opacity-90 active:scale-95' 
+                : 'bg-slate-300 cursor-not-allowed shadow-none opacity-50'
               }
             `}
           >

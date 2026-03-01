@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation'; 
 import { Type, ChevronLeft } from 'lucide-react';
 
 const fontStyles = [
@@ -12,37 +13,50 @@ const fontStyles = [
 ];
 
 const FontSelection = () => {
-  // FIX: State variable ka naam sahi kiya (selectedFont)
   const [selectedFont, setSelectedFont] = useState(null);
+  const router = useRouter();
 
   const handleBack = () => {
-    console.log("Navigating back...");
+    router.back();
+  };
+
+  // FIX 1: handleContinue function add kiya
+  const handleContinue = () => {
+    if (selectedFont) {
+      router.push('/create/color-palette'); // Agla step
+    }
   };
 
   return (
-    <div className="min-h-screen bg-pink-50 p-6">
-      {/* 1. Top Left Back Button */}
-      <button
-        onClick={handleBack}
-        className="flex items-center gap-2 hover:text-slate-900 transition-colors bg-white text-black hover:bg-gray-200 rounded-md px-3 py-3 border-2"
-      >
-        <ChevronLeft size={20} />
-        Back
-      </button>
+    <div className="min-h-screen bg-pink-50 w-full">
+      <div className="max-w-5xl mx-auto p-6 flex flex-col items-center">
+        
+        {/* Top Left Back Button Section */}
+        <div className="w-full flex justify-start mb-6">
+          <button
+            onClick={handleBack}
+            className="flex items-center gap-2 hover:text-slate-900 transition-colors bg-white text-black hover:bg-gray-200 rounded-md px-4 py-2 border-2"
+          >
+            <ChevronLeft size={20} />
+            Back
+          </button>
+        </div>
 
-      {/* Main Container */}
-      <div className="w-full max-w-5xl mx-auto flex flex-col items-center">
         {/* Title Section */}
         <div className="flex flex-col items-center mb-12 text-center">
           <div className="p-4 rounded-3xl bg-white shadow-inner mb-6">
             <Type size={40} className="text-pink-600" />
           </div>
-          <h1 className="text-5xl font-extrabold text-slate-950 mb-3">Choose Your Font Style</h1>
-          <p className="text-xl text-slate-600">Select a typography style that matches your brand personality</p>
+          <h1 className="text-4xl md:text-5xl font-extrabold text-slate-950 mb-3 tracking-tight">
+            Choose Your Font Style
+          </h1>
+          <p className="text-lg md:text-xl text-slate-600">
+            Select a typography style that matches your brand personality
+          </p>
         </div>
 
         {/* Grid Section */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-6 w-full mb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 w-full mb-12">
           {fontStyles.map((font) => {
             const isSelected = selectedFont === font.name;
 
@@ -59,24 +73,20 @@ const FontSelection = () => {
                   }
                 `}
               >
-                {/* Font Preview Text */}
-                <span className={`text-6xl text-slate-950 ${font.style}`}>
+                <span className={`text-5xl md:text-6xl text-slate-950 ${font.style}`}>
                   AaBbCc
                 </span>
 
-                {/* Font Name */}
                 <span className="text-lg font-bold text-slate-950 mt-2">
                   {font.name}
                 </span>
 
-                {/* Font Description */}
                 <span className="text-sm text-slate-600 text-center">
                   {font.description}
                 </span>
 
-                {/* Selection Checkmark */}
                 {isSelected && (
-                  <div className="absolute -top-3 -right-3 bg-linear-to-r from-pink-500 to-orange-400 p-1.5 rounded-full shadow-lg">
+                  <div className="absolute -top-3 -right-3 bg-gradient-to-r from-pink-500 to-orange-400 p-1.5 rounded-full shadow-lg">
                     <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
                     </svg>
@@ -87,25 +97,25 @@ const FontSelection = () => {
           })}
         </div>
 
-        {/* Bottom Action Section */}
-        <div className="flex items-center gap-6 max-w-full">
-          {/* 2. Back Button near Continue */}
+        {/* Bottom Action Section - Centered Fix */}
+        <div className="flex flex-col md:flex-row items-center justify-center gap-4 w-full max-w-2xl">
           <button 
             onClick={handleBack}
-            className="w-2xl px-12 py-4 rounded-md text-lg font-semibold text-slate-700 bg-white shadow-md hover:bg-slate-100 transition-all"
+            className="w-full md:w-1/2 py-4 rounded-xl text-lg font-semibold text-slate-700 bg-white shadow-md hover:bg-slate-100 transition-all border border-gray-100"
           >
             Back
           </button>
 
-          {/* Continue Button */}
           <button
+            onClick={handleContinue}
+            // FIX 2: selectedPalette ko selectedFont se replace kiya
             disabled={!selectedFont}
             className={`
-              w-2xl px-12 py-4 rounded-md text-lg font-bold text-white
-              transition-all duration-300 ease-in-out
+              w-full md:w-1/2 py-4 rounded-xl text-lg font-bold text-white
+              transition-all duration-300 ease-in-out shadow-lg
               ${selectedFont 
-                ? 'bg-linear-to-r from-pink-500 to-orange-400 hover:opacity-90 shadow-lg' 
-                : 'bg-slate-300 cursor-not-allowed'
+                ? 'bg-gradient-to-r from-pink-500 to-orange-400 hover:opacity-90 active:scale-95' 
+                : 'bg-slate-300 cursor-not-allowed shadow-none opacity-50'
               }
             `}
           >
