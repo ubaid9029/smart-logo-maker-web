@@ -1,5 +1,5 @@
 "use client";
-
+import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { HiOutlineSparkles } from 'react-icons/hi';
@@ -23,6 +23,7 @@ const GetStarted = () => {
 
       {/* 1. Back Button - Left Aligned */}
       <div className="w-full flex justify-start mb-10">
+      <Link href="components\Hero.jsx">
         <button
           onClick={handleBack}
           className="flex items-center gap-2 hover:text-slate-900 transition-colors bg-white text-black hover:bg-gray-100 rounded-lg px-4 py-2 border border-gray-200 shadow-sm"
@@ -30,6 +31,7 @@ const GetStarted = () => {
           <ChevronLeft size={18} />
           Back
         </button>
+        </Link>
       </div>
 
       {/* Title Section */}
@@ -81,6 +83,7 @@ const GetStarted = () => {
 
       {/* Continue Button */}
       <div className="w-full max-w-2xl">
+        <Link href="..\create\category">
         <button
           onClick={() => router.push('/create/category')}
           disabled={!isFormValid}
@@ -91,6 +94,7 @@ const GetStarted = () => {
         >
           Continue <span className="text-2xl">→</span>
         </button>
+        </Link>
       </div>
     </div>
     </div>

@@ -1,6 +1,7 @@
 'use client';
+import Link from 'next/link';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation'; 
+import { useRouter } from 'next/navigation';
 import { LayoutGrid, ShoppingBag, Utensils, Heart, Palette, Code, Camera, Music, Coffee, Building, Dumbbell, GraduationCap, Briefcase, ChevronLeft } from 'lucide-react';
 
 const industries = [
@@ -37,16 +38,18 @@ const IndustrySelection = () => {
   return (
     <div className='bg-pink-50 min-h-screen w-full'>
       <div className="max-w-4xl mx-auto p-6 flex flex-col items-center">
-        
+
         {/* Top Left Back Button */}
         <div className="w-full flex justify-start mb-6">
-          <button 
-            onClick={handleBack}
-            className="flex items-center gap-2 hover:text-slate-900 transition-colors bg-white text-black hover:bg-gray-200 rounded-md px-4 py-2 border-2"
-          >
-            <ChevronLeft size={20} />
-            Back
-          </button>
+          <Link href="..\create\bussiness-info">
+            <button
+              onClick={handleBack}
+              className="flex items-center gap-2 hover:text-slate-900 transition-colors bg-white text-black hover:bg-gray-200 rounded-md px-4 py-2 border-2"
+            >
+              <ChevronLeft size={20} />
+              Back
+            </button>
+          </Link>
         </div>
 
         {/* Title Section */}
@@ -63,7 +66,7 @@ const IndustrySelection = () => {
           {industries.map((industry) => {
             const isSelected = selectedIndustry === industry.name;
             const Icon = industry.icon;
-            
+
             return (
               <button
                 key={industry.name}
@@ -71,8 +74,8 @@ const IndustrySelection = () => {
                 className={`
                   relative p-6 rounded-3xl flex flex-col items-center justify-center gap-4
                   transition-all duration-300 ease-in-out transform hover:-translate-y-2 hover:shadow-lg
-                  ${isSelected 
-                    ? 'bg-white shadow-xl ring-2 ring-orange-400' 
+                  ${isSelected
+                    ? 'bg-white shadow-xl ring-2 ring-orange-400'
                     : 'bg-white shadow-md border-2 border-transparent'
                   }
                 `}
@@ -80,7 +83,7 @@ const IndustrySelection = () => {
                 <div className={`${industry.color} text-white p-4 rounded-2xl`}>
                   <Icon size={28} />
                 </div>
-                
+
                 <span className="text-sm font-semibold text-slate-800 text-center leading-tight">
                   {industry.name}
                 </span>
@@ -100,32 +103,32 @@ const IndustrySelection = () => {
         {/* Bottom Action Section */}
         {/* FIX 3: Buttons width aur alignment center kiya */}
         <div className="flex flex-col md:flex-row items-center justify-center gap-4 w-full max-w-2xl">
-          <button 
-            onClick={handleBack}
-            className="w-full md:w-1/2 py-4 rounded-xl text-lg font-semibold text-slate-700 bg-white shadow-md hover:bg-slate-100 transition-all border border-gray-100"
-          >
-            Back
-          </button>
-
-          <button
-            onClick={handleContinue}
-            // FIX 4: Disabled state selectedIndustry par depend karni chahiye
-            disabled={!selectedIndustry}
-            className={`
+          
+            <button
+              onClick={handleBack}
+              className="w-full md:w-1/2 py-4 rounded-xl text-lg font-semibold text-slate-700 bg-white shadow-md hover:bg-slate-100 transition-all border border-gray-100"
+            >
+             <Link href="..\create\bussiness-info"> Back</Link>
+            </button>
+            
+              <button
+                onClick={handleContinue}
+                // FIX 4: Disabled state selectedIndustry par depend karni chahiye
+                disabled={!selectedIndustry}
+                className={`
               w-full md:w-1/2 py-4 rounded-xl text-lg font-bold text-white
               transition-all duration-300 ease-in-out shadow-lg
-              ${selectedIndustry 
-                ? 'bg-gradient-to-r from-pink-500 to-orange-400 hover:opacity-90 active:scale-95' 
-                : 'bg-slate-300 cursor-not-allowed shadow-none opacity-50'
-              }
+              ${selectedIndustry
+                    ? 'bg-gradient-to-r from-pink-500 to-orange-400 hover:opacity-90 active:scale-95'
+                    : 'bg-slate-300 cursor-not-allowed shadow-none opacity-50'
+                  }
             `}
-          >
-            Continue &rarr;
-          </button>
+              >
+               <Link href="..\create\fonts"> Continue &rarr;</Link>
+              </button>
+            </div>
         </div>
-      </div>
-    </div>
-  );
+         </div>
+      );
 }
-
 export default IndustrySelection;

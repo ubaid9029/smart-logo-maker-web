@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation'; 
 import { Type, ChevronLeft } from 'lucide-react';
@@ -33,13 +34,15 @@ const FontSelection = () => {
         
         {/* Top Left Back Button Section */}
         <div className="w-full flex justify-start mb-6">
-          <button
+          <Link href="..\create\category">
+                    <button
             onClick={handleBack}
             className="flex items-center gap-2 hover:text-slate-900 transition-colors bg-white text-black hover:bg-gray-200 rounded-md px-4 py-2 border-2"
           >
             <ChevronLeft size={20} />
             Back
           </button>
+          </Link>
         </div>
 
         {/* Title Section */}
@@ -103,7 +106,7 @@ const FontSelection = () => {
             onClick={handleBack}
             className="w-full md:w-1/2 py-4 rounded-xl text-lg font-semibold text-slate-700 bg-white shadow-md hover:bg-slate-100 transition-all border border-gray-100"
           >
-            Back
+           <Link href="../create/category"> Back</Link>
           </button>
 
           <button
@@ -119,7 +122,7 @@ const FontSelection = () => {
               }
             `}
           >
-            Continue &rarr;
+           <Link href="..\create\color-palette"> Continue &rarr;</Link>
           </button>
         </div>
       </div>
