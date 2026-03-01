@@ -124,7 +124,7 @@ const Hero = () => {
           transition={{ delay: 0.6, duration: 0.5 }}
           className="flex flex-col sm:flex-row items-center justify-center gap-5"
         >
-          <Link href="app\create">
+          <Link href="..\bussinessInfo.jsx">
             <button className="group flex items-center gap-3 bg-linear-to-r from-[#ff5c01] via-[#ff007a] to-[#c400ff] text-white px-10 py-4 rounded-full font-bold text-lg shadow-xl hover:scale-105 active:scale-95 transition-all duration-300">
               Get Started Free
               <HiArrowRight className="text-xl group-hover:translate-x-1 transition-transform" />

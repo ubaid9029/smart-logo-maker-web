@@ -1,8 +1,5 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Navbar from "../components/Navbar.jsx";
-import Footer from "../components/Footer.jsx";
-import { headers } from "next/headers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,21 +13,15 @@ const geistMono = Geist_Mono({
 
 export const metadata = {
   title: "Smart Logo Maker",
+  description: "Create your logo with AI",
 };
 
-export default async function RootLayout({ children }) {
-  const headersList = await headers();
-  const pathname = headersList.get("x-pathname") || "";
-  const isAuthRoute = pathname.startsWith("/auth");
-
+// Yahan se 'async' hata diya hai aur proper export lagaya hai
+export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {!isAuthRoute && <Navbar />}
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {children}
-        {!isAuthRoute && <Footer />}
       </body>
     </html>
   );
