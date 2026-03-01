@@ -79,7 +79,7 @@ const ColorPaletteGrid = () => {
                 `}
               >
                 {/* Gradient Preview */}
-                <div className={`w-full h-32 rounded-2xl bg-gradient-to-r ${palette.gradient} shadow-inner`}></div>
+                <div className={`w-full h-32 rounded-2xl bg-linear-to-r ${palette.gradient} shadow-inner`}></div>
 
                 {/* Small Color Circles */}
                 <div className="flex gap-2 justify-center w-full">
@@ -93,7 +93,7 @@ const ColorPaletteGrid = () => {
                 </span>
 
                 {isSelected && (
-                  <div className="absolute -top-3 -right-3 bg-gradient-to-r from-pink-500 to-orange-400 p-1.5 rounded-full shadow-lg">
+                  <div className="absolute -top-3 -right-3 bg-linears-to-r from-pink-500 to-orange-400 p-1.5 rounded-full shadow-lg">
                     <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
                     </svg>
@@ -120,7 +120,7 @@ const ColorPaletteGrid = () => {
               w-full md:w-1/2 py-4 rounded-xl text-lg font-bold text-white
               transition-all duration-300 ease-in-out shadow-lg
               ${selectedPalette 
-                ? 'bg-gradient-to-r from-pink-500 to-orange-400 hover:opacity-90 active:scale-95' 
+                ? 'bg-linear-to-r from-pink-500 to-orange-400 hover:opacity-90 active:scale-95' 
                 : 'bg-slate-300 cursor-not-allowed shadow-none opacity-50'
               }
             `}

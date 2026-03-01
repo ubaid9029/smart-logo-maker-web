@@ -72,7 +72,7 @@ const ResultsPage = () => {
       {/* --- POPUP MODAL WITH FRAMER MOTION --- */}
       <AnimatePresence>
         {selectedDesign && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
             {/* Backdrop Animation */}
             <motion.div 
               initial={{ opacity: 0 }}
@@ -121,7 +121,7 @@ const ResultsPage = () => {
                   <button className="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-bold border-2 border-slate-200 hover:bg-slate-50 transition-all">
                     <Download size={18} /> Download
                   </button>
-                  <button className="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-bold bg-gradient-to-r from-orange-500 to-pink-600 text-white shadow-lg shadow-pink-200 hover:opacity-90 transition-all">
+                  <button className="flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-bold bg-linear-to-r from-orange-500 to-pink-600 text-white shadow-lg shadow-pink-200 hover:opacity-90 transition-all">
                     <Bookmark size={18} /> Save
                   </button>
                 </div>

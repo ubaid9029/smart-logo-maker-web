@@ -36,7 +36,7 @@ const GetStarted = () => {
 
       {/* Title Section */}
       <div className="text-center mb-8">
-        <div className="mx-auto w-16 h-16 bg-gradient-to-r from-[#ff5c01] via-[#ff007a] to-[#c400ff] rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-pink-200">
+        <div className="mx-auto w-16 h-16 bg-linear-to-r from-[#ff5c01] via-[#ff007a] to-[#c400ff] rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-pink-200">
           <HiOutlineSparkles className="text-white text-3xl" />
         </div>
         <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">Let's Get Started</h1>
@@ -89,7 +89,7 @@ const GetStarted = () => {
           disabled={!isFormValid}
           className={`w-full mt-10 py-3 rounded-2xl text-white font-bold text-xl transition-all duration-300 shadow-2xl flex items-center justify-center gap-2
             ${isFormValid
-              ? 'bg-gradient-to-r from-[#FF5C00] via-[#FF007A] to-[#C400FF] hover:scale-[1.01] active:scale-95 shadow-pink-500/25 cursor-pointer'
+              ? 'bg-linear-to-r from-[#FF5C00] via-[#FF007A] to-[#C400FF] hover:scale-[1.01] active:scale-95 shadow-pink-500/25 cursor-pointer'
               : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'}`}
         >
           Continue <span className="text-2xl">→</span>

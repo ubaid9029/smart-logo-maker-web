@@ -54,7 +54,7 @@ export default function CreateLayout({ children }) {
             </div>
             <Progress 
               value={animatedValue} 
-              className="h-2 bg-gray-100 transition-all duration-1000 ease-out [&>div]:bg-gradient-to-r [&>div]:from-orange-500 [&>div]:via-pink-500 [&>div]:to-purple-600 [&>div]:transition-all [&>div]:duration-1000" 
+              className="h-2 bg-gray-100 transition-all duration-1000 ease-out [&>div]:bg-linear-to-r [&>div]:from-orange-500 [&>div]:via-pink-500 [&>div]:to-purple-600 [&>div]:transition-all [&>div]:duration-1000" 
             />
           </div>
         )}
