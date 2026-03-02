@@ -25,13 +25,18 @@ const Footer = () => {
           <div className="md:col-span-3 md:ml-auto">
             <h4 className="text-white font-bold text-lg mb-6">Product</h4>
             <ul className="flex flex-col space-y-4">
-              {['Features', 'How It Works', 'App Preview', 'Get Started'].map((item) => (
-                <li key={item}>
+              {[
+                { name: 'Features', path: '../page.jsx' },
+                { name: 'How It Works', path: 'components/Howitworks' },
+                { name: 'App Preview', path: 'components/AppPreview.jsx' },
+                { name: 'Get Started', path: '../create/bussiness-info' }
+              ].map((item) => (
+                <li key={item.name}>
                   <Link
-                    href={`#${item.toLowerCase().replace(/\s+/g, '-')}`}
+                    href={item.path} 
                     className="text-gray-400 hover:text-white transition-colors duration-300 text-sm font-medium"
                   >
-                    {item}
+                    {item.name}
                   </Link>
                 </li>
               ))}
