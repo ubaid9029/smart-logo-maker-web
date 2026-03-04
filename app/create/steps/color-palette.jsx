@@ -2,7 +2,7 @@
 import { Palette, ChevronLeft, Check } from 'lucide-react';
 import { useRouter } from 'next/navigation'; // Router import kiya
 import { useDispatch, useSelector } from "react-redux";
-import { generateLogo } from "@/store/logoSlice";
+import { generateLogo } from "./store/logoSlice";
 import { useRouter } from "next/navigation";
 
 const dispatch = useDispatch();
