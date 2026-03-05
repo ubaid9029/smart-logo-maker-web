@@ -21,7 +21,7 @@ const Category = ({ onNext, onBack, data, setData }) => {
     // Max-width ko 6xl kar diya taake width barh jaye
     <div className="flex flex-col items-center w-full max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-6 duration-700">
       
-      <div className="w-full flex justify-start mb-10">
+      <div className="w-4xl flex justify-start mb-10 mt-10">
         <button onClick={onBack} className=" flex items-center gap-2 text-slate-600 hover:text-black transition-all bg-white px-5 py-2.5 rounded-xl border border-slate-100 shadow-sm font-bold active:scale-95">
           <ChevronLeft size={18} strokeWidth={3} /> Back
         </button>
@@ -71,15 +71,15 @@ const Category = ({ onNext, onBack, data, setData }) => {
       </div>
 
       <div className="flex flex-col md:flex-row gap-6 w-full max-w-200 mb-10">
-        <button onClick={onBack} className="w-full md:w-1/2 py-5 rounded-3xl font-bold text-slate-400 bg-white shadow-sm border border-slate-100 hover:text-slate-600 transition-all">
+        <button onClick={onBack} className="w-2xl md:w-1/2 py-5 rounded-3xl font-bold text-slate-400 bg-white shadow-sm border border-slate-100 hover:text-slate-600 transition-all">
           Go Back
         </button>
         <button 
           onClick={onNext} 
           disabled={!data.category}
-          className={`w-full md:w-1/2 py-6 rounded-[2rem] text-xl font-black text-white transition-all duration-300 shadow-xl ${
+          className={`w-2xl md:w-1/2 py-6 rounded-[2rem] text-xl font-black text-white transition-all duration-300 shadow-xl ${
             data.category 
-            ? 'bg-linear-to-r from-[#FFB88C] via-[#FF007A] to-[#C400FF] hover:scale-[1.02] active:scale-95' 
+            ? 'bg-linear-to-r from-[#ff5c01] via-[#ff007a] to-[#c400ff] hover:scale-[1.02] active:scale-95' 
             : 'bg-slate-200 cursor-not-allowed opacity-60'
           }`}
         >

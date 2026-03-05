@@ -1,9 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import './globals.css';
 import ConditionalLayout from "../components/MainComponents/ConditionalLayout";
-import { Provider } from "react-redux";
-import { store } from "@/store/store";
-import { Providers } from "./providers";
+import { Providers } from "./providers"; // Custom provider import karein
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,11 +21,12 @@ export default function Layout({ children }) {
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <Provider >
+        {/* Providers ke andar store already configured hai */}
+        <Providers>
           <ConditionalLayout>
             {children}
           </ConditionalLayout>
-        </Provider>
+        </Providers>
       </body>
     </html>
   );
