@@ -20,7 +20,7 @@ const ResultsPage = () => {
       const formattedLogos = results.map((tpl, index) => ({
         id: tpl.id || index,
         name: `Design ${index + 1}`,
-        src: tpl.image_url || '/image1.jpg',
+        src: tpl.image_url || '../../image1.jpg',
         initials: formData.name || "BRAND",
         themeColor: tpl.color || '#8b5e3c'
       }));
