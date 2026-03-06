@@ -2,7 +2,9 @@
 import { Palette, ChevronLeft, Check, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useDispatch, useSelector } from "react-redux";
-import { updateFormData, generateLogosAction } from "../../../store/slices/logoSlice";
+import { updateFormData, generateLogosAction, initiateGeneration } from "../../../store/slices/logoSlice";
+import { useEffect } from 'react';
+
 
 const palettes = [
   { id: "1", name: 'Vibrant Energy', gradient: 'from-orange-400 via-pink-500 to-yellow-400', colors: ['bg-orange-400', 'bg-pink-500', 'bg-yellow-400', 'bg-red-400'] },
@@ -30,17 +32,18 @@ const ColorPalette = ({ onBack, data, setData }) => {
 
   const handleGenerate = async () => {
     if (data.color) {
-      // 1. Loading screen par bhejen
-      router.push('/generating');
-      
-      // 2. Redux Thunk trigger karein (API Call)
-      // Note: Hum yahan current local data ke bajaye updated formData bhej rahe hain
-      dispatch(generateLogosAction({ 
-        ...formData, 
-        colorId: palettes.find(p => p.name === data.color).id 
-      }));
+        dispatch(initiateGeneration()); 
+        router.push('/generating');
+        
+        // Sahi tarika: '...' ki jagah actual ID pass karein
+        const selectedPalette = palettes.find(p => p.name === data.color);
+        
+        dispatch(generateLogosAction({ 
+            formData, 
+            colorId: selectedPalette?.id || "1" // Yahan ID di gayi hai
+        }));
     }
-  };
+};
 
   return (
     <div className="pt-20 flex flex-col items-center w-full animate-in fade-in slide-in-from-bottom-6 duration-700 max-w-6xl mx-auto px-4 md:px-6">
