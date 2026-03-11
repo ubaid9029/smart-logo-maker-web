@@ -72,27 +72,70 @@ const ResultsPage = () => {
       </div>
 
       {/* PREVIEW MODAL */}
-      <AnimatePresence>
-        {selectedDesign && (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-            onClick={() => setSelectedDesign(null)}
+    <AnimatePresence>
+  {selectedDesign && (
+    <motion.div 
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }} 
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+      onClick={() => setSelectedDesign(null)}
+    >
+      <motion.div 
+        initial={{ scale: 0.9, y: 20 }} 
+        animate={{ scale: 1, y: 0 }} 
+        exit={{ scale: 0.9, y: 20 }}
+        className="bg-white p-6 md:p-8 rounded-[3rem] max-w-lg w-full relative shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close Button */}
+        <button 
+          onClick={() => setSelectedDesign(null)} 
+          className="absolute top-5 right-5 p-2 bg-slate-100 hover:bg-red-100 hover:text-red-600 transition-colors rounded-full z-10"
+        >
+          <X size={24} />
+        </button>
+
+        {/* Image Preview Container */}
+        <div className="w-full aspect-square relative rounded-[2rem] overflow-hidden bg-slate-50 mb-6 border border-slate-100">
+          <Image 
+            src={selectedDesign.src} 
+            alt="Preview" 
+            fill 
+            className="object-contain p-6" 
+            unoptimized 
+          />
+        </div>
+
+        {/* Text & Info */}
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-black text-slate-900 tracking-tight">{selectedDesign.name}</h2>
+          <p className="text-slate-500 font-medium mt-1">Ready to customize or purchase</p>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-4">
+          {/* Edit Button - Redirects to Canvas */}
+          <button 
+            onClick={() => handleEditOnCanva(selectedDesign)}
+            className="flex-1 flex items-center justify-center gap-2 bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-slate-200"
           >
-            <motion.div 
-              initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
-              className="bg-white p-6 rounded-[2.5rem] max-w-lg w-full relative"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button onClick={() => setSelectedDesign(null)} className="absolute top-4 right-4 p-2 bg-slate-100 rounded-full"><X size={20} /></button>
-              <div className="w-full aspect-square relative rounded-[2rem] overflow-hidden mb-4">
-                <Image src={selectedDesign.src} alt="Preview" fill className="object-contain" unoptimized />
-              </div>
-              <h2 className="text-2xl font-black text-center">{selectedDesign.name}</h2>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <Edit3 size={18} />
+            Edit Design
+          </button>
+
+          {/* Buy Button */}
+          <button 
+            className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-[#FF6B00] to-[#E02424] text-white py-4 rounded-2xl font-bold hover:opacity-90 transition-all active:scale-95 shadow-lg shadow-orange-200"
+          >
+            <ShoppingCart size={18} />
+            Buy Now
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
     </div>
   );
 };
