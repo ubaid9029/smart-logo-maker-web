@@ -28,7 +28,7 @@ const Hero = () => {
       {/* 1. BACKGROUND IMAGE*/}
       <div className="absolute inset-0 z-0 pointer-events-none select-none overflow-hidden">
         <img
-          src="/logos/logo1.svg"
+          src="/logo1.svg"
           alt="background-decoration"
           className="absolute 
                /* Position fixing */
@@ -50,7 +50,7 @@ const Hero = () => {
             maskImage: 'linear-gradient(to bottom, black 70%, transparent 100%)',
             WebkitMaskImage: 'linear-gradient(to bottom, black 70%, transparent 100%)'
           }}
-          onError={(e) => console.log("Check if /logos/logo1.svg exists")}
+          onError={(e) => console.log("Check if /logo1.svg exists")}
         />
       </div>
 

@@ -2,20 +2,6 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-### Environment variables
-
-This app requires Supabase public credentials.
-
-1. Copy `.env.example` to `.env.local`
-2. Fill in values from your Supabase dashboard API settings:
-
-```bash
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-```
-
-Without these values, auth/session features will not work.
-
 First, run the development server:
 
 ```bash
@@ -29,16 +15,6 @@ bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-### Network access in dev (optional)
-
-If you access dev server from another device/IP and see an `allowedDevOrigins` warning, add this to `next.config.ts`:
-
-```ts
-const nextConfig = {
-	allowedDevOrigins: ["10.4.28.185"],
-};
-```
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

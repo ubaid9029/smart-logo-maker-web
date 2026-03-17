@@ -1,6 +1,5 @@
 'use client';
 import React, { useEffect } from 'react';
-import { useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { Zap } from 'lucide-react';
@@ -10,17 +9,15 @@ import { generateLogosAction } from '@/store/slices/logoSlice'; // Sahi path che
 const CreatingLogos = () => {
   const router = useRouter();
   const dispatch = useDispatch();
-  const hasRequestedRef = useRef(false);
 
   // Store se data lein
-  const { formData, status } = useSelector((state) => state.logo);
+  const { formData, status, results } = useSelector((state) => state.logo);
 
   useEffect(() => {
     console.log("Current Status in CreatingLogos:", status);
 
     // Generation trigger karein
-    if (status === 'idle' && !hasRequestedRef.current) {
-      hasRequestedRef.current = true;
+    if (status === 'idle') {
       console.log("Triggering API Call...");
       dispatch(generateLogosAction(formData));
     }
@@ -28,10 +25,10 @@ const CreatingLogos = () => {
 
   // Agar status succeeded ho gaya, to results page par bhej dein
   useEffect(() => {
-    if (status === 'succeeded') {
+    if (status === 'succeeded' && results.length > 0) {
       router.push('/results');
     }
-  }, [status, router]);
+  }, [status, results, router]);
 
   const steps = [
     { id: 1, text: 'Analyzing your preferences...', icon: '✨', color: 'from-pink-500 to-orange-400' },

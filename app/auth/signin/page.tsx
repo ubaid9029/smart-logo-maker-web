@@ -1,6 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-import { FaGoogle } from "react-icons/fa";
 import { signIn, signInWithGoogle } from "@/app/auth/actions";
 
 interface Props {
@@ -18,7 +17,7 @@ export default async function Login({ searchParams }: Props) {
       {/* LEFT - LOGIN FORM */}
       <div className="w-full max-w-md bg-white/90 backdrop-blur-xl rounded-3xl shadow-lg px-8 py-8 md:mr-8 z-10">
         <div className="flex justify-center mb-5">
-          <Image src="/logos/logo3.svg" alt="Logo" width={80} height={80} priority />
+          <Image src="/logo3.svg" alt="Logo" width={80} height={80} priority />
         </div>
 
         <div className="text-center mb-4">
@@ -102,7 +101,7 @@ export default async function Login({ searchParams }: Props) {
             type="submit"
             className="w-full h-10 rounded-xl border border-gray-300 flex items-center justify-center gap-2 text-sm text-gray-900 font-medium hover:bg-gray-100 transition"
           >
-            <FaGoogle className="w-4 h-4" aria-hidden="true" />
+            <img src="/google.png" className="w-4 h-4" alt="Google" />
             Continue with Google
           </button>
         </form>

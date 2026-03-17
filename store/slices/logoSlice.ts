@@ -5,15 +5,12 @@ export const generateLogosAction = createAsyncThunk(
   'logo/generateLogos',
   async (userData: any, { rejectWithValue }) => {
     try {
-      const resolvedName = String(userData?.name ?? userData?.businessName ?? '').trim();
-      const resolvedSlogan = String(userData?.slogan ?? '').trim();
-
       const response = await axios.post('/api/generate', {
-        name: resolvedName || "BRAND",
-        slogan: resolvedSlogan,
-        industryId: userData.industryId || 23,
-        fontId: userData.fontId || "1",
-        colorId: userData.colorId || "1",
+        name: userData.name || "BRAND",
+        slogan: userData.slogan || "",
+        industry: userData.industryId || 23,
+        font: userData.fontId || "1",
+        color: userData.colorId || "1",
         p: 2,
       });
       // API response return karein
@@ -45,17 +42,6 @@ const logoSlice = createSlice({
     updateFormData: (state, action: PayloadAction<any>) => {
       state.formData = { ...state.formData, ...action.payload };
     },
-    updateEditedLogo: (
-      state,
-      action: PayloadAction<{ index: number; updates: Record<string, any> }>
-    ) => {
-      const { index, updates } = action.payload;
-      if (typeof index !== 'number' || index < 0 || index >= state.results.length) return;
-      state.results[index] = {
-        ...state.results[index],
-        ...updates,
-      };
-    },
     resetLogoProcess: (state) => {
       state.results = [];
       state.status = 'idle';
@@ -72,9 +58,8 @@ const logoSlice = createSlice({
         console.log("API Success, Payload received:", action.payload);
         state.status = 'succeeded';
 
-        const payload = action.payload;
-        const extractedResults = payload?.data ?? payload?.logos ?? payload?.results ?? payload?.logo_list ?? [];
-        state.results = Array.isArray(extractedResults) ? extractedResults : [];
+        // FIX: API response mein data 'data' field ke andar hai
+        state.results = action.payload.data || [];
       })
       .addCase(generateLogosAction.rejected, (state, action) => {
         state.status = 'failed';
@@ -83,5 +68,5 @@ const logoSlice = createSlice({
   },
 });
 
-export const { updateFormData, updateEditedLogo, resetLogoProcess } = logoSlice.actions;
+export const { updateFormData, resetLogoProcess } = logoSlice.actions;
 export default logoSlice.reducer;

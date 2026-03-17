@@ -31,26 +31,6 @@ export default function Canvas({ config = {} }) {
     return () => window.removeEventListener('resize', updateSize);
   }, []);
 
-  const brandText = (config.text || 'BRAND').toUpperCase();
-  const textLength = brandText.length;
-  const fontSize = textLength > 14 ? 40 : textLength > 10 ? 50 : textLength > 7 ? 60 : 70;
-
-  const iconBox = {
-    width: 180,
-    height: 180,
-    x: 350 - 90,
-    y: 120,
-  };
-
-  const hasImage = Boolean(img);
-  const sourceW = hasImage ? Math.max(1, img.width) : 1;
-  const sourceH = hasImage ? Math.max(1, img.height) : 1;
-  const iconScale = Math.min(iconBox.width / sourceW, iconBox.height / sourceH);
-  const iconRenderW = sourceW * iconScale;
-  const iconRenderH = sourceH * iconScale;
-  const iconX = iconBox.x + (iconBox.width - iconRenderW) / 2;
-  const iconY = iconBox.y + (iconBox.height - iconRenderH) / 2;
-
   return (
     <div ref={containerRef} className="w-full h-full flex items-center justify-center overflow-hidden">
       <div className="bg-white shadow-2xl rounded-[2.5rem] p-2 border border-gray-50 overflow-hidden">
@@ -72,30 +52,21 @@ export default function Canvas({ config = {} }) {
             {img && (
               <KonvaImage
                 image={img}
-                x={iconX}
-                y={iconY}
-                width={iconRenderW}
-                height={iconRenderH}
+                x={350 - (img.width * 0.2) / 2}
+                y={250 - (img.height * 0.2) / 2 - 50}
+                width={img.width * 0.2}
+                height={img.height * 0.2}
               />
             )}
-            <Rect
-              x={280}
-              y={320}
-              width={140}
-              height={2}
-              fill={config.textColor || "#1F2937"}
-              opacity={0.25}
-              cornerRadius={1}
-            />
             <Text
-              text={brandText}
+              text={config.text}
               x={0}
-              y={338}
+              y={250 + 20}
               width={700}
-              fontSize={fontSize}
+              fontSize={80}
               fontFamily={config.fontFamily}
               fontStyle="bold"
-              fill={config.textColor || "#1F2937"}
+              fill="#1F2937"
               align="center"
             />
           </Layer>

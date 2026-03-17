@@ -28,7 +28,7 @@ const Navbar = ({ minimal }) => {
                 className="flex items-center justify-center w-full h-full"
               >
                 <img
-                  src="/logos/logo3.svg" // Added / for absolute path
+                  src="/logo3.svg" // Added / for absolute path
                   alt="Smart Logo Maker"
                   className="w-full h-full object-contain"
                 />

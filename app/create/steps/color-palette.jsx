@@ -2,7 +2,8 @@
 import { Palette, ChevronLeft, Check, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useDispatch, useSelector } from "react-redux";
-import { updateFormData, resetLogoProcess } from "../../../store/slices/logoSlice";
+import { updateFormData, generateLogosAction } from "../../../store/slices/logoSlice";
+import { useEffect } from 'react';
 
 
 const palettes = [
@@ -22,8 +23,7 @@ const ColorPalette = ({ onBack, data, setData }) => {
   const dispatch = useDispatch();
 
   // Redux se data nikaalna
-  const { status } = useSelector((state) => state.logo);
-  const loading = status === 'loading';
+  const { loading, formData } = useSelector((state) => state.logo);
 
   const handleSelect = (palette) => {
     setData({ ...data, color: palette.name });
@@ -33,10 +33,15 @@ const ColorPalette = ({ onBack, data, setData }) => {
 
   const handleGenerate = async () => {
     if (data.color) {
-      const selectedPalette = palettes.find(p => p.name === data.color);
-      dispatch(updateFormData({ colorId: selectedPalette?.id || '1' }));
-      dispatch(resetLogoProcess());
+      // initiateGeneration() yahan se hata dein
       router.push('/generating'); // Page move karein
+
+      const selectedPalette = palettes.find(p => p.name === data.color);
+
+      dispatch(generateLogosAction({
+        ...formData, // Spread operator ka use karein
+        colorId: selectedPalette?.id || "1"
+      }));
     }
   };
 

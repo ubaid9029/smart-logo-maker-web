@@ -1,6 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { getSupabaseEnv } from "./lib/supabaseEnv";
 
 export async function proxy(request: NextRequest) {
     // Forward the pathname so Server Components can read it via headers()
@@ -11,14 +10,9 @@ export async function proxy(request: NextRequest) {
         request: { headers: requestHeaders },
     });
 
-    const { url, anonKey, isConfigured } = getSupabaseEnv();
-    if (!isConfigured) {
-        return supabaseResponse;
-    }
-
     const supabase = createServerClient(
-        url,
-        anonKey,
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
             cookies: {
                 getAll() {

@@ -14,7 +14,7 @@ const Footer = () => {
           {/* Logo and Description */}
           <div className="md:col-span-5">
             <div className="flex items-center gap-2">
-              <img src="/logos/logo2.svg" alt="Smart Logo Maker" className="w-30 h-30" />
+              <img src="/logo2.svg" alt="Smart Logo Maker" className="w-30 h-30" />
             </div>
             <p className="text-gray-400 text-sm md:text-base max-w-sm leading-relaxed">
               Transform your brand vision into reality with AI-powered logo generation. Professional designs made easy.

@@ -17,7 +17,7 @@ const FinalCTA = () => {
           
           className="flex justify-center mb-8"
         >
-          <img src="/logos/logo1.svg" alt="Logo" className="w-20 h-20 drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]" />
+          <img src="/logo1.svg" alt="Logo" className="w-20 h-20 drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]" />
         </motion.div>
 
         <motion.h2

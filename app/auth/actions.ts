@@ -3,23 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabaseServer";
-import { getSupabaseEnv } from "@/lib/supabaseEnv";
 import { headers } from "next/headers";
-
-function ensureSupabaseConfigured(pathname: "/auth/signin" | "/auth/signup") {
-    const { isConfigured } = getSupabaseEnv();
-    if (!isConfigured) {
-        redirect(
-            `${pathname}?error=${encodeURIComponent(
-                "Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local"
-            )}`
-        );
-    }
-}
 
 // ─── Sign In ────────────────────────────────────────────────────────────────
 export async function signIn(formData: FormData) {
-    ensureSupabaseConfigured("/auth/signin");
     const supabase = await createClient();
 
     const email = formData.get("email") as string;
@@ -37,7 +24,6 @@ export async function signIn(formData: FormData) {
 
 // ─── Sign Up ────────────────────────────────────────────────────────────────
 export async function signUp(formData: FormData) {
-    ensureSupabaseConfigured("/auth/signup");
     const supabase = await createClient();
 
     const fullName = formData.get("fullName") as string;
@@ -62,7 +48,6 @@ export async function signUp(formData: FormData) {
 
 // ─── Sign Out ───────────────────────────────────────────────────────────────
 export async function signOut() {
-    ensureSupabaseConfigured("/auth/signin");
     const supabase = await createClient();
     await supabase.auth.signOut();
     revalidatePath("/", "layout");
@@ -71,7 +56,6 @@ export async function signOut() {
 
 // ─── Google OAuth ────────────────────────────────────────────────────────────
 export async function signInWithGoogle() {
-    ensureSupabaseConfigured("/auth/signin");
     const supabase = await createClient();
     const origin = (await headers()).get("origin");
 

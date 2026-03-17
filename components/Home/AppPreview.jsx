@@ -4,10 +4,10 @@ import { HiArrowRight, HiDevicePhoneMobile } from 'react-icons/hi2';
 
 const AppPreview = () => {
     const steps = [
-        { id: 1, title: "Home Dashboard", desc: "Quick access to all features", img: "/images/app1.PNG", color: "shadow-pink-500/40", offset: "lg:-mt-12" },
-        { id: 2, title: "Logo Editor", desc: "Advanced editing canvas", img: "/images/app2.PNG", color: "shadow-orange-500/40", offset: "lg:mt-12" },
-        { id: 3, title: "Font Selection", desc: "Choose perfect typography", img: "/images/app3.PNG", color: "shadow-purple-500/40", offset: "lg:-mt-12" },
-        { id: 4, title: "AI Generation", desc: "Auto-generate stunning logos", img: "/images/app4.PNG", color: "shadow-blue-500/40", offset: "lg:mt-12" }
+        { id: 1, title: "Home Dashboard", desc: "Quick access to all features", img: "/app1.PNG", color: "shadow-pink-500/40", offset: "lg:-mt-12" },
+        { id: 2, title: "Logo Editor", desc: "Advanced editing canvas", img: "/app2.PNG", color: "shadow-orange-500/40", offset: "lg:mt-12" },
+        { id: 3, title: "Font Selection", desc: "Choose perfect typography", img: "/app3.PNG", color: "shadow-purple-500/40", offset: "lg:-mt-12" },
+        { id: 4, title: "AI Generation", desc: "Auto-generate stunning logos", img: "/app4.PNG", color: "shadow-blue-500/40", offset: "lg:mt-12" }
     ];
 
     const containerVariants = {
