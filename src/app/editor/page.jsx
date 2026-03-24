@@ -198,6 +198,14 @@ const CARD_PADDING = 18;
 const CARD_X = (CANVAS_WIDTH - CARD_WIDTH) / 2;
 const CARD_Y = (CANVAS_HEIGHT - CARD_HEIGHT) / 2;
 const EDITED_LOGO_STORAGE_PREFIX = 'edited-logo:';
+const waitForNextFrame = () => new Promise((resolve) => {
+  if (typeof window === 'undefined') {
+    resolve();
+    return;
+  }
+
+  window.requestAnimationFrame(() => resolve());
+});
 
 const getCollectionNameByType = (type) => {
   if (type === 'logo') return 'logoItems';
@@ -631,6 +639,7 @@ function EditorUI() {
   const backgroundImageInputRef = useRef(null);
   const stageRef = useRef(null);
   const [canvasSelectionOverride, setCanvasSelectionOverride] = useState(null);
+  const [canvasClearSelectionToken, setCanvasClearSelectionToken] = useState(0);
   const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
   const [downloadingFormat, setDownloadingFormat] = useState(null);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
@@ -1058,6 +1067,7 @@ function EditorUI() {
     selectedCanvasItemRef.current = null;
     setSelectedCanvasItem(null);
     setCanvasSelectionOverride(null);
+    setCanvasClearSelectionToken((value) => value + 1);
   }, []);
 
   const sidebarHeading = selectedCanvasItem ? activeObjectPanel.charAt(0).toUpperCase() + activeObjectPanel.slice(1) : 'Variations';
@@ -1504,88 +1514,44 @@ function EditorUI() {
     }
   };
 
-  const handleEditorDownload = async (format) => {
-    const stage = stageRef.current;
-    if (!stage || !format) {
-      return;
-    }
-
-    const safeBaseName = getDownloadBaseName(initialBusinessValue || logoConfig?.textItems?.[0]?.text || 'logo');
-    setDownloadingFormat(format);
-
-    try {
-      const pngDataUrl = stage.toDataURL({ pixelRatio: 4 });
-
-      if (format === 'svg') {
-        const svgMarkup = [
-          `<svg xmlns="http://www.w3.org/2000/svg" width="700" height="500" viewBox="0 0 700 500" preserveAspectRatio="xMidYMid meet">`,
-          `<image href="${pngDataUrl}" x="0" y="0" width="700" height="500" />`,
-          '</svg>',
-        ].join('');
-        triggerBlobDownload(new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' }), `${safeBaseName}.svg`);
-        return;
-      }
-
-      const { canvas } = await renderDataUrlToCanvas(pngDataUrl);
-
-      if (format === 'png') {
-        const blob = await canvasToBlob(canvas, 'image/png');
-        triggerBlobDownload(blob, `${safeBaseName}.png`);
-        return;
-      }
-
-      if (format === 'jpg') {
-        const blob = await canvasToBlob(canvas, 'image/jpeg', 0.96);
-        triggerBlobDownload(blob, `${safeBaseName}.jpg`);
-        return;
-      }
-
-      if (format === 'webp') {
-        const blob = await canvasToBlob(canvas, 'image/webp', 0.96);
-        triggerBlobDownload(blob, `${safeBaseName}.webp`);
-        return;
-      }
-
-      if (format === 'pdf') {
-        const jpegBlob = await canvasToBlob(canvas, 'image/jpeg', 0.98);
-        const jpegBytes = new Uint8Array(await jpegBlob.arrayBuffer());
-        const pdfBlob = buildPdfBlobFromJpegBytes(jpegBytes, canvas.width, canvas.height);
-        triggerBlobDownload(pdfBlob, `${safeBaseName}.pdf`);
-      }
-    } finally {
-      setDownloadingFormat(null);
-    }
-  };
-
-  const captureEditorPreview = useCallback((pixelRatio = 2) => {
+  const captureEditorPreview = useCallback(async (pixelRatio = 2, options = {}) => {
     const stage = stageRef.current;
     if (!stage) {
       return null;
     }
 
-    return stage.toDataURL({ pixelRatio });
-  }, []);
+    const shouldHideSelection = Boolean(options.hideSelection);
+    const previousSelection = selectedCanvasItemRef.current;
+
+    if (shouldHideSelection && previousSelection) {
+      clearCanvasSelection();
+      await waitForNextFrame();
+      await waitForNextFrame();
+      stage.batchDraw();
+    }
+
+    const dataUrl = stage.toDataURL({ pixelRatio });
+
+    if (shouldHideSelection && previousSelection) {
+      selectedCanvasItemRef.current = previousSelection;
+      setSelectedCanvasItem(previousSelection);
+      setCanvasSelectionOverride(previousSelection);
+      await waitForNextFrame();
+    }
+
+    return dataUrl;
+  }, [clearCanvasSelection]);
 
   const buildEditableSavePayload = useCallback(() => JSON.parse(JSON.stringify(logoConfig)), [logoConfig]);
 
-  const handlePreviewOpen = useCallback(() => {
-    const nextPreviewImageUrl = captureEditorPreview(2);
-    if (!nextPreviewImageUrl) {
-      return;
-    }
-
-    setPreviewImageUrl(nextPreviewImageUrl);
-    setPreviewDialogOpen(true);
-  }, [captureEditorPreview]);
-
-  const handleSaveDesign = useCallback(() => {
+  const persistEditorChanges = useCallback(async ({ previewDataUrl, navigate = false } = {}) => {
     if (!designId || typeof window === 'undefined') {
-      return;
+      return null;
     }
 
-    const nextPreviewImageUrl = captureEditorPreview(2);
+    const nextPreviewImageUrl = previewDataUrl || await captureEditorPreview(2, { hideSelection: true });
     if (!nextPreviewImageUrl) {
-      return;
+      return null;
     }
 
     setSavingChanges(true);
@@ -1611,11 +1577,100 @@ function EditorUI() {
         window.sessionStorage.setItem(payloadKey, JSON.stringify(editablePayload));
       }
 
-      router.push('/results');
+      if (navigate) {
+        router.push('/results');
+      }
+
+      return nextPreviewImageUrl;
     } finally {
       setSavingChanges(false);
     }
   }, [buildEditableSavePayload, captureEditorPreview, designId, editScopeKey, payloadKey, router]);
+
+  const handlePreviewOpen = useCallback(async () => {
+    const nextPreviewImageUrl = await captureEditorPreview(2, { hideSelection: true });
+    if (!nextPreviewImageUrl) {
+      return;
+    }
+
+    setPreviewImageUrl(nextPreviewImageUrl);
+    setPreviewDialogOpen(true);
+  }, [captureEditorPreview]);
+
+  const handleSaveDesign = useCallback(async () => {
+    await persistEditorChanges({ navigate: true });
+  }, [persistEditorChanges]);
+
+  const handleOpenDownloadDialog = useCallback(async () => {
+    clearCanvasSelection();
+    await waitForNextFrame();
+    await waitForNextFrame();
+    await persistEditorChanges();
+    setDownloadDialogOpen(true);
+  }, [clearCanvasSelection, persistEditorChanges]);
+
+  const handleEditorDownload = async (format) => {
+    const stage = stageRef.current;
+    if (!stage || !format) {
+      return;
+    }
+
+    const safeBaseName = getDownloadBaseName(initialBusinessValue || logoConfig?.textItems?.[0]?.text || 'logo');
+    setDownloadingFormat(format);
+
+    try {
+      const pngDataUrl = await captureEditorPreview(4, { hideSelection: true });
+      if (!pngDataUrl) {
+        return;
+      }
+
+      await persistEditorChanges({ previewDataUrl: await captureEditorPreview(2, { hideSelection: true }) });
+
+      if (format === 'svg') {
+        const svgMarkup = [
+          `<svg xmlns="http://www.w3.org/2000/svg" width="700" height="500" viewBox="0 0 700 500" preserveAspectRatio="xMidYMid meet">`,
+          `<image href="${pngDataUrl}" x="0" y="0" width="700" height="500" />`,
+          '</svg>',
+        ].join('');
+        triggerBlobDownload(new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' }), `${safeBaseName}.svg`);
+        setDownloadDialogOpen(false);
+        return;
+      }
+
+      const { canvas } = await renderDataUrlToCanvas(pngDataUrl);
+
+      if (format === 'png') {
+        const blob = await canvasToBlob(canvas, 'image/png');
+        triggerBlobDownload(blob, `${safeBaseName}.png`);
+        setDownloadDialogOpen(false);
+        return;
+      }
+
+      if (format === 'jpg') {
+        const blob = await canvasToBlob(canvas, 'image/jpeg', 0.96);
+        triggerBlobDownload(blob, `${safeBaseName}.jpg`);
+        setDownloadDialogOpen(false);
+        return;
+      }
+
+      if (format === 'webp') {
+        const blob = await canvasToBlob(canvas, 'image/webp', 0.96);
+        triggerBlobDownload(blob, `${safeBaseName}.webp`);
+        setDownloadDialogOpen(false);
+        return;
+      }
+
+      if (format === 'pdf') {
+        const jpegBlob = await canvasToBlob(canvas, 'image/jpeg', 0.98);
+        const jpegBytes = new Uint8Array(await jpegBlob.arrayBuffer());
+        const pdfBlob = buildPdfBlobFromJpegBytes(jpegBytes, canvas.width, canvas.height);
+        triggerBlobDownload(pdfBlob, `${safeBaseName}.pdf`);
+        setDownloadDialogOpen(false);
+      }
+    } finally {
+      setDownloadingFormat(null);
+    }
+  };
 
   const renderSidebarContent = () => {
     if (isControlsContext && selectedItemData) {
@@ -3050,6 +3105,7 @@ function EditorUI() {
             }
             onSelectionChange={handleCanvasSelectionChange}
             selectionOverride={canvasSelectionOverride}
+            clearSelectionToken={canvasClearSelectionToken}
             stageRef={stageRef}
           />
           </div>
@@ -3075,7 +3131,7 @@ function EditorUI() {
           </button>
 
           <button
-            onClick={() => setDownloadDialogOpen(true)}
+            onClick={handleOpenDownloadDialog}
             className="flex w-full items-center justify-center gap-2 rounded-full border border-orange-200 bg-white px-6 py-3.5 text-sm font-bold text-orange-600 sm:w-auto sm:px-8"
           >
             <ShoppingCart size={18} /> <span>Download</span>

@@ -786,7 +786,14 @@ function TextNode({
   );
 }
 
-export default function Canvas({ config = {}, onConfigChange, onSelectionChange, selectionOverride, stageRef: externalStageRef = null }) {
+export default function Canvas({
+  config = {},
+  onConfigChange,
+  onSelectionChange,
+  selectionOverride,
+  clearSelectionToken = 0,
+  stageRef: externalStageRef = null,
+}) {
   const containerRef = useRef(null);
   const transformerRef = useRef(null);
   const nodeMapRef = useRef({});
@@ -856,6 +863,14 @@ export default function Canvas({ config = {}, onConfigChange, onSelectionChange,
 
     return () => window.cancelAnimationFrame(frame);
   }, [selectionOverride]);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      setSelectedItem(null);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [clearSelectionToken]);
 
   useEffect(() => {
     const updateSize = () => {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from 'react';
 import { Download, Loader2, X } from 'lucide-react';
 import { DOWNLOAD_FORMATS } from '../lib/downloadAssets';
 
@@ -11,6 +12,12 @@ export default function DownloadDialog({
   onClose,
   onDownload,
 }) {
+  const [selectedFormat, setSelectedFormat] = useState(DOWNLOAD_FORMATS[0]?.id || 'png');
+  const activeFormat = useMemo(
+    () => DOWNLOAD_FORMATS.find((format) => format.id === selectedFormat) || DOWNLOAD_FORMATS[0],
+    [selectedFormat]
+  );
+
   if (!open) {
     return null;
   }
@@ -42,25 +49,41 @@ export default function DownloadDialog({
           </button>
         </div>
 
-        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {DOWNLOAD_FORMATS.map((format) => (
-            <button
-              key={format.id}
-              onClick={() => onDownload(format.id)}
+        <div className="mt-6 space-y-4">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+            <label htmlFor="download-format" className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+              File Type
+            </label>
+            <select
+              id="download-format"
+              value={selectedFormat}
+              onChange={(event) => setSelectedFormat(event.target.value)}
               disabled={Boolean(downloadingFormat)}
-              className={`rounded-2xl border px-4 py-4 text-left transition-all ${
-                downloadingFormat
-                  ? 'cursor-not-allowed border-slate-200 bg-white/70 text-slate-400'
-                  : 'border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:shadow-sm'
-              }`}
+              className="mt-3 h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-800 outline-none transition-all focus:border-orange-300"
             >
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-extrabold">{format.label}</p>
-                <Download size={16} />
-              </div>
-              <p className="mt-2 text-xs font-medium text-slate-500">{format.description}</p>
-            </button>
-          ))}
+              {DOWNLOAD_FORMATS.map((format) => (
+                <option key={format.id} value={format.id}>
+                  {format.label}
+                </option>
+              ))}
+            </select>
+            <p className="mt-3 text-sm font-medium text-slate-500">
+              {activeFormat?.description || 'Choose the file type you want to download.'}
+            </p>
+          </div>
+
+          <button
+            onClick={() => activeFormat && onDownload(activeFormat.id)}
+            disabled={Boolean(downloadingFormat) || !activeFormat}
+            className={`flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-bold text-white shadow-lg transition-all ${
+              downloadingFormat || !activeFormat
+                ? 'cursor-not-allowed bg-slate-300 shadow-none'
+                : 'bg-gradient-to-r from-[#FF6B00] via-[#E02424] to-[#C400FF] hover:opacity-95'
+            }`}
+          >
+            {downloadingFormat ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+            <span>{downloadingFormat ? 'Downloading...' : `Download ${activeFormat?.label || ''}`}</span>
+          </button>
         </div>
       </div>
     </div>
