@@ -8,6 +8,75 @@ html {
   scroll-behavior: smooth;
 }
 
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+html,
+body,
+a,
+button,
+[role="button"],
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+[role="button"],
+a[href],
+summary,
+label[for],
+input[type="color"],
+input[type="range"],
+input[type="button"],
+input[type="submit"],
+input[type="reset"],
+details > summary,
+.cursor-pointer {
+  cursor: pointer !important;
+}
+
+button *,
+[role="button"] *,
+a[href] *,
+summary *,
+label[for] *,
+.cursor-pointer * {
+  cursor: inherit !important;
+}
+
+button:disabled,
+input:disabled,
+textarea:disabled,
+select:disabled {
+  cursor: not-allowed !important;
+}
+
+button:disabled *,
+input:disabled *,
+textarea:disabled *,
+select:disabled * {
+  cursor: inherit !important;
+}
+
+html.modal-open,
+body.modal-open {
+  overflow: hidden;
+}
+
+img,
+svg,
+video,
+canvas,
+iframe {
+  max-width: 100%;
+}
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);

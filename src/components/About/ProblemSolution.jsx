@@ -49,7 +49,7 @@ const ProblemSolution = () => {
           transition={{ delay: 0.2 }}
           className="text-gray-500 text-lg mb-16"
         >
-          We're optimize problem and smart logo services
+          We&apos;re optimize problem and smart logo services
         </motion.p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">

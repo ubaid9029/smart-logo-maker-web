@@ -158,7 +158,7 @@ const ResultsPage = () => {
         iconAsset?.url
       );
       const savedEdit = savedEdits[designId] || null;
-      const savedPreviewDataUrl = savedEdit?.previewDataUrl || null;
+      const savedPreviewDataUrl = savedEdit?.previewVersion >= 2 ? savedEdit.previewDataUrl || null : null;
       const mergedEditablePayload = savedEdit?.editablePayload || editablePayload;
       const previewSvgMarkup = savedPreviewDataUrl ? buildRasterSvgMarkup(savedPreviewDataUrl) : svgMarkup;
 
@@ -190,12 +190,14 @@ const ResultsPage = () => {
 
   const handleEditOnCanva = (design) => {
     const payloadKey = `logo-edit-${editScopeKey}-${design.id}`;
+    const imageParam = design.fallbackUrl || '';
+
     if (typeof window !== 'undefined') {
       window.sessionStorage.setItem(payloadKey, JSON.stringify(design.editablePayload || null));
     }
 
     const params = new URLSearchParams({
-      img: design.svgDataUri || design.fallbackUrl || '',
+      img: imageParam,
       text: design.businessName,
       slogan: design.slogan || '',
       textColor: design.themeColor,
@@ -255,19 +257,32 @@ const ResultsPage = () => {
   };
 
   return (
-    <div className="mt-20 min-h-screen bg-pink-50 w-full pb-20 pt-10">
-      <div className="max-w-6xl mx-auto p-8 flex flex-col items-center">
-        <div className="w-full flex justify-between items-center mb-12">
-          <h1 className="text-4xl font-extrabold text-slate-900">Designs for {formData?.name || "Brand"}</h1>
-          <button onClick={() => router.push('/create')} className="flex items-center gap-2 bg-white px-6 py-2.5 rounded-xl border shadow-sm font-bold">
-            <ChevronLeft size={20} /> Change Info
+    <div className="mt-16 min-h-screen w-full bg-pink-50 pb-14 pt-6 sm:mt-20 sm:pb-20 sm:pt-10">
+      <div className="mx-auto flex w-full max-w-7xl flex-col items-center px-4 sm:px-6 lg:px-8">
+        <div className="mb-8 flex w-full flex-col gap-4 sm:mb-10 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-extrabold text-slate-900 sm:text-3xl lg:text-4xl">
+              Designs for {formData?.name || "Brand"}
+            </h1>
+            <p className="mt-1 text-sm font-medium text-slate-500 sm:text-base">
+              Review, edit, and download your generated logo concepts.
+            </p>
+          </div>
+          <button
+            onClick={() => router.push('/create?preserve=1')}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border bg-white px-5 py-3 text-sm font-bold shadow-sm sm:w-auto"
+          >
+            <ChevronLeft size={18} /> Change Info
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 w-full">
+        <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3 xl:gap-5">
           {logos.map((design) => (
-            <motion.div key={design.id} className="group bg-white p-4 rounded-[2.5rem] shadow-md relative border border-transparent hover:border-pink-200 transition-all">
-              <div className="w-full aspect-[7/5] relative rounded-[2rem] overflow-hidden bg-slate-50 mb-4">
+            <motion.div
+              key={design.id}
+              className="group relative rounded-[1.5rem] border border-transparent bg-white p-2.5 shadow-md transition-all hover:border-pink-200 sm:rounded-[1.9rem] sm:p-3"
+            >
+              <div className="relative aspect-[7/5] w-full overflow-hidden rounded-[1.15rem] bg-slate-50 sm:rounded-[1.5rem]">
                 {design.svgMarkup ? (
                   <InlineSvgPreview svgMarkup={design.svgMarkup} alt={design.name} />
                 ) : design.fallbackUrl ? (
@@ -277,13 +292,25 @@ const ResultsPage = () => {
                     No preview
                   </div>
                 )}
-                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-6">
-                  <div className="flex gap-2 px-2 w-full justify-center">
-                    <button onClick={() => setSelectedDesign(design)} className="bg-white text-sky-500 p-3 rounded-full shadow-md"><Bookmark size={16} /></button>
-                    <button onClick={() => handleEditOnCanva(design)} className="bg-white text-emerald-500 p-3 rounded-full shadow-md"><Edit3 size={16} /></button>
-                    <button onClick={() => setDownloadDesign(design)} className="bg-orange-500 text-white p-3 rounded-full shadow-md"><ShoppingCart size={16} /></button>
+                <div className="absolute inset-0 hidden items-end justify-center bg-black/20 pb-4 opacity-0 transition-opacity group-hover:opacity-100 sm:flex sm:pb-6">
+                  <div className="flex w-full justify-center gap-2 px-2">
+                    <button onClick={() => setSelectedDesign(design)} className="rounded-full bg-white p-3 text-sky-500 shadow-md"><Bookmark size={16} /></button>
+                    <button onClick={() => handleEditOnCanva(design)} className="rounded-full bg-white p-3 text-emerald-500 shadow-md"><Edit3 size={16} /></button>
+                    <button onClick={() => setDownloadDesign(design)} className="rounded-full bg-orange-500 p-3 text-white shadow-md"><ShoppingCart size={16} /></button>
                   </div>
                 </div>
+              </div>
+
+              <div className="mt-2 flex items-center justify-center gap-2 sm:hidden">
+                  <button onClick={() => setSelectedDesign(design)} className="rounded-full bg-sky-50 p-3 text-sky-600 shadow-sm">
+                    <Bookmark size={16} />
+                  </button>
+                  <button onClick={() => handleEditOnCanva(design)} className="rounded-full bg-emerald-50 p-3 text-emerald-600 shadow-sm">
+                    <Edit3 size={16} />
+                  </button>
+                  <button onClick={() => setDownloadDesign(design)} className="rounded-full bg-orange-500 p-3 text-white shadow-sm">
+                    <ShoppingCart size={16} />
+                  </button>
               </div>
             </motion.div>
           ))}
@@ -303,7 +330,7 @@ const ResultsPage = () => {
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
-              className="bg-white p-6 md:p-8 rounded-[3rem] max-w-lg w-full relative shadow-2xl"
+              className="relative w-full max-w-lg rounded-[2rem] bg-white p-5 shadow-2xl sm:rounded-[3rem] sm:p-6 md:p-8"
               onClick={(e) => e.stopPropagation()}
             >
               <button
@@ -313,7 +340,7 @@ const ResultsPage = () => {
                 <X size={24} />
               </button>
 
-              <div className="w-full aspect-[7/5] rounded-[2rem] overflow-hidden bg-slate-50 mb-6 border border-slate-100">
+              <div className="mb-5 aspect-[7/5] w-full overflow-hidden rounded-[1.5rem] border border-slate-100 bg-slate-50 sm:mb-6 sm:rounded-[2rem]">
                 {selectedDesign.svgMarkup ? (
                   <InlineSvgPreview svgMarkup={selectedDesign.svgMarkup} alt={selectedDesign.name} />
                 ) : selectedDesign.fallbackUrl ? (
@@ -321,9 +348,9 @@ const ResultsPage = () => {
                 ) : null}
               </div>
 
-              <div className="text-center mb-8">
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight">{selectedDesign.name}</h2>
-                <p className="text-slate-500 font-medium mt-1">{selectedDesign.industryLabel}</p>
+              <div className="mb-6 text-center sm:mb-8">
+                <h2 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">{selectedDesign.name}</h2>
+                <p className="mt-1 text-sm font-medium text-slate-500 sm:text-base">{selectedDesign.industryLabel}</p>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">

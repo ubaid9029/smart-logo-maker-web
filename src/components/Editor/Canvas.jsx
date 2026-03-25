@@ -117,6 +117,35 @@ const getTextNodeMetrics = (item = {}) => {
   return { value, fontSize, blockWidth, blockHeight };
 };
 
+const getCanvasItemSize = (item, type) => {
+  if (type === 'logo') {
+    return {
+      width: Number(item.baseWidth || item.width || 220),
+      height: Number(item.baseHeight || item.height || 160),
+    };
+  }
+
+  const { blockWidth, blockHeight } = getTextNodeMetrics(item);
+  return {
+    width: blockWidth,
+    height: blockHeight,
+  };
+};
+
+const clampCanvasItemPosition = (item, type, position) => {
+  const transform = item.transform || {};
+  const { width, height } = getCanvasItemSize(item, type);
+  const scaleX = Math.abs(Number(transform.scaleX ?? 1));
+  const scaleY = Math.abs(Number(transform.scaleY ?? 1));
+  const maxX = Math.max(0, CANVAS_WIDTH - (width * scaleX));
+  const maxY = Math.max(0, CANVAS_HEIGHT - (height * scaleY));
+
+  return {
+    x: Math.min(Math.max(position.x, 0), maxX),
+    y: Math.min(Math.max(position.y, 0), maxY),
+  };
+};
+
 const drawRoundedRectPath = (context, x, y, width, height, radius) => {
   const safeRadius = Math.min(radius, width / 2, height / 2);
   context.beginPath();
@@ -363,11 +392,14 @@ function BackgroundDecoration({
     return null;
   }
 
-  const stroke = shape.fillColor || '#111111';
+  const fillColor = /^#([0-9A-F]{3}|[0-9A-F]{6})$/i.test(shape.fillColor || '')
+    ? shape.fillColor
+    : undefined;
+  const stroke = shape.strokeColor || fillColor || '#111111';
   const strokeWidth = 4;
   const opacity = Math.max(0.05, Math.min(1, Number(backgroundOpacity ?? 1)));
   const geometry = getBackgroundShapeGeometry(shape.type, cardX, cardY, cardWidth, cardHeight);
-  const fillProps = { fill: shape.fillColor || '#FFFFFF' };
+  const fillProps = fillColor ? { fill: fillColor } : { fillEnabled: false };
 
   if (!geometry) {
     return null;
@@ -482,10 +514,12 @@ const restyleSvgMarkup = (svgMarkup, style = {}) => {
 
 function LogoNode({
   item,
-  cardBounds,
   selected,
   onSelect,
   onTransformChange,
+  onNodeDragStart,
+  onNodeDragMove,
+  onNodeDragEnd,
   setCursor,
   registerNode,
 }) {
@@ -534,7 +568,6 @@ function LogoNode({
   }, [isLineNode, item.imageUrl, item.style, outlineWidth]);
   const [img] = useImage(styledImageUrl || "");
   const [outlineImg] = useImage(outlineImageUrl || "");
-  const { cardX, cardY, cardWidth, cardHeight, cardPadding } = cardBounds;
   const transform3d = get3dTransforms(item.style);
   let imageWidth = Number(item.baseWidth || item.width || 220);
   let imageHeight = Number(item.baseHeight || item.height || 160);
@@ -548,18 +581,12 @@ function LogoNode({
   }
   const actualScaleX = transform.scaleX || 1;
   const actualScaleY = transform.scaleY || 1;
-  const maxX = Math.max(
-    cardX + cardPadding,
-    cardX + cardWidth - (imageWidth * Math.abs(actualScaleX)) - cardPadding
-  );
-  const maxY = Math.max(
-    cardY + cardPadding,
-    cardY + cardHeight - (imageHeight * Math.abs(actualScaleY)) - cardPadding
-  );
+  const maxX = Math.max(0, CANVAS_WIDTH - (imageWidth * Math.abs(actualScaleX)));
+  const maxY = Math.max(0, CANVAS_HEIGHT - (imageHeight * Math.abs(actualScaleY)));
 
   const getBoundedPosition = (position) => ({
-    x: Math.min(Math.max(position.x, cardX + cardPadding), maxX),
-    y: Math.min(Math.max(position.y, cardY + cardPadding), maxY),
+    x: Math.min(Math.max(position.x, 0), maxX),
+    y: Math.min(Math.max(position.y, 0), maxY),
   });
 
   const getTransformPayload = (event) => ({
@@ -579,17 +606,19 @@ function LogoNode({
       scaleY={actualScaleY}
       rotation={transform.rotation || 0}
       draggable
-      onClick={onSelect}
-      onTap={onSelect}
-      onDragStart={() => {
-        onSelect();
+      onClick={(event) => onSelect(event)}
+      onTap={(event) => onSelect(event)}
+      onDragStart={(event) => {
+        onSelect(event);
         setCursor('grabbing');
+        onNodeDragStart?.(event, item, 'logo');
       }}
       onDragMove={(event) => {
         event.target.position(getBoundedPosition({
           x: event.target.x(),
           y: event.target.y(),
         }));
+        onNodeDragMove?.(event, item, 'logo');
       }}
       onDragEnd={(event) => {
         event.target.position(getBoundedPosition({
@@ -597,7 +626,7 @@ function LogoNode({
           y: event.target.y(),
         }));
         setCursor('grab');
-        onTransformChange(getTransformPayload(event));
+        onNodeDragEnd?.(event, item, 'logo', getTransformPayload(event));
       }}
       onTransformStart={() => setCursor('grabbing')}
       onTransformEnd={(event) => {
@@ -623,15 +652,49 @@ function LogoNode({
         rotation={transform3d.rotateZ}
       >
         {isLineNode ? (
-          <Line
-            points={item.points || [0, imageHeight / 2, imageWidth, imageHeight / 2]}
-            stroke={item.style?.fillColor || item.stroke || item.style?.outlineColor || '#475569'}
-            strokeWidth={Number(item.strokeWidth || 2)}
-            opacity={item.opacity ?? 1}
-            lineCap="round"
-          />
+          <>
+            <Rect
+              x={-12}
+              y={-12}
+              width={imageWidth + 24}
+              height={imageHeight + 24}
+              fill="rgba(0,0,0,0.001)"
+            />
+            {selected && (
+              <Rect
+                x={-10}
+                y={-10}
+                width={imageWidth + 20}
+                height={imageHeight + 20}
+                stroke="#2563EB"
+                strokeWidth={2}
+                dash={[8, 5]}
+                cornerRadius={14}
+              />
+            )}
+            <Line
+              points={item.points || [0, imageHeight / 2, imageWidth, imageHeight / 2]}
+              stroke={item.style?.fillColor || item.stroke || item.style?.outlineColor || '#475569'}
+              strokeWidth={Number(item.strokeWidth || 2)}
+              hitStrokeWidth={Math.max(20, Number(item.strokeWidth || 2) + 16)}
+              opacity={item.opacity ?? 1}
+              lineCap="round"
+            />
+          </>
         ) : (
           <>
+            {selected && (
+              <Rect
+                x={-10}
+                y={-10}
+                width={imageWidth + 20}
+                height={imageHeight + 20}
+                stroke="#2563EB"
+                strokeWidth={2}
+                dash={[8, 5]}
+                cornerRadius={14}
+              />
+            )}
             {outlineImg && outlineWidth > 0 && (
               <>
                 {[
@@ -668,14 +731,15 @@ function TextNode({
   item,
   fontFamily,
   textColor,
-  cardBounds,
   selected,
   onSelect,
   onTransformChange,
+  onNodeDragStart,
+  onNodeDragMove,
+  onNodeDragEnd,
   setCursor,
   registerNode,
 }) {
-  const { cardX, cardY, cardWidth, cardHeight, cardPadding } = cardBounds;
   const transform = item.transform || {
     x: Number(item.x || 0),
     y: Number(item.y || 0),
@@ -689,18 +753,12 @@ function TextNode({
   const transform3d = get3dTransforms(item.style);
   const actualScaleX = transform.scaleX || 1;
   const actualScaleY = transform.scaleY || 1;
-  const maxX = Math.max(
-    cardX + cardPadding,
-    cardX + cardWidth - (blockWidth * Math.abs(actualScaleX)) - cardPadding
-  );
-  const maxY = Math.max(
-    cardY + cardPadding,
-    cardY + cardHeight - (blockHeight * Math.abs(actualScaleY)) - cardPadding
-  );
+  const maxX = Math.max(0, CANVAS_WIDTH - (blockWidth * Math.abs(actualScaleX)));
+  const maxY = Math.max(0, CANVAS_HEIGHT - (blockHeight * Math.abs(actualScaleY)));
 
   const getBoundedPosition = (position) => ({
-    x: Math.min(Math.max(position.x, cardX + cardPadding), maxX),
-    y: Math.min(Math.max(position.y, cardY + cardPadding), maxY),
+    x: Math.min(Math.max(position.x, 0), maxX),
+    y: Math.min(Math.max(position.y, 0), maxY),
   });
 
   const getTransformPayload = (event) => ({
@@ -720,17 +778,19 @@ function TextNode({
       scaleY={actualScaleY}
       rotation={transform.rotation || 0}
       draggable
-      onClick={onSelect}
-      onTap={onSelect}
-      onDragStart={() => {
-        onSelect();
+      onClick={(event) => onSelect(event)}
+      onTap={(event) => onSelect(event)}
+      onDragStart={(event) => {
+        onSelect(event);
         setCursor('grabbing');
+        onNodeDragStart?.(event, item, 'text');
       }}
       onDragMove={(event) => {
         event.target.position(getBoundedPosition({
           x: event.target.x(),
           y: event.target.y(),
         }));
+        onNodeDragMove?.(event, item, 'text');
       }}
       onDragEnd={(event) => {
         event.target.position(getBoundedPosition({
@@ -738,7 +798,7 @@ function TextNode({
           y: event.target.y(),
         }));
         setCursor('grab');
-        onTransformChange(getTransformPayload(event));
+        onNodeDragEnd?.(event, item, 'text', getTransformPayload(event));
       }}
       onTransformStart={() => setCursor('grabbing')}
       onTransformEnd={(event) => {
@@ -763,6 +823,18 @@ function TextNode({
         scaleY={transform3d.scaleYMultiplier}
         rotation={transform3d.rotateZ}
       >
+        {selected && (
+          <Rect
+            x={-10}
+            y={-10}
+            width={blockWidth + 20}
+            height={blockHeight + 20}
+            stroke="#2563EB"
+            strokeWidth={2}
+            dash={[8, 5]}
+            cornerRadius={14}
+          />
+        )}
         {shouldRenderSvgText && svgTextImage ? (
           <KonvaImage image={svgTextImage} width={blockWidth} height={blockHeight} />
         ) : (
@@ -793,12 +865,15 @@ export default function Canvas({
   selectionOverride,
   clearSelectionToken = 0,
   stageRef: externalStageRef = null,
+  zoom = 1,
 }) {
   const containerRef = useRef(null);
   const transformerRef = useRef(null);
   const nodeMapRef = useRef({});
+  const dragSelectionRef = useRef(null);
   const [dimensions, setDimensions] = useState({ width: 700, height: 500, scale: 1 });
   const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedItems, setSelectedItems] = useState([]);
   const [backgroundImage] = useImage(config.bgImageUrl || '');
 
   const canvasWidth = CANVAS_WIDTH;
@@ -807,8 +882,6 @@ export default function Canvas({
   const cardHeight = 420;
   const cardX = (canvasWidth - cardWidth) / 2;
   const cardY = (canvasHeight - cardHeight) / 2;
-  const cardPadding = 18;
-  const cardBounds = { cardX, cardY, cardWidth, cardHeight, cardPadding };
 
   const logoItems = useMemo(() => config.logoItems || [], [config.logoItems]);
   const textItems = useMemo(() => config.textItems || [], [config.textItems]);
@@ -824,6 +897,10 @@ export default function Canvas({
   const cardFillProps = useMemo(() => {
     return getBackgroundFillProps(config.bgColor || '#FFFFFF', config.bgFill || null, cardWidth, cardHeight);
   }, [config.bgColor, config.bgFill, cardHeight, cardWidth]);
+  const viewportWidth = cardWidth * dimensions.scale * zoom;
+  const viewportHeight = cardHeight * dimensions.scale * zoom;
+  const viewportOffsetX = cardX * dimensions.scale * zoom;
+  const viewportOffsetY = cardY * dimensions.scale * zoom;
 
   const setCursor = (value) => {
     if (containerRef.current) {
@@ -844,21 +921,26 @@ export default function Canvas({
       return;
     }
 
-    const key = selectedItem ? `${selectedItem.type}:${selectedItem.id}` : null;
+    const key = selectedItems.length === 1 ? `${selectedItems[0].type}:${selectedItems[0].id}` : null;
     const node = key ? nodeMapRef.current[key] : null;
     transformerRef.current.nodes(node ? [node] : []);
     transformerRef.current.getLayer()?.batchDraw();
-  }, [selectedItem, logoItems, textItems]);
+  }, [selectedItems, logoItems, textItems]);
 
   useEffect(() => {
     if (typeof onSelectionChange === 'function') {
-      onSelectionChange(selectedItem);
+      onSelectionChange({
+        primary: selectedItem,
+        items: selectedItems,
+      });
     }
-  }, [onSelectionChange, selectedItem]);
+  }, [onSelectionChange, selectedItem, selectedItems]);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
-      setSelectedItem(selectionOverride ?? null);
+      const nextSelection = selectionOverride ?? null;
+      setSelectedItem(nextSelection);
+      setSelectedItems(nextSelection ? [nextSelection] : []);
     });
 
     return () => window.cancelAnimationFrame(frame);
@@ -867,10 +949,42 @@ export default function Canvas({
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
       setSelectedItem(null);
+      setSelectedItems([]);
     });
 
     return () => window.cancelAnimationFrame(frame);
   }, [clearSelectionToken]);
+
+  useEffect(() => {
+    const handleSelectAll = (event) => {
+      const target = event.target;
+      const isTypingTarget = target instanceof HTMLElement && (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      );
+
+      if (isTypingTarget || !(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'a') {
+        return;
+      }
+
+      const allItems = [
+        ...logoItems.map((item) => ({ type: 'logo', id: item.id })),
+        ...textItems.map((item) => ({ type: 'text', id: item.id })),
+      ];
+
+      if (!allItems.length) {
+        return;
+      }
+
+      event.preventDefault();
+      setSelectedItems(allItems);
+      setSelectedItem(allItems[allItems.length - 1] || null);
+    };
+
+    window.addEventListener('keydown', handleSelectAll);
+    return () => window.removeEventListener('keydown', handleSelectAll);
+  }, [logoItems, textItems]);
 
   useEffect(() => {
     const updateSize = () => {
@@ -910,127 +1024,274 @@ export default function Canvas({
     });
   };
 
+  const handleItemSelect = (item, event) => {
+    const addToSelectionPressed = Boolean(event?.evt?.shiftKey);
+    const removeFromSelectionPressed = Boolean(event?.evt?.ctrlKey || event?.evt?.metaKey);
+    const itemKey = `${item.type}:${item.id}`;
+
+    setSelectedItems((previousItems) => {
+      if (removeFromSelectionPressed) {
+        const nextItems = previousItems.filter((entry) => `${entry.type}:${entry.id}` !== itemKey);
+        setSelectedItem(nextItems.length ? nextItems[nextItems.length - 1] : null);
+        return nextItems;
+      }
+
+      if (!addToSelectionPressed) {
+        const alreadySelected = previousItems.some((entry) => `${entry.type}:${entry.id}` === itemKey);
+        const nextItems = alreadySelected && previousItems.length > 1 ? previousItems : [item];
+        setSelectedItem(nextItems.length ? nextItems[nextItems.length - 1] : null);
+        return nextItems;
+      }
+
+      const exists = previousItems.some((entry) => `${entry.type}:${entry.id}` === itemKey);
+      const nextItems = exists
+        ? previousItems
+        : [...previousItems, item];
+      setSelectedItem(nextItems.length ? nextItems[nextItems.length - 1] : null);
+      return nextItems;
+    });
+  };
+
+  const commitSelectionTransforms = (updates) => {
+    if (typeof onConfigChange !== 'function' || !updates.size) {
+      return;
+    }
+
+    onConfigChange({
+      logoItems: logoItems.map((item) => {
+        const nextTransform = updates.get(`logo:${item.id}`);
+        return nextTransform ? { ...item, transform: nextTransform } : item;
+      }),
+      textItems: textItems.map((item) => {
+        const nextTransform = updates.get(`text:${item.id}`);
+        return nextTransform ? { ...item, transform: nextTransform } : item;
+      }),
+    });
+  };
+
+  const handleNodeDragStart = (event, item, type) => {
+    const itemKey = `${type}:${item.id}`;
+    const isGroupDrag = selectedItems.length > 1 && selectedItems.some((entry) => `${entry.type}:${entry.id}` === itemKey);
+    if (!isGroupDrag) {
+      dragSelectionRef.current = null;
+      return;
+    }
+
+    dragSelectionRef.current = {
+      draggedKey: itemKey,
+      origin: { x: event.target.x(), y: event.target.y() },
+      items: selectedItems.map((entry) => {
+        const sourceItem = entry.type === 'logo'
+          ? logoItems.find((candidate) => candidate.id === entry.id)
+          : textItems.find((candidate) => candidate.id === entry.id);
+        const node = nodeMapRef.current[`${entry.type}:${entry.id}`];
+
+        return {
+          ...entry,
+          item: sourceItem,
+          start: {
+            x: node?.x() ?? sourceItem?.transform?.x ?? 0,
+            y: node?.y() ?? sourceItem?.transform?.y ?? 0,
+          },
+        };
+      }).filter((entry) => entry.item),
+    };
+  };
+
+  const handleNodeDragMove = (event, item, type) => {
+    const dragSelection = dragSelectionRef.current;
+    if (!dragSelection || dragSelection.draggedKey !== `${type}:${item.id}`) {
+      return;
+    }
+
+    const deltaX = event.target.x() - dragSelection.origin.x;
+    const deltaY = event.target.y() - dragSelection.origin.y;
+
+    dragSelection.items.forEach((entry) => {
+      const nodeKey = `${entry.type}:${entry.id}`;
+      const node = nodeMapRef.current[nodeKey];
+      if (!node) {
+        return;
+      }
+
+      const nextPosition = clampCanvasItemPosition(
+        entry.item,
+        entry.type,
+        { x: entry.start.x + deltaX, y: entry.start.y + deltaY }
+      );
+      node.position(nextPosition);
+    });
+
+    event.target.getLayer()?.batchDraw();
+  };
+
+  const handleNodeDragEnd = (event, item, type, nextTransform) => {
+    const dragSelection = dragSelectionRef.current;
+    if (!dragSelection || dragSelection.draggedKey !== `${type}:${item.id}`) {
+      updateItemTransform(type === 'logo' ? 'logoItems' : 'textItems', item.id, nextTransform);
+      return;
+    }
+
+    const updates = new Map();
+    dragSelection.items.forEach((entry) => {
+      const node = nodeMapRef.current[`${entry.type}:${entry.id}`];
+      if (!node) {
+        return;
+      }
+
+      updates.set(`${entry.type}:${entry.id}`, {
+        ...(entry.item?.transform || {}),
+        x: node.x(),
+        y: node.y(),
+        scaleX: node.scaleX(),
+        scaleY: node.scaleY(),
+        rotation: node.rotation(),
+      });
+    });
+
+    dragSelectionRef.current = null;
+    commitSelectionTransforms(updates);
+  };
+
   return (
     <div ref={containerRef} className="flex h-full w-full items-center justify-center overflow-hidden">
-      <div className="overflow-hidden rounded-[2.5rem] border border-gray-50 bg-white shadow-2xl">
-        <Stage
-          ref={externalStageRef}
-          width={dimensions.width}
-          height={dimensions.height}
-          scaleX={dimensions.scale}
-          scaleY={dimensions.scale}
-          onMouseDown={(event) => {
-            const clickedOnEmptyArea =
-              event.target === event.target.getStage() ||
-              event.target.name() === 'card-background';
-
-            if (clickedOnEmptyArea) {
-              setSelectedItem(null);
-              setCursor('default');
-            }
-          }}
-          onTouchStart={(event) => {
-            const tappedOnEmptyArea =
-              event.target === event.target.getStage() ||
-              event.target.name() === 'card-background';
-
-            if (tappedOnEmptyArea) {
-              setSelectedItem(null);
-            }
+      <div
+        className="overflow-hidden rounded-[2.5rem] border border-gray-50 bg-white shadow-2xl"
+        style={{ width: viewportWidth, height: viewportHeight }}
+      >
+        <div
+          style={{
+            width: dimensions.width,
+            height: dimensions.height,
+            transform: `translate(${-viewportOffsetX}px, ${-viewportOffsetY}px)`,
+            transformOrigin: 'top left',
           }}
         >
-          <Layer>
-            <Rect
-              x={cardX}
-              y={cardY}
-              width={cardWidth}
-              height={cardHeight}
-              {...cardFillProps}
-              opacity={backgroundOpacity}
-              cornerRadius={40}
-              name="card-background"
-            />
-            {backgroundImage && backgroundImageCrop ? (
-              <Group
-                clipFunc={(context) => {
-                  drawRoundedRectPath(context, cardX, cardY, cardWidth, cardHeight, 40);
-                }}
-              >
-                <KonvaImage
-                  image={backgroundImage}
-                  x={cardX}
-                  y={cardY}
-                  width={cardWidth}
-                  height={cardHeight}
-                  crop={backgroundImageCrop}
-                  opacity={backgroundOpacity}
-                  name="card-background"
-                />
-              </Group>
-            ) : null}
-            <BackgroundDecoration
-              shape={backgroundShape}
-              cardX={cardX}
-              cardY={cardY}
-              cardWidth={cardWidth}
-              cardHeight={cardHeight}
-              backgroundOpacity={backgroundOpacity}
-            />
+          <Stage
+            ref={externalStageRef}
+            width={dimensions.width}
+            height={dimensions.height}
+            scaleX={dimensions.scale * zoom}
+            scaleY={dimensions.scale * zoom}
+            onMouseDown={(event) => {
+              const clickedOnEmptyArea =
+                event.target === event.target.getStage() ||
+                event.target.name() === 'card-background';
 
-            {logoItems.map((item) => (
+              if (clickedOnEmptyArea) {
+                setSelectedItems([]);
+                setSelectedItem(null);
+                setCursor('default');
+              }
+            }}
+            onTouchStart={(event) => {
+              const tappedOnEmptyArea =
+                event.target === event.target.getStage() ||
+                event.target.name() === 'card-background';
+
+              if (tappedOnEmptyArea) {
+                setSelectedItems([]);
+                setSelectedItem(null);
+              }
+            }}
+          >
+            <Layer>
+              <Rect
+                x={cardX}
+                y={cardY}
+                width={cardWidth}
+                height={cardHeight}
+                {...cardFillProps}
+                opacity={backgroundOpacity}
+                cornerRadius={40}
+                name="card-background"
+              />
+              {backgroundImage && backgroundImageCrop ? (
+                <Group
+                  clipFunc={(context) => {
+                    drawRoundedRectPath(context, cardX, cardY, cardWidth, cardHeight, 40);
+                  }}
+                >
+                  <KonvaImage
+                    image={backgroundImage}
+                    x={cardX}
+                    y={cardY}
+                    width={cardWidth}
+                    height={cardHeight}
+                    crop={backgroundImageCrop}
+                    opacity={backgroundOpacity}
+                    name="card-background"
+                  />
+                </Group>
+              ) : null}
+              <BackgroundDecoration
+                shape={backgroundShape}
+                cardX={cardX}
+                cardY={cardY}
+                cardWidth={cardWidth}
+                cardHeight={cardHeight}
+                backgroundOpacity={backgroundOpacity}
+              />
+
+              {logoItems.map((item) => (
               <LogoNode
                 key={item.id}
                 item={item}
-                cardBounds={cardBounds}
-                selected={selectedItem?.type === 'logo' && selectedItem?.id === item.id}
-                onSelect={() => setSelectedItem({ type: 'logo', id: item.id })}
-                onTransformChange={(transform) => updateItemTransform('logoItems', item.id, transform)}
-                setCursor={setCursor}
-                registerNode={registerNode}
-              />
-            ))}
+                selected={selectedItems.some((entry) => entry.type === 'logo' && entry.id === item.id)}
+                  onSelect={(event) => handleItemSelect({ type: 'logo', id: item.id }, event)}
+                  onTransformChange={(transform) => updateItemTransform('logoItems', item.id, transform)}
+                  onNodeDragStart={handleNodeDragStart}
+                  onNodeDragMove={handleNodeDragMove}
+                  onNodeDragEnd={handleNodeDragEnd}
+                  setCursor={setCursor}
+                  registerNode={registerNode}
+                />
+              ))}
 
-            {textItems.map((item) => (
+              {textItems.map((item) => (
               <TextNode
                 key={item.id}
                 item={item}
                 fontFamily={config.fontFamily}
                 textColor={config.textColor}
-                cardBounds={cardBounds}
-                selected={selectedItem?.type === 'text' && selectedItem?.id === item.id}
-                onSelect={() => setSelectedItem({ type: 'text', id: item.id })}
-                onTransformChange={(transform) => updateItemTransform('textItems', item.id, transform)}
-                setCursor={setCursor}
-                registerNode={registerNode}
+                selected={selectedItems.some((entry) => entry.type === 'text' && entry.id === item.id)}
+                  onSelect={(event) => handleItemSelect({ type: 'text', id: item.id }, event)}
+                  onTransformChange={(transform) => updateItemTransform('textItems', item.id, transform)}
+                  onNodeDragStart={handleNodeDragStart}
+                  onNodeDragMove={handleNodeDragMove}
+                  onNodeDragEnd={handleNodeDragEnd}
+                  setCursor={setCursor}
+                  registerNode={registerNode}
+                />
+              ))}
+
+              <Transformer
+                ref={transformerRef}
+                rotateEnabled
+                enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
+                borderStroke="#2563EB"
+                borderStrokeWidth={2}
+                borderDash={[8, 5]}
+                anchorFill="#ffffff"
+                anchorStroke="#2563EB"
+                anchorStrokeWidth={2}
+                anchorSize={10}
+                keepRatio={selectedItem?.type === 'logo'}
+                boundBoxFunc={(oldBox, newBox) => {
+                  if (newBox.width < 70 || newBox.height < 24) {
+                    return oldBox;
+                  }
+
+                  if (newBox.width > CANVAS_WIDTH || newBox.height > CANVAS_HEIGHT) {
+                    return oldBox;
+                  }
+
+                  return newBox;
+                }}
               />
-            ))}
-
-            <Transformer
-              ref={transformerRef}
-              rotateEnabled
-              enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
-              borderStroke="#2563EB"
-              borderStrokeWidth={2}
-              borderDash={[8, 5]}
-              anchorFill="#ffffff"
-              anchorStroke="#2563EB"
-              anchorStrokeWidth={2}
-              anchorSize={10}
-              keepRatio={selectedItem?.type === 'logo'}
-              boundBoxFunc={(oldBox, newBox) => {
-                if (newBox.width < 70 || newBox.height < 24) {
-                  return oldBox;
-                }
-
-                if (newBox.width > cardWidth - cardPadding * 2 || newBox.height > cardHeight - cardPadding * 2) {
-                  return oldBox;
-                }
-
-                return newBox;
-              }}
-            />
-          </Layer>
-        </Stage>
+            </Layer>
+          </Stage>
+        </div>
       </div>
     </div>
   );

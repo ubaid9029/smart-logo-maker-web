@@ -21,7 +21,7 @@ const NumbersSection = () => {
           Numbers That <span className="bg-clip-text text-transparent bg-linear-to-r from-purple-600 to-red-500">Matter</span>
         </h2>
         <p className="text-gray-600 text-lg mb-16 max-w-lg mx-auto">
-          We're making a lot of noise comparing our solution.
+          We&apos;re making a lot of noise comparing our solution.
         </p>
 
         {/* Stats Grid */}

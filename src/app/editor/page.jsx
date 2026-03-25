@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback, useMemo, useRef, useState, Suspense } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import DownloadDialog from '../../components/DownloadDialog';
@@ -133,11 +133,20 @@ const colorSwatches = [
 const backgroundColorSwatches = [...colorSwatches];
 const designPalettes = [
   { id: '1', name: 'Vibrant Energy', colors: ['#FB923C', '#EC4899', '#FACC15', '#F87171'] },
-  { id: '2', name: 'Professional Blue', colors: ['#1E3A8A', '#2563EB', '#38BDF8', '#E2E8F0'] },
-  { id: '3', name: 'Warm Sunset', colors: ['#EA580C', '#FB923C', '#EAB308', '#FEF08A'] },
-  { id: '4', name: 'Cool Ocean', colors: ['#1E3A8A', '#2563EB', '#22D3EE', '#CFFAFE'] },
-  { id: '5', name: 'Natural Green', colors: ['#065F46', '#059669', '#34D399', '#A7F3D0'] },
-  { id: '6', name: 'Elegant Gold', colors: ['#0F172A', '#B45309', '#F59E0B', '#FDE68A'] },
+  { id: '2', name: 'Warm Sunset', colors: ['#7C2D12', '#EA580C', '#FB923C', '#FED7AA'] },
+  { id: '3', name: 'Natural Green', colors: ['#064E3B', '#059669', '#34D399', '#D1FAE5'] },
+  { id: '4', name: 'Elegant Gold', colors: ['#111827', '#B45309', '#F59E0B', '#FEF3C7'] },
+  { id: '5', name: 'Midnight Bloom', colors: ['#312E81', '#7C3AED', '#C084FC', '#EDE9FE'] },
+  { id: '6', name: 'Coral Punch', colors: ['#9F1239', '#F43F5E', '#FB7185', '#FFE4E6'] },
+  { id: '7', name: 'Forest Mist', colors: ['#14532D', '#22C55E', '#86EFAC', '#F0FDF4'] },
+  { id: '8', name: 'Royal Ink', colors: ['#172554', '#1D4ED8', '#60A5FA', '#DBEAFE'] },
+  { id: '9', name: 'Peach Studio', colors: ['#7C2D12', '#FB923C', '#FDBA74', '#FFEDD5'] },
+  { id: '10', name: 'Berry Luxe', colors: ['#4A044E', '#C026D3', '#E879F9', '#FAE8FF'] },
+  { id: '11', name: 'Earth Clay', colors: ['#78350F', '#A16207', '#EAB308', '#FEF9C3'] },
+  { id: '12', name: 'Arctic Glow', colors: ['#164E63', '#06B6D4', '#67E8F9', '#ECFEFF'] },
+  { id: '13', name: 'Rose Smoke', colors: ['#881337', '#E11D48', '#FDA4AF', '#FFF1F2'] },
+  { id: '14', name: 'Stone Mono', colors: ['#1F2937', '#6B7280', '#D1D5DB', '#F9FAFB'] },
+  { id: '15', name: 'Citrus Pop', colors: ['#365314', '#84CC16', '#FACC15', '#FEF9C3'] },
 ];
 const backgroundLibraryImages = [
   '/assets/bg_images/bg_1.jpg',
@@ -194,7 +203,6 @@ const CANVAS_WIDTH = 700;
 const CANVAS_HEIGHT = 500;
 const CARD_WIDTH = 620;
 const CARD_HEIGHT = 420;
-const CARD_PADDING = 18;
 const CARD_X = (CANVAS_WIDTH - CARD_WIDTH) / 2;
 const CARD_Y = (CANVAS_HEIGHT - CARD_HEIGHT) / 2;
 const EDITED_LOGO_STORAGE_PREFIX = 'edited-logo:';
@@ -206,6 +214,12 @@ const waitForNextFrame = () => new Promise((resolve) => {
 
   window.requestAnimationFrame(() => resolve());
 });
+
+const waitForFrames = async (count = 1) => {
+  for (let index = 0; index < count; index += 1) {
+    await waitForNextFrame();
+  }
+};
 
 const getCollectionNameByType = (type) => {
   if (type === 'logo') return 'logoItems';
@@ -352,6 +366,16 @@ const preserveTextCenterTransform = (previousItem = {}, nextItem = {}) => {
   };
 };
 
+const withMeasuredTextBox = (item = {}) => {
+  const metrics = getTextMetrics(item);
+
+  return {
+    ...item,
+    width: metrics.width,
+    height: metrics.height,
+  };
+};
+
 const clampTransformToCard = (type, item, transform) => {
   const scaleX = transform.scaleX ?? 1;
   const scaleY = transform.scaleY ?? 1;
@@ -367,10 +391,10 @@ const clampTransformToCard = (type, item, transform) => {
     height = metrics.height * Math.abs(scaleY);
   }
 
-  const minX = CARD_X + CARD_PADDING;
-  const maxX = Math.max(minX, CARD_X + CARD_WIDTH - width - CARD_PADDING);
-  const minY = CARD_Y + CARD_PADDING;
-  const maxY = Math.max(minY, CARD_Y + CARD_HEIGHT - height - CARD_PADDING);
+  const minX = 0;
+  const maxX = Math.max(minX, CANVAS_WIDTH - width);
+  const minY = 0;
+  const maxY = Math.max(minY, CANVAS_HEIGHT - height);
 
   return {
     ...transform,
@@ -389,12 +413,119 @@ const buildDefaultItemStyle = (fillColor = '#111827') => ({
   rotateZ: 0,
 });
 
+function ColorPickerField({ value, onChange, disabled = false }) {
+  const safeValue = isValidHexColor(value) ? value : normalizeHexColor(value, '#FFFFFF');
+
+  return (
+    <label
+      className={`relative flex h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 ${disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}`}
+    >
+      <span
+        className="block h-full w-full rounded-xl border border-slate-100 shadow-inner"
+        style={{ backgroundColor: safeValue }}
+      />
+      <input
+        type="color"
+        value={safeValue}
+        onChange={onChange}
+        disabled={disabled}
+        className={`absolute inset-0 h-full w-full opacity-0 ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+      />
+    </label>
+  );
+}
+
+function HexColorInput({ value, onValidColorChange, onSubmit, placeholder = '#111827', disabled = false }) {
+  const normalizedValue = isValidHexColor(value) ? value.toUpperCase() : normalizeHexColor(value, placeholder).toUpperCase();
+  const [draft, setDraft] = useState(normalizedValue);
+
+  useEffect(() => {
+    setDraft(normalizedValue);
+  }, [normalizedValue]);
+
+  const commitValue = useCallback(() => {
+    const normalizedDraft = normalizeHexColor(draft, normalizedValue).toUpperCase();
+    setDraft(normalizedDraft);
+    if (isValidHexColor(normalizedDraft)) {
+      onValidColorChange?.(normalizedDraft);
+    }
+  }, [draft, normalizedValue, onValidColorChange]);
+
+  return (
+    <input
+      type="text"
+      value={draft}
+      disabled={disabled}
+      onChange={(event) => {
+        const nextValue = event.target.value.toUpperCase();
+        setDraft(nextValue);
+        if (isValidHexColor(nextValue)) {
+          onValidColorChange?.(nextValue);
+        }
+      }}
+      onBlur={commitValue}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          commitValue();
+          onSubmit?.();
+        }
+      }}
+      className="h-12 w-[180px] max-w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-700 outline-none transition-all focus:border-orange-300 focus:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+      placeholder={placeholder}
+    />
+  );
+}
+
 const normalizePayloadLogoItem = (item) => {
   if (!item || typeof item !== 'object') {
     return null;
   }
 
-  if (item.type === 'line') {
+  if (item.imageUrl && item.transform) {
+    return {
+      ...item,
+      baseWidth: Number(item.baseWidth || item.width || 220),
+      baseHeight: Number(item.baseHeight || item.height || 160),
+      transform: {
+        x: Number(item.transform?.x ?? item.x ?? (CARD_X + 170)),
+        y: Number(item.transform?.y ?? item.y ?? (CARD_Y + 64)),
+        scaleX: Number(item.transform?.scaleX ?? item.scaleX ?? 1),
+        scaleY: Number(item.transform?.scaleY ?? item.scaleY ?? 1),
+        rotation: Number(item.transform?.rotation ?? item.rotation ?? 0),
+      },
+      style: {
+        ...buildDefaultItemStyle('#111827'),
+        ...(item.style || {}),
+      },
+    };
+  }
+
+  if (item.kind === 'line' || item.type === 'line') {
+    if (item.transform) {
+      return {
+        ...item,
+        kind: 'line',
+        points: Array.isArray(item.points) ? item.points : [0, 6, Number(item.baseWidth || item.width || 120), 6],
+        stroke: item.stroke || item.style?.fillColor || '#475569',
+        strokeWidth: Number(item.strokeWidth || 2),
+        opacity: item.opacity ?? 1,
+        baseWidth: Number(item.baseWidth || item.width || 120),
+        baseHeight: Number(item.baseHeight || item.height || 12),
+        transform: {
+          x: Number(item.transform?.x ?? item.x ?? CARD_X),
+          y: Number(item.transform?.y ?? item.y ?? CARD_Y),
+          scaleX: Number(item.transform?.scaleX ?? item.scaleX ?? 1),
+          scaleY: Number(item.transform?.scaleY ?? item.scaleY ?? 1),
+          rotation: Number(item.transform?.rotation ?? item.rotation ?? 0),
+        },
+        style: {
+          ...buildDefaultItemStyle(item.stroke || '#475569'),
+          ...(item.style || {}),
+        },
+      };
+    }
+
     const x1 = Number(item.x1 || 0);
     const y1 = Number(item.y1 || 0);
     const x2 = Number(item.x2 || 0);
@@ -450,6 +581,31 @@ const normalizePayloadTextItem = (item) => {
     return null;
   }
 
+  if ((item.text || item.businessValue || item.sloganValue) && item.transform) {
+    return withMeasuredTextBox({
+      ...item,
+      width: Number(item.width || 0),
+      height: Number(item.height || 0),
+      fontSize: Number(item.fontSize || 46),
+      letterSpacing: Number(item.letterSpacing || 0),
+      fontFamily: item.fontFamily || 'Arial',
+      fontStyle: item.fontStyle || 'bold',
+      renderMode: item.renderMode || (item.svgDataUri ? 'svg' : 'text'),
+      svgDataUri: item.svgDataUri || null,
+      transform: {
+        x: Number(item.transform?.x ?? item.x ?? (CARD_X + 110)),
+        y: Number(item.transform?.y ?? item.y ?? (CARD_Y + CARD_HEIGHT - 150)),
+        scaleX: Number(item.transform?.scaleX ?? item.scaleX ?? 1),
+        scaleY: Number(item.transform?.scaleY ?? item.scaleY ?? 1),
+        rotation: Number(item.transform?.rotation ?? item.rotation ?? 0),
+      },
+      style: {
+        ...buildDefaultItemStyle(item.fill || '#1A1A1A'),
+        ...(item.style || {}),
+      },
+    });
+  }
+
   const textValue = typeof item.text === 'string' ? item.text : '';
   if (!textValue.trim()) {
     return null;
@@ -457,13 +613,12 @@ const normalizePayloadTextItem = (item) => {
 
   const fill = item.fill || '#1A1A1A';
   const fontSize = Number(item.fontSize || 46);
-  const height = Number(item.height || fontSize + 16);
 
-  return {
+  return withMeasuredTextBox({
     id: item.id || `text-${Date.now()}`,
     text: textValue,
-    width: Number(item.width || 260),
-    height,
+    width: Number(item.width || 0),
+    height: Number(item.height || 0),
     fontSize,
     align: item.align || 'center',
     fill,
@@ -480,7 +635,7 @@ const normalizePayloadTextItem = (item) => {
       rotation: 0,
     },
     style: buildDefaultItemStyle(fill),
-  };
+  });
 };
 
 const buildInitialPresent = ({
@@ -584,17 +739,37 @@ function EditorUI() {
   const initialBusinessValue = (urlName || formData.name || 'BRAND').trim();
   const initialSloganValue = (urlSlogan || formData.slogan || '').trim();
   const sessionPayload = useMemo(() => {
-    if (!payloadKey || typeof window === 'undefined') {
+    if (typeof window === 'undefined') {
       return null;
     }
 
     try {
-      const rawPayload = window.sessionStorage.getItem(payloadKey);
-      return rawPayload ? JSON.parse(rawPayload) : null;
+      if (payloadKey) {
+        const rawPayload = window.sessionStorage.getItem(payloadKey);
+        if (rawPayload) {
+          return JSON.parse(rawPayload);
+        }
+      }
+
+      if (!designId) {
+        return null;
+      }
+
+      const scopedStorageKey = editScopeKey
+        ? `${EDITED_LOGO_STORAGE_PREFIX}${editScopeKey}:${designId}`
+        : `${EDITED_LOGO_STORAGE_PREFIX}${designId}`;
+      const rawSavedEdit = window.localStorage.getItem(scopedStorageKey);
+
+      if (!rawSavedEdit) {
+        return null;
+      }
+
+      const parsedSavedEdit = JSON.parse(rawSavedEdit);
+      return parsedSavedEdit?.editablePayload || null;
     } catch {
       return null;
     }
-  }, [payloadKey]);
+  }, [designId, editScopeKey, payloadKey]);
 
   const [editorState, setEditorState] = useState(() => ({
     past: [],
@@ -616,7 +791,6 @@ function EditorUI() {
   const [activeBackgroundOption, setActiveBackgroundOption] = useState(null);
   const [customColorValue, setCustomColorValue] = useState(() => normalizeHexColor(urlBgColor || '#FFFFFF', '#FFFFFF'));
   const [colorDialogOpen, setColorDialogOpen] = useState(false);
-  const [customColorDialogOpen, setCustomColorDialogOpen] = useState(false);
   const [dialogBaseColor, setDialogBaseColor] = useState(() => normalizeHexColor(urlBgColor || '#FFFFFF', '#FFFFFF'));
   const [dialogSelectedColor, setDialogSelectedColor] = useState(() => normalizeHexColor(urlBgColor || '#FFFFFF', '#FFFFFF'));
   const [gradientType, setGradientType] = useState('linear');
@@ -626,13 +800,13 @@ function EditorUI() {
   const [gradientRadialAngle, setGradientRadialAngle] = useState(225);
   const [gradientDialogOpen, setGradientDialogOpen] = useState(false);
   const [gradientColorDialogOpen, setGradientColorDialogOpen] = useState(false);
-  const [gradientCustomColorDialogOpen, setGradientCustomColorDialogOpen] = useState(false);
   const [gradientDialogBaseColor, setGradientDialogBaseColor] = useState('#000000');
   const [gradientDialogSelectedColor, setGradientDialogSelectedColor] = useState('#000000');
   const [gradientColorTarget, setGradientColorTarget] = useState('start');
   const [gradientCustomColorValue, setGradientCustomColorValue] = useState('#000000');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedCanvasItem, setSelectedCanvasItem] = useState(null);
+  const [selectedCanvasItems, setSelectedCanvasItems] = useState([]);
   const [activeObjectPanel, setActiveObjectPanel] = useState('controls');
   const selectedCanvasItemRef = useRef(null);
   const imageInputRef = useRef(null);
@@ -645,12 +819,14 @@ function EditorUI() {
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState('');
   const [savingChanges, setSavingChanges] = useState(false);
+  const [canvasZoom, setCanvasZoom] = useState(1);
   const [assetPickerDialog, setAssetPickerDialog] = useState({
     open: false,
     type: null,
     title: '',
     items: [],
   });
+  const clipboardRef = useRef([]);
   const [editDialog, setEditDialog] = useState({
     open: false,
     type: null,
@@ -660,11 +836,13 @@ function EditorUI() {
     sloganValue: '',
   });
 
-  const canEditText = selectedCanvasItem?.type === 'text';
+  const areAllSelectedText = selectedCanvasItems.length > 0 && selectedCanvasItems.every((item) => item.type === 'text');
+  const canEditText = selectedCanvasItems.length > 0 && areAllSelectedText;
+  const canEditSingleText = selectedCanvasItems.length === 1 && selectedCanvasItem?.type === 'text';
   const objectPanels = canEditText
     ? ['controls', 'fonts', 'colors', 'outlines', '3D']
     : ['controls', 'colors', 'outlines', '3D'];
-  const canDuplicate = Boolean(selectedCanvasItem);
+  const canDuplicate = selectedCanvasItems.length > 0;
   const selectedCollectionName = getCollectionNameByType(selectedCanvasItem?.type);
   const selectedCollection = selectedCollectionName ? logoConfig[selectedCollectionName] || [] : [];
   const activeBackgroundShape = logoConfig.backgroundShape || null;
@@ -675,13 +853,15 @@ function EditorUI() {
     ? selectedCollection.find((item) => item.id === selectedCanvasItem.id) || null
     : null;
   const isControlsContext = Boolean(selectedCanvasItem) && activeObjectPanel === 'controls';
+  const selectedItemKeySet = useMemo(
+    () => new Set(selectedCanvasItems.map((item) => `${item.type}:${item.id}`)),
+    [selectedCanvasItems]
+  );
 
   const closeBackgroundDialogs = useCallback(() => {
     setColorDialogOpen(false);
-    setCustomColorDialogOpen(false);
     setGradientDialogOpen(false);
     setGradientColorDialogOpen(false);
-    setGradientCustomColorDialogOpen(false);
   }, []);
 
   const closeAssetPickerDialog = useCallback(() => {
@@ -748,36 +928,49 @@ function EditorUI() {
     });
   };
 
-  const updateSelectedItem = (updater) => {
-    if (!selectedCanvasItem || !selectedCollectionName) {
+  const updateSelectedElements = (updater) => {
+    if (!selectedItemKeySet.size) {
       return;
     }
 
     applyLogoConfigChange((prev) => {
-      const collection = prev[selectedCollectionName] || [];
-
       return {
         ...prev,
-        [selectedCollectionName]: collection.map((item) => {
-          if (item.id !== selectedCanvasItem.id) {
+        logoItems: (prev.logoItems || []).map((item) => {
+          if (!selectedItemKeySet.has(`logo:${item.id}`)) {
             return item;
           }
 
-          const nextItem = updater(item);
-          return {
-            ...nextItem,
-            transform: clampTransformToCard(selectedCanvasItem.type, nextItem, nextItem.transform),
-          };
-        }),
+          const nextItem = updater('logo', item);
+          return nextItem
+            ? {
+                ...nextItem,
+                transform: clampTransformToCard('logo', nextItem, nextItem.transform),
+              }
+            : null;
+        }).filter(Boolean),
+        textItems: (prev.textItems || []).map((item) => {
+          if (!selectedItemKeySet.has(`text:${item.id}`)) {
+            return item;
+          }
+
+          const nextItem = updater('text', item);
+          return nextItem
+            ? {
+                ...nextItem,
+                transform: clampTransformToCard('text', nextItem, nextItem.transform),
+              }
+            : null;
+        }).filter(Boolean),
       };
     });
   };
 
   const updateSelectedItemStyle = (styleUpdate) => {
-    updateSelectedItem((item) => {
-      const nextItem = {
+    updateSelectedElements((type, item) => {
+      const styledItem = {
         ...item,
-        ...(selectedCanvasItem?.type === 'text'
+        ...(type === 'text'
           ? {
               renderMode: 'text',
               svgDataUri: null,
@@ -791,10 +984,13 @@ function EditorUI() {
           ...(typeof styleUpdate === 'function' ? styleUpdate(item.style || {}) : styleUpdate),
         },
       };
+      const nextItem = type === 'text'
+        ? withMeasuredTextBox(styledItem)
+        : styledItem;
 
       return {
         ...nextItem,
-        ...(selectedCanvasItem?.type === 'text'
+        ...(type === 'text'
           ? { transform: preserveTextCenterTransform(item, nextItem) }
           : {}),
       };
@@ -802,19 +998,51 @@ function EditorUI() {
   };
 
   const handleSelectedTextFontChange = (fontFamily) => {
-    if (!selectedCanvasItem || selectedCanvasItem.type !== 'text' || !fontFamily) {
+    if (!canEditText || !fontFamily) {
       return;
     }
 
-    updateSelectedItem((item) => {
-      const nextItem = {
+    updateSelectedElements((type, item) => {
+      if (type !== 'text') {
+        return item;
+      }
+
+      const nextItem = withMeasuredTextBox({
         ...item,
         fontFamily,
         renderMode: 'text',
         svgDataUri: null,
         width: 0,
         height: 0,
+      });
+
+      return {
+        ...nextItem,
+        transform: preserveTextCenterTransform(item, nextItem),
       };
+    });
+  };
+
+  const handleSelectedTextFontSizeChange = (fontSizeValue) => {
+    if (!canEditText) {
+      return;
+    }
+
+    const safeFontSize = Math.max(12, Math.min(120, Number(fontSizeValue || 46)));
+
+    updateSelectedElements((type, item) => {
+      if (type !== 'text') {
+        return item;
+      }
+
+      const nextItem = withMeasuredTextBox({
+        ...item,
+        fontSize: safeFontSize,
+        renderMode: 'text',
+        svgDataUri: null,
+        width: 0,
+        height: 0,
+      });
 
       return {
         ...nextItem,
@@ -824,7 +1052,7 @@ function EditorUI() {
   };
 
   const handleNudge = (dx, dy) => {
-    updateSelectedItem((item) => ({
+    updateSelectedElements((type, item) => ({
       ...item,
       transform: {
         ...item.transform,
@@ -835,7 +1063,7 @@ function EditorUI() {
   };
 
   const handleScale = (factor) => {
-    updateSelectedItem((item) => ({
+    updateSelectedElements((type, item) => ({
       ...item,
       transform: {
         ...item.transform,
@@ -846,7 +1074,7 @@ function EditorUI() {
   };
 
   const handleRotate = (delta) => {
-    updateSelectedItem((item) => ({
+    updateSelectedElements((type, item) => ({
       ...item,
       transform: {
         ...item.transform,
@@ -856,8 +1084,8 @@ function EditorUI() {
   };
 
   const handleCenter = (axis) => {
-    updateSelectedItem((item) => {
-      if (selectedCanvasItem?.type === 'logo') {
+    updateSelectedElements((type, item) => {
+      if (type === 'logo') {
         const width = Number(item.baseWidth || item.width || 280) * Math.abs(item.transform.scaleX || 1);
         const height = Number(item.baseHeight || item.height || 200) * Math.abs(item.transform.scaleY || 1);
 
@@ -887,11 +1115,11 @@ function EditorUI() {
   };
 
   const handleResetSelected = () => {
-    if (!selectedCanvasItem) {
+    if (!selectedCanvasItems.length) {
       return;
     }
 
-    updateSelectedItem((item) => ({
+    updateSelectedElements((type, item) => ({
       ...item,
       transform: {
         ...item.transform,
@@ -909,73 +1137,287 @@ function EditorUI() {
   };
 
   const handleDuplicateSelected = () => {
-    if (!selectedCanvasItem) {
+    if (!selectedCanvasItems.length) {
       return;
     }
 
     applyLogoConfigChange((prev) => {
       const duplicateOffset = { x: 24, y: 24 };
+      const nextSelections = [];
+      const duplicatedLogos = [];
+      const duplicatedTexts = [];
 
-      if (selectedCanvasItem.type === 'logo') {
-        const sourceItem = prev.logoItems.find((item) => item.id === selectedCanvasItem.id);
-        if (!sourceItem) return prev;
+      selectedCanvasItems.forEach((selection, index) => {
+        if (selection.type === 'logo') {
+          const sourceItem = (prev.logoItems || []).find((item) => item.id === selection.id);
+          if (!sourceItem) {
+            return;
+          }
 
-        return {
-          ...prev,
-          logoItems: [
-            ...prev.logoItems,
-            {
-              ...sourceItem,
-              id: `logo-${Date.now()}`,
-              transform: {
-                ...sourceItem.transform,
-                x: sourceItem.transform.x + duplicateOffset.x,
-                y: sourceItem.transform.y + duplicateOffset.y,
-              },
+          const duplicateId = `logo-${Date.now()}-${index}`;
+          duplicatedLogos.push({
+            ...sourceItem,
+            id: duplicateId,
+            transform: {
+              ...sourceItem.transform,
+              x: sourceItem.transform.x + duplicateOffset.x,
+              y: sourceItem.transform.y + duplicateOffset.y,
             },
-          ],
-        };
-      }
+          });
+          nextSelections.push({ type: 'logo', id: duplicateId });
+          return;
+        }
 
-      if (selectedCanvasItem.type === 'text') {
-        const sourceItem = prev.textItems.find((item) => item.id === selectedCanvasItem.id);
-        if (!sourceItem) return prev;
+        if (selection.type === 'text') {
+          const sourceItem = (prev.textItems || []).find((item) => item.id === selection.id);
+          if (!sourceItem) {
+            return;
+          }
 
-        return {
-          ...prev,
-          textItems: [
-            ...prev.textItems,
-            {
-              ...sourceItem,
-              id: `text-${Date.now()}`,
-              transform: {
-                ...sourceItem.transform,
-                x: sourceItem.transform.x + duplicateOffset.x,
-                y: sourceItem.transform.y + duplicateOffset.y,
-              },
+          const duplicateId = `text-${Date.now()}-${index}`;
+          duplicatedTexts.push({
+            ...sourceItem,
+            id: duplicateId,
+            transform: {
+              ...sourceItem.transform,
+              x: sourceItem.transform.x + duplicateOffset.x,
+              y: sourceItem.transform.y + duplicateOffset.y,
             },
-          ],
-        };
-      }
+          });
+          nextSelections.push({ type: 'text', id: duplicateId });
+        }
+      });
 
-      return prev;
+      selectedCanvasItemRef.current = nextSelections[nextSelections.length - 1] || null;
+      setSelectedCanvasItem(nextSelections[nextSelections.length - 1] || null);
+      setSelectedCanvasItems(nextSelections);
+      setCanvasSelectionOverride(nextSelections[nextSelections.length - 1] || null);
+
+      return {
+        ...prev,
+        logoItems: [...(prev.logoItems || []), ...duplicatedLogos],
+        textItems: [...(prev.textItems || []), ...duplicatedTexts],
+      };
     });
   };
 
   const handleDeleteSelected = () => {
-    if (!selectedCanvasItem || !selectedCollectionName) {
+    if (!selectedItemKeySet.size) {
       return;
     }
 
     applyLogoConfigChange((prev) => ({
       ...prev,
-      [selectedCollectionName]: (prev[selectedCollectionName] || []).filter((item) => item.id !== selectedCanvasItem.id),
+      logoItems: (prev.logoItems || []).filter((item) => !selectedItemKeySet.has(`logo:${item.id}`)),
+      textItems: (prev.textItems || []).filter((item) => !selectedItemKeySet.has(`text:${item.id}`)),
     }));
     clearCanvasSelection();
   };
 
+  const handleCopySelected = useCallback(() => {
+    if (!selectedCanvasItems.length) {
+      return;
+    }
+
+    clipboardRef.current = selectedCanvasItems.map((selection) => {
+      if (selection.type === 'logo') {
+        const sourceItem = (logoConfig.logoItems || []).find((item) => item.id === selection.id);
+        return sourceItem ? { type: 'logo', item: sourceItem } : null;
+      }
+
+      const sourceItem = (logoConfig.textItems || []).find((item) => item.id === selection.id);
+      return sourceItem ? { type: 'text', item: sourceItem } : null;
+    }).filter(Boolean);
+  }, [logoConfig.logoItems, logoConfig.textItems, selectedCanvasItems]);
+
+  const handlePasteClipboard = useCallback(() => {
+    if (!clipboardRef.current.length) {
+      return;
+    }
+
+    applyLogoConfigChange((prev) => {
+      const duplicateOffset = { x: 28, y: 28 };
+      const nextLogoItems = [...(prev.logoItems || [])];
+      const nextTextItems = [...(prev.textItems || [])];
+
+      clipboardRef.current.forEach((entry, index) => {
+        if (entry.type === 'logo') {
+          const duplicateId = `logo-${Date.now()}-${index}`;
+          nextLogoItems.push({
+            ...entry.item,
+            id: duplicateId,
+            transform: {
+              ...entry.item.transform,
+              x: (entry.item.transform?.x || CARD_X + 170) + duplicateOffset.x,
+              y: (entry.item.transform?.y || CARD_Y + 64) + duplicateOffset.y,
+            },
+          });
+          return;
+        }
+
+        const duplicateId = `text-${Date.now()}-${index}`;
+        nextTextItems.push({
+          ...entry.item,
+          id: duplicateId,
+          transform: {
+            ...entry.item.transform,
+            x: (entry.item.transform?.x || CARD_X + 110) + duplicateOffset.x,
+            y: (entry.item.transform?.y || CARD_Y + CARD_HEIGHT - 150) + duplicateOffset.y,
+          },
+        });
+      });
+
+      return {
+        ...prev,
+        logoItems: nextLogoItems,
+        textItems: nextTextItems,
+      };
+    });
+    selectedCanvasItemRef.current = null;
+    setSelectedCanvasItem(null);
+    setSelectedCanvasItems([]);
+    setCanvasSelectionOverride(null);
+    setCanvasClearSelectionToken((value) => value + 1);
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return undefined;
+    }
+
+    if (previewDialogOpen) {
+      document.body.classList.add('modal-open');
+      document.documentElement.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+      document.documentElement.classList.remove('modal-open');
+    }
+
+    return () => {
+      document.body.classList.remove('modal-open');
+      document.documentElement.classList.remove('modal-open');
+    };
+  }, [previewDialogOpen]);
+
+  useEffect(() => {
+    const handleEditorKeyDown = (event) => {
+      const target = event.target;
+      const isTypingTarget = target instanceof HTMLElement && (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      );
+
+      if (isTypingTarget) {
+        return;
+      }
+
+      const modifierPressed = event.ctrlKey || event.metaKey;
+
+      if (modifierPressed) {
+        if (event.key === 'c' || event.key === 'C') {
+          event.preventDefault();
+          handleCopySelected();
+          return;
+        }
+
+        if (event.key === 'x' || event.key === 'X') {
+          event.preventDefault();
+          handleCopySelected();
+          handleDeleteSelected();
+          return;
+        }
+
+        if (event.key === 'v' || event.key === 'V') {
+          event.preventDefault();
+          handlePasteClipboard();
+          return;
+        }
+
+        if (event.key === 'd' || event.key === 'D') {
+          event.preventDefault();
+          handleDuplicateSelected();
+          return;
+        }
+
+        if ((event.key === 'z' || event.key === 'Z') && event.shiftKey) {
+          event.preventDefault();
+          handleRedo();
+          return;
+        }
+
+        if (event.key === 'y' || event.key === 'Y') {
+          event.preventDefault();
+          handleRedo();
+          return;
+        }
+
+        if (event.key === 'z' || event.key === 'Z') {
+          event.preventDefault();
+          handleUndo();
+          return;
+        }
+
+        if (event.key === '=' || event.key === '+') {
+          event.preventDefault();
+          setCanvasZoom((prev) => Math.min(2.5, Number((prev + 0.1).toFixed(2))));
+          return;
+        }
+
+        if (event.key === '-' || event.key === '_') {
+          event.preventDefault();
+          setCanvasZoom((prev) => Math.max(0.5, Number((prev - 0.1).toFixed(2))));
+          return;
+        }
+
+        if (event.key === '0') {
+          event.preventDefault();
+          setCanvasZoom(1);
+          return;
+        }
+      }
+
+      if (!selectedCanvasItems.length) {
+        return;
+      }
+
+      if (event.key === 'Delete' || event.key === 'Backspace') {
+        event.preventDefault();
+        handleDeleteSelected();
+        return;
+      }
+
+      const movement = event.shiftKey ? 24 : 12;
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        handleNudge(0, -movement);
+      } else if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        handleNudge(0, movement);
+      } else if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        handleNudge(-movement, 0);
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        handleNudge(movement, 0);
+      }
+    };
+
+    window.addEventListener('keydown', handleEditorKeyDown);
+    return () => window.removeEventListener('keydown', handleEditorKeyDown);
+  }, [
+    handleCopySelected,
+    handleDeleteSelected,
+    handleDuplicateSelected,
+    handlePasteClipboard,
+    handleRedo,
+    handleUndo,
+    handleNudge,
+    selectedCanvasItems.length,
+  ]);
+
   const handleEditSelectedText = () => {
-    if (!canEditText || !selectedCanvasItem) {
+    if (!canEditSingleText || !selectedCanvasItem) {
       return;
     }
 
@@ -1019,20 +1461,21 @@ function EditorUI() {
                   ...(editDialog.mode === 'plain-text'
                     ? {
                         text: nextBusinessValue,
-                        renderMode: 'text',
-                        svgDataUri: null,
-                        width: 0,
-                        height: 0,
                       }
                     : {
                         businessValue: nextBusinessValue,
                         sloganValue: editDialog.sloganValue.trim(),
                       }),
+                  renderMode: 'text',
+                  svgDataUri: null,
+                  width: 0,
+                  height: 0,
                 };
+                const measuredItem = withMeasuredTextBox(nextItem);
 
                 return {
-                  ...nextItem,
-                  transform: preserveTextCenterTransform(item, nextItem),
+                  ...measuredItem,
+                  transform: preserveTextCenterTransform(item, measuredItem),
                 };
               })()
             : item
@@ -1050,28 +1493,31 @@ function EditorUI() {
     });
   };
 
-  const handleCanvasSelectionChange = useCallback((item) => {
+  const handleCanvasSelectionChange = useCallback((selectionState) => {
+    const nextPrimaryItem = selectionState?.primary || null;
+    const nextItems = Array.isArray(selectionState?.items) ? selectionState.items : (nextPrimaryItem ? [nextPrimaryItem] : []);
     const previousItem = selectedCanvasItemRef.current;
     const previousKey = previousItem ? `${previousItem.type}:${previousItem.id}` : '';
-    const nextKey = item ? `${item.type}:${item.id}` : '';
+    const nextKey = nextPrimaryItem ? `${nextPrimaryItem.type}:${nextPrimaryItem.id}` : '';
 
     if (nextKey && nextKey !== previousKey) {
       setActiveObjectPanel('controls');
     }
 
-    selectedCanvasItemRef.current = item;
-    setSelectedCanvasItem(item);
+    selectedCanvasItemRef.current = nextPrimaryItem;
+    setSelectedCanvasItem(nextPrimaryItem);
+    setSelectedCanvasItems(nextItems);
   }, []);
 
   const clearCanvasSelection = useCallback(() => {
     selectedCanvasItemRef.current = null;
     setSelectedCanvasItem(null);
+    setSelectedCanvasItems([]);
     setCanvasSelectionOverride(null);
     setCanvasClearSelectionToken((value) => value + 1);
   }, []);
 
   const sidebarHeading = selectedCanvasItem ? activeObjectPanel.charAt(0).toUpperCase() + activeObjectPanel.slice(1) : 'Variations';
-  const selectedLabel = selectedCanvasItem?.type === 'logo' ? 'Logo Element' : 'Text Element';
   const movementStep = 12;
   const selectedStyle = selectedItemData?.style || {};
   const gradientPreviewStyle = {
@@ -1108,7 +1554,8 @@ function EditorUI() {
         ...prev,
         backgroundShape: {
           type: shapeType,
-          fillColor: normalizeHexColor(prev.backgroundShape?.fillColor || '#FFFFFF', '#FFFFFF'),
+          fillColor: prev.backgroundShape?.fillColor || 'transparent',
+          strokeColor: normalizeHexColor(prev.backgroundShape?.strokeColor || '#111111', '#111111'),
         },
       };
     });
@@ -1126,6 +1573,7 @@ function EditorUI() {
         backgroundShape: {
           ...prev.backgroundShape,
           fillColor: safeColor,
+          strokeColor: safeColor,
         },
       };
     });
@@ -1182,15 +1630,6 @@ function EditorUI() {
     setDialogSelectedColor(safeColor);
     setCustomColorValue(safeColor);
     setColorDialogOpen(false);
-  };
-
-  const handleCustomDialogSelect = () => {
-    const safeColor = normalizeHexColor(customColorValue, dialogSelectedColor || '#FFFFFF');
-    applyBackgroundColor(safeColor);
-    setDialogBaseColor(safeColor);
-    setDialogSelectedColor(safeColor);
-    setCustomColorValue(safeColor);
-    setCustomColorDialogOpen(false);
   };
 
   const closePickAnotherDialog = () => {
@@ -1279,22 +1718,6 @@ function EditorUI() {
     setGradientDialogOpen(true);
   };
 
-  const applyGradientCustomColor = () => {
-    const safeColor = normalizeHexColor(gradientCustomColorValue, gradientDialogSelectedColor || '#000000');
-
-    if (gradientColorTarget === 'start') {
-      setGradientStartColor(safeColor);
-    } else {
-      setGradientEndColor(safeColor);
-    }
-
-    setGradientDialogBaseColor(safeColor);
-    setGradientDialogSelectedColor(safeColor);
-    setGradientCustomColorValue(safeColor);
-    setGradientCustomColorDialogOpen(false);
-    setGradientDialogOpen(true);
-  };
-
   const applyDesignPalette = (palette) => {
     applyLogoConfigChange((prev) => ({
       ...prev,
@@ -1304,18 +1727,31 @@ function EditorUI() {
         ...item,
         style: {
           ...item.style,
+          applyColorOverrides: true,
           fillColor: palette.colors[index % palette.colors.length],
           outlineColor: item.style?.outlineWidth > 0 ? palette.colors[(index + 2) % palette.colors.length] : item.style?.outlineColor,
         },
       })),
-      textItems: (prev.textItems || []).map((item, index) => ({
-        ...item,
-        style: {
-          ...item.style,
-          fillColor: palette.colors[(index + 1) % palette.colors.length],
-          outlineColor: item.style?.outlineWidth > 0 ? palette.colors[(index + 2) % palette.colors.length] : item.style?.outlineColor,
-        },
-      })),
+      textItems: (prev.textItems || []).map((item, index) => {
+        const nextItem = withMeasuredTextBox({
+          ...item,
+          renderMode: 'text',
+          svgDataUri: null,
+          width: 0,
+          height: 0,
+          style: {
+            ...item.style,
+            applyColorOverrides: true,
+            fillColor: palette.colors[(index + 1) % palette.colors.length],
+            outlineColor: item.style?.outlineWidth > 0 ? palette.colors[(index + 2) % palette.colors.length] : item.style?.outlineColor,
+          },
+        });
+
+        return {
+          ...nextItem,
+          transform: preserveTextCenterTransform(item, nextItem),
+        };
+      }),
     }));
   };
 
@@ -1371,6 +1807,7 @@ function EditorUI() {
       const nextSelection = { type: 'logo', id: newId };
       selectedCanvasItemRef.current = nextSelection;
       setSelectedCanvasItem(nextSelection);
+      setSelectedCanvasItems([nextSelection]);
       setCanvasSelectionOverride(nextSelection);
       setActiveObjectPanel('controls');
     };
@@ -1408,6 +1845,7 @@ function EditorUI() {
     const nextSelection = { type: 'logo', id: newId };
     selectedCanvasItemRef.current = nextSelection;
     setSelectedCanvasItem(nextSelection);
+    setSelectedCanvasItems([nextSelection]);
     setCanvasSelectionOverride(nextSelection);
     setActiveObjectPanel('controls');
   }, []);
@@ -1438,11 +1876,11 @@ function EditorUI() {
 
   const handleAddTextLayer = () => {
     const newId = `text-${Date.now()}`;
-      const nextTextItem = {
+    const nextTextItem = withMeasuredTextBox({
         id: newId,
-        text: 'New Text',
-        width: 260,
-        height: 62,
+        text: '',
+        width: 0,
+        height: 0,
         fontSize: 46,
         align: 'center',
         fill: logoConfig.textColor || '#1A1A1A',
@@ -1464,7 +1902,7 @@ function EditorUI() {
         rotateY: 0,
         rotateZ: 0,
       },
-    };
+    });
 
     applyLogoConfigChange((prev) => ({
       ...prev,
@@ -1474,16 +1912,17 @@ function EditorUI() {
     const nextSelection = { type: 'text', id: newId };
     selectedCanvasItemRef.current = nextSelection;
     setSelectedCanvasItem(nextSelection);
+    setSelectedCanvasItems([nextSelection]);
     setCanvasSelectionOverride(nextSelection);
     setActiveObjectPanel('controls');
-      setEditDialog({
-        open: true,
-        type: 'text',
-        mode: 'plain-text',
-        id: newId,
-        businessValue: nextTextItem.text,
-        sloganValue: '',
-      });
+    setEditDialog({
+      open: true,
+      type: 'text',
+      mode: 'plain-text',
+      id: newId,
+      businessValue: nextTextItem.text,
+      sloganValue: '',
+    });
   };
 
   const handleBackgroundOptionSelect = (optionId) => {
@@ -1522,11 +1961,11 @@ function EditorUI() {
 
     const shouldHideSelection = Boolean(options.hideSelection);
     const previousSelection = selectedCanvasItemRef.current;
+    const previousSelections = [...selectedCanvasItems];
 
     if (shouldHideSelection && previousSelection) {
       clearCanvasSelection();
-      await waitForNextFrame();
-      await waitForNextFrame();
+      await waitForFrames(3);
       stage.batchDraw();
     }
 
@@ -1535,12 +1974,13 @@ function EditorUI() {
     if (shouldHideSelection && previousSelection) {
       selectedCanvasItemRef.current = previousSelection;
       setSelectedCanvasItem(previousSelection);
+      setSelectedCanvasItems(previousSelections);
       setCanvasSelectionOverride(previousSelection);
-      await waitForNextFrame();
+      await waitForFrames(2);
     }
 
     return dataUrl;
-  }, [clearCanvasSelection]);
+  }, [clearCanvasSelection, selectedCanvasItems]);
 
   const buildEditableSavePayload = useCallback(() => JSON.parse(JSON.stringify(logoConfig)), [logoConfig]);
 
@@ -1567,6 +2007,7 @@ function EditorUI() {
         JSON.stringify({
           designId,
           editScopeKey,
+          previewVersion: 2,
           previewDataUrl: nextPreviewImageUrl,
           editablePayload,
           updatedAt: Date.now(),
@@ -1598,13 +2039,14 @@ function EditorUI() {
   }, [captureEditorPreview]);
 
   const handleSaveDesign = useCallback(async () => {
+    clearCanvasSelection();
+    await waitForFrames(3);
     await persistEditorChanges({ navigate: true });
-  }, [persistEditorChanges]);
+  }, [clearCanvasSelection, persistEditorChanges]);
 
   const handleOpenDownloadDialog = useCallback(async () => {
     clearCanvasSelection();
-    await waitForNextFrame();
-    await waitForNextFrame();
+    await waitForFrames(3);
     await persistEditorChanges();
     setDownloadDialogOpen(true);
   }, [clearCanvasSelection, persistEditorChanges]);
@@ -1676,18 +2118,6 @@ function EditorUI() {
     if (isControlsContext && selectedItemData) {
       return (
         <div className="space-y-4">
-          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
-              Selected
-            </p>
-            <p className="mt-2 text-lg font-extrabold text-slate-900">
-              {selectedLabel}
-            </p>
-            <p className="mt-1 text-sm font-medium text-slate-500">
-              Use these controls to move and adjust the selected layer precisely.
-            </p>
-          </div>
-
           <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
             <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
               Position
@@ -1841,19 +2271,20 @@ function EditorUI() {
       return (
         <div className="space-y-4">
           <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
-              Selected
-            </p>
-            <p className="mt-2 text-lg font-extrabold text-slate-900">{selectedLabel}</p>
-            <p className="mt-1 text-sm font-medium text-slate-500">
-              Pick a color and it will apply to the selected element instantly.
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
             <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
               Fill Color
             </p>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <ColorPickerField
+                value={isValidHexColor(selectedStyle.fillColor) ? selectedStyle.fillColor : normalizeHexColor(selectedStyle.fillColor, '#111827')}
+                onChange={(event) => updateSelectedItemStyle({ fillColor: normalizeHexColor(event.target.value, '#111827') })}
+              />
+              <HexColorInput
+                value={normalizeHexColor(selectedStyle.fillColor || '#111827', '#111827')}
+                onValidColorChange={(nextValue) => updateSelectedItemStyle({ fillColor: normalizeHexColor(nextValue, '#111827') })}
+                placeholder="#111827"
+              />
+            </div>
             <div className="mt-4 grid grid-cols-4 gap-3">
               {colorSwatches.map((color) => (
                 <button
@@ -1876,13 +2307,35 @@ function EditorUI() {
       return (
         <div className="space-y-4">
           <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
-              Selected
-            </p>
-            <p className="mt-2 text-lg font-extrabold text-slate-900">{selectedLabel}</p>
-            <p className="mt-1 text-sm font-medium text-slate-500">
-              Kisi bhi font card par click karo aur woh selected text layer par apply ho jayegi.
-            </p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                Font Size
+              </p>
+              <span className="text-sm font-bold text-slate-600">{Math.round(Number(selectedItemData.fontSize || 46))} px</span>
+            </div>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <button
+                onClick={() => handleSelectedTextFontSizeChange(Number(selectedItemData.fontSize || 46) - 2)}
+                className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-lg font-black text-slate-700 transition-all hover:border-orange-300 hover:text-orange-600"
+              >
+                -
+              </button>
+              <input
+                type="range"
+                min="12"
+                max="120"
+                step="1"
+                value={Number(selectedItemData.fontSize || 46)}
+                onChange={(event) => handleSelectedTextFontSizeChange(event.target.value)}
+                className="w-full accent-orange-500"
+              />
+              <button
+                onClick={() => handleSelectedTextFontSizeChange(Number(selectedItemData.fontSize || 46) + 2)}
+                className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-lg font-black text-slate-700 transition-all hover:border-orange-300 hover:text-orange-600"
+              >
+                +
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-3">
@@ -1918,19 +2371,20 @@ function EditorUI() {
       return (
         <div className="space-y-4">
           <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
-              Selected
-            </p>
-            <p className="mt-2 text-lg font-extrabold text-slate-900">{selectedLabel}</p>
-            <p className="mt-1 text-sm font-medium text-slate-500">
-              Set outline color and thickness for the selected element.
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
             <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
               Outline Color
             </p>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <ColorPickerField
+                value={isValidHexColor(selectedStyle.outlineColor) ? selectedStyle.outlineColor : normalizeHexColor(selectedStyle.outlineColor, '#111827')}
+                onChange={(event) => updateSelectedItemStyle({ outlineColor: normalizeHexColor(event.target.value, '#111827') })}
+              />
+              <HexColorInput
+                value={normalizeHexColor(selectedStyle.outlineColor || '#111827', '#111827')}
+                onValidColorChange={(nextValue) => updateSelectedItemStyle({ outlineColor: normalizeHexColor(nextValue, '#111827') })}
+                placeholder="#111827"
+              />
+            </div>
             <div className="mt-4 grid grid-cols-4 gap-3">
               {colorSwatches.map((color) => (
                 <button
@@ -1970,16 +2424,6 @@ function EditorUI() {
     if (selectedCanvasItem && activeObjectPanel === '3D' && selectedItemData) {
       return (
         <div className="space-y-4">
-          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
-              Selected
-            </p>
-            <p className="mt-2 text-lg font-extrabold text-slate-900">{selectedLabel}</p>
-            <p className="mt-1 text-sm font-medium text-slate-500">
-              Adjust X, Y, and Z axis rotation for a 3D-style visual effect.
-            </p>
-          </div>
-
           {[
             { key: 'rotateX', label: 'X Axis', value: selectedStyle.rotateX ?? 0 },
             { key: 'rotateY', label: 'Y Axis', value: selectedStyle.rotateY ?? 0 },
@@ -2010,14 +2454,6 @@ function EditorUI() {
     if (activeTool === 'background') {
       return (
         <div className="space-y-4">
-          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Background</p>
-            <p className="mt-2 text-lg font-extrabold text-slate-900">Card Shapes</p>
-            <p className="mt-1 text-sm font-medium text-slate-500">
-              Choose a background shape for the logo card. Color and gradient buttons upar se open hongay.
-            </p>
-          </div>
-
           <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
             <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
               Shape Library
@@ -2085,6 +2521,19 @@ function EditorUI() {
                 style={{ backgroundColor: activeBackgroundShape ? activeBackgroundShapeColor : '#F8FAFC' }}
               />
             </div>
+            <div className="mt-4 flex items-center gap-3">
+              <ColorPickerField
+                disabled={!activeBackgroundShape}
+                value={activeBackgroundShape ? activeBackgroundShapeColor : '#FFFFFF'}
+                onChange={(event) => applyBackgroundShapeColor(event.target.value)}
+              />
+              <HexColorInput
+                disabled={!activeBackgroundShape}
+                value={activeBackgroundShape ? activeBackgroundShapeColor : '#FFFFFF'}
+                onValidColorChange={(nextValue) => applyBackgroundShapeColor(nextValue)}
+                placeholder="#FFFFFF"
+              />
+            </div>
             <div className="mt-4 grid grid-cols-4 gap-3">
               {backgroundColorSwatches.map((color) => (
                 <button
@@ -2109,14 +2558,6 @@ function EditorUI() {
     if (activeTool === 'effect') {
       return (
         <div className="space-y-4">
-          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Effect</p>
-            <p className="mt-2 text-lg font-extrabold text-slate-900">Background Effects</p>
-            <p className="mt-1 text-sm font-medium text-slate-500">
-              Kisi bhi effect card par click karo aur woh card background par apply ho jayega.
-            </p>
-          </div>
-
           <div className="grid grid-cols-2 gap-4">
             {effectLibraryImages.map((imageUrl, index) => (
               <button
@@ -2137,30 +2578,45 @@ function EditorUI() {
     if (activeTool === 'palette') {
       return (
         <div className="space-y-4">
-          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Palette</p>
-            <p className="mt-2 text-lg font-extrabold text-slate-900">Design Colors</p>
-            <p className="mt-1 text-sm font-medium text-slate-500">
-              Click any palette to apply its colors to the logo and text layers.
-            </p>
-          </div>
-
           {designPalettes.map((palette) => (
             <button
               key={palette.id}
               onClick={() => applyDesignPalette(palette)}
-              className="w-full rounded-3xl border border-slate-100 bg-white p-5 text-left shadow-sm transition-all hover:border-orange-300 hover:shadow-md"
+              className="group relative flex min-h-[220px] w-full flex-col justify-between overflow-hidden rounded-[1.75rem] border border-slate-100 bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-orange-300 hover:shadow-xl"
             >
-              <div className="flex items-center gap-3">
-                {palette.colors.map((color) => (
-                  <span
-                    key={color}
-                    className="h-10 w-10 rounded-full border-[3px] border-black/80"
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
+              <div
+                className="absolute inset-x-0 top-0 h-16 opacity-90"
+                style={{ background: `linear-gradient(135deg, ${palette.colors.join(', ')})` }}
+              />
+              <div className="relative">
+                <div className="flex items-start justify-end gap-3">
+                  <div className="rounded-2xl bg-white/95 px-3 py-2 shadow-sm ring-1 ring-slate-100">
+                    <div className="flex items-center gap-2">
+                      {palette.colors.map((color) => (
+                        <span
+                          key={color}
+                          className="h-4 w-4 rounded-full border-2 border-white shadow-sm sm:h-5 sm:w-5"
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-8 rounded-[1.35rem] border border-slate-100 bg-slate-50/80 p-3">
+                  <div className="grid grid-cols-4 gap-2">
+                    {palette.colors.map((color) => (
+                      <span
+                        key={`${palette.id}-${color}`}
+                        className="h-10 rounded-2xl shadow-inner"
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                </div>
               </div>
-              <p className="mt-4 text-sm font-extrabold text-slate-900">{palette.name}</p>
+              <div className="relative mt-4">
+                <p className="text-lg font-extrabold text-slate-900">{palette.name}</p>
+              </div>
             </button>
           ))}
         </div>
@@ -2170,14 +2626,6 @@ function EditorUI() {
     if (activeTool === 'art') {
       return (
         <div className="space-y-4">
-          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Art</p>
-            <p className="mt-2 text-lg font-extrabold text-slate-900">Logo Art Library</p>
-            <p className="mt-1 text-sm font-medium text-slate-500">
-              In cards me se kisi ko choose karo aur woh new logo element ki tarah card par add ho jayega.
-            </p>
-          </div>
-
           <div className="grid grid-cols-2 gap-4">
             {artLibraryImages.map((imageUrl, index) => (
               <button
@@ -2196,69 +2644,21 @@ function EditorUI() {
     }
 
     if (activeTool === 'images') {
-      return (
-        <div className="space-y-4">
-          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Images</p>
-            <p className="mt-2 text-lg font-extrabold text-slate-900">Upload Artwork</p>
-            <p className="mt-1 text-sm font-medium text-slate-500">
-              Choose any image from your device and place it on the card as a new layer.
-            </p>
-          </div>
-
-          <button
-            onClick={openImageBrowser}
-            className={`flex w-full items-center justify-center gap-2 rounded-3xl px-5 py-4 text-sm font-bold text-white shadow-lg transition-all ${gradients.primary}`}
-          >
-            <Images size={18} />
-            <span>Browse Device</span>
-          </button>
-
-          <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-5 text-center shadow-sm">
-            <p className="text-sm font-semibold text-slate-700">JPG, PNG, SVG supported</p>
-            <p className="mt-2 text-xs font-medium text-slate-500">
-              Uploaded image card par new logo layer ki tarah add ho jayegi.
-            </p>
-          </div>
-        </div>
-      );
+      return null;
     }
 
     if (activeTool === 'text') {
-      return (
-        <div className="space-y-4">
-          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Text</p>
-            <p className="mt-2 text-lg font-extrabold text-slate-900">Add New Text</p>
-            <p className="mt-1 text-sm font-medium text-slate-500">
-              Add a new editable text layer on the card, then drag, resize, rotate or edit it.
-            </p>
-          </div>
-
-          <button
-            onClick={handleAddTextLayer}
-            className={`flex w-full items-center justify-center gap-2 rounded-3xl px-5 py-4 text-sm font-bold text-white shadow-lg transition-all ${gradients.primary}`}
-          >
-            <Type size={18} />
-            <span>Add Text Layer</span>
-          </button>
-        </div>
-      );
+      return null;
     }
 
-    return (
-      <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-        <p className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Editor</p>
-        <p className="mt-2 text-lg font-extrabold text-slate-900">Pick a Tool</p>
-        <p className="mt-1 text-sm font-medium text-slate-500">
-          Top bar se background, text, palette ya images choose karke editing start karo.
-        </p>
-      </div>
-    );
+    return null;
   };
 
   return (
-    <div className="fixed inset-0 flex flex-col overflow-hidden bg-[radial-gradient(circle_at_top,#ffffff_0%,#f8fafc_48%,#eef2ff_100%)] font-sans lg:flex-row">
+    <div
+      className="fixed inset-0 flex flex-col overflow-hidden bg-[radial-gradient(circle_at_top,#ffffff_0%,#f8fafc_48%,#eef2ff_100%)] font-sans lg:flex-row"
+      style={{ WebkitTapHighlightColor: 'transparent' }}
+    >
 
       {/* SIDEBAR (Variations) */}
       <div className={`fixed inset-0 z-[200] lg:hidden transition-all duration-300 ${sidebarOpen ? "visible opacity-100" : "invisible opacity-0"}`}>
@@ -2308,7 +2708,7 @@ function EditorUI() {
                         clearCanvasSelection();
                         setActiveTool(tool.id);
                         if (tool.id === 'background') {
-                          setActiveBackgroundOption('background');
+                          setActiveBackgroundOption(null);
                         } else {
                           setActiveBackgroundOption(null);
                         }
@@ -2392,7 +2792,7 @@ function EditorUI() {
                       <span>Delete</span>
                     </button>
                   )}
-                  {canEditText && (
+                  {canEditSingleText && (
                     <button
                       onClick={handleEditSelectedText}
                       className="shrink-0 rounded-full bg-orange-500 px-4 py-2 text-xs font-bold text-white transition-all hover:bg-orange-600"
@@ -2500,6 +2900,12 @@ function EditorUI() {
                         businessValue: event.target.value,
                       }))
                     }
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' && !event.shiftKey) {
+                        event.preventDefault();
+                        handleSaveEditedText();
+                      }
+                    }}
                     className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-900 outline-none transition-all focus:border-orange-400 focus:bg-white"
                     placeholder={editDialog.mode === 'plain-text' ? 'Enter text' : 'Enter business name'}
                     autoFocus
@@ -2517,6 +2923,12 @@ function EditorUI() {
                             sloganValue: event.target.value,
                           }))
                         }
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' && !event.shiftKey) {
+                            event.preventDefault();
+                            handleSaveEditedText();
+                          }
+                        }}
                         className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-900 outline-none transition-all focus:border-orange-400 focus:bg-white"
                         placeholder="Enter slogan"
                       />
@@ -2544,17 +2956,17 @@ function EditorUI() {
           )}
 
           {colorDialogOpen && (
-            <div className="absolute inset-0 z-30 overflow-y-auto bg-slate-950/25 p-4 backdrop-blur-sm">
-              <div className="flex min-h-full items-center justify-center py-6">
-              <div className="w-full max-w-[380px] rounded-[1.35rem] border border-slate-100 bg-white p-4 shadow-2xl sm:max-w-[420px] sm:p-5">
+            <div className="absolute inset-0 z-30 overflow-hidden bg-slate-950/30 p-2 backdrop-blur-md sm:p-3">
+              <div className="flex h-full items-center justify-center">
+              <div className="flex max-h-[calc(100vh-10rem)] w-full max-w-[700px] flex-col overflow-hidden rounded-[1.5rem] border border-slate-100 bg-white p-4 shadow-2xl sm:p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
-                      Pick Background Color
-                    </p>
-                    <h3 className="mt-2 text-xl font-extrabold text-slate-900">
+                    <h3 className="text-xl font-extrabold text-slate-900">
                       Choose a Color
                     </h3>
+                    <p className="mt-1 text-sm font-medium text-slate-500">
+                      Swatch ya color picker se background tone choose karo.
+                    </p>
                   </div>
                   <button
                     onClick={closePickAnotherDialog}
@@ -2564,10 +2976,10 @@ function EditorUI() {
                   </button>
                 </div>
 
-                <div className="mt-6 space-y-5">
-                  <div>
+                <div className="mt-4 grid flex-1 gap-3 md:grid-cols-[1.2fr_0.9fr]">
+                  <div className="rounded-[1.2rem] border border-slate-100 bg-slate-50/80 p-3">
                     <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Starter Colors</p>
-                    <div className="mt-3 grid grid-cols-4 gap-2.5 sm:grid-cols-5">
+                    <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-5">
                       {backgroundColorSwatches.map((color, index) => {
                         const safeColor = normalizeHexColor(color, '#111827');
                         const isSelected = dialogSelectedColor === safeColor;
@@ -2581,7 +2993,7 @@ function EditorUI() {
                               setDialogSelectedColor(safeColor);
                               setCustomColorValue(safeColor);
                             }}
-                            className={`mx-auto h-9 w-9 rounded-full border-[3px] transition-all sm:h-10 sm:w-10 ${
+                            className={`mx-auto h-8 w-8 rounded-full border-[3px] transition-all sm:h-9 sm:w-9 ${
                               isSelected ? 'scale-105 ring-2 ring-orange-300 border-black' : 'border-black/80'
                             }`}
                             style={{ backgroundColor: safeColor }}
@@ -2589,12 +3001,10 @@ function EditorUI() {
                         );
                       })}
                     </div>
-                  </div>
 
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Shade Scale</p>
-                    <div className="mt-3 overflow-x-auto pb-2">
-                      <div className="flex min-w-max items-center gap-2">
+                    <div className="mt-4">
+                      <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Shade Scale</p>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
                         {dialogShadeOptions.map((shade, index) => {
                           const isSelected = dialogSelectedColor === shade;
                           return (
@@ -2605,7 +3015,7 @@ function EditorUI() {
                                 setDialogSelectedColor(shade);
                                 setCustomColorValue(shade);
                               }}
-                              className={`h-9 w-9 shrink-0 rounded-full border-[3px] transition-all sm:h-10 sm:w-10 ${
+                              className={`h-8 w-8 rounded-full border-[3px] transition-all sm:h-9 sm:w-9 ${
                                 isSelected ? 'ring-2 ring-orange-300 border-black scale-105' : 'border-black/70'
                               }`}
                               style={{ backgroundColor: shade }}
@@ -2616,19 +3026,40 @@ function EditorUI() {
                     </div>
                   </div>
 
+                  <div className="rounded-[1.2rem] border border-slate-100 bg-white p-3 shadow-sm">
+                    <div
+                      className="h-20 rounded-[1rem] border border-slate-100 shadow-inner sm:h-24"
+                      style={{ backgroundColor: isValidHexColor(customColorValue) ? customColorValue : normalizeHexColor(customColorValue, '#111827') }}
+                    />
+                    <div className="mt-3">
+                      <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Color Picker</p>
+                      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <ColorPickerField
+                          value={isValidHexColor(customColorValue) ? customColorValue : normalizeHexColor(customColorValue, '#111827')}
+                          onChange={(event) => {
+                            const nextColor = normalizeHexColor(event.target.value, '#111827');
+                            setCustomColorValue(nextColor);
+                            setDialogBaseColor(nextColor);
+                            setDialogSelectedColor(nextColor);
+                          }}
+                        />
+                        <HexColorInput
+                          value={customColorValue}
+                          onValidColorChange={(nextValue) => {
+                            const safeColor = normalizeHexColor(nextValue, '#111827');
+                            setCustomColorValue(safeColor);
+                            setDialogBaseColor(safeColor);
+                            setDialogSelectedColor(safeColor);
+                          }}
+                          onSubmit={handleDialogSelect}
+                          placeholder="#1A1A1A"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
-                  <button
-                    onClick={() => {
-                      setCustomColorValue(dialogSelectedColor);
-                      setCustomColorDialogOpen(true);
-                      setColorDialogOpen(false);
-                    }}
-                    className="rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-600 transition-all hover:border-slate-300 hover:text-slate-900"
-                  >
-                    Custom
-                  </button>
+                <div className="mt-4 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
                   <button
                     onClick={closePickAnotherDialog}
                     className="rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-600 transition-all hover:border-slate-300 hover:text-slate-900"
@@ -2647,82 +3078,13 @@ function EditorUI() {
             </div>
           )}
 
-          {customColorDialogOpen && (
-            <div className="absolute inset-0 z-40 overflow-y-auto bg-slate-950/25 p-4 backdrop-blur-sm">
-              <div className="flex min-h-full items-center justify-center py-6">
-              <div className="w-full max-w-[360px] rounded-[1.35rem] border border-slate-100 bg-white p-4 shadow-2xl sm:max-w-[400px] sm:p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
-                      Custom Background Color
-                    </p>
-                    <h3 className="mt-2 text-xl font-extrabold text-slate-900">
-                      Color Picker
-                    </h3>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setCustomColorDialogOpen(false);
-                      setColorDialogOpen(true);
-                    }}
-                    className="rounded-full bg-slate-100 p-2 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-700"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Custom</p>
-                  <div className="mt-3 flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={isValidHexColor(customColorValue) ? customColorValue : normalizeHexColor(customColorValue, '#111827')}
-                      onChange={(event) => setCustomColorValue(normalizeHexColor(event.target.value, '#111827'))}
-                      className="h-12 w-12 cursor-pointer rounded-xl border border-slate-200 bg-white p-1"
-                    />
-                    <input
-                      type="text"
-                      value={customColorValue}
-                      onChange={(event) => setCustomColorValue(event.target.value.toUpperCase())}
-                      className="h-12 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-orange-300"
-                      placeholder="#1A1A1A"
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
-                  <button
-                    onClick={() => {
-                      setCustomColorDialogOpen(false);
-                      setColorDialogOpen(true);
-                    }}
-                    className="rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-600 transition-all hover:border-slate-300 hover:text-slate-900"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleCustomDialogSelect();
-                    }}
-                    className={`rounded-full px-5 py-2.5 text-sm font-bold text-white shadow-lg transition-all ${gradients.primary}`}
-                  >
-                    Select
-                  </button>
-                </div>
-              </div>
-              </div>
-            </div>
-          )}
-
           {gradientDialogOpen && (
-            <div className="absolute inset-0 z-30 overflow-y-auto bg-slate-950/25 p-4 backdrop-blur-sm">
-              <div className="flex min-h-full items-center justify-center py-6">
-              <div className="w-full max-w-[520px] rounded-[1.5rem] border border-slate-100 bg-white p-4 shadow-2xl sm:max-w-[620px] sm:p-5">
-                <div className="flex items-start justify-between gap-4">
+            <div className="absolute inset-0 z-30 overflow-hidden bg-slate-950/30 p-2 backdrop-blur-md sm:p-3">
+              <div className="flex h-full items-center justify-center">
+              <div className="flex max-h-[calc(100vh-10rem)] w-full max-w-[760px] flex-col overflow-hidden rounded-[1.45rem] border border-slate-200 bg-white p-3 shadow-[0_28px_90px_rgba(15,23,42,0.24)] sm:p-4">
+                <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">Gradient</p>
-                    <h3 className="mt-2 text-xl font-extrabold text-slate-900">Build Background Gradient</h3>
-                    <p className="mt-1 text-sm font-medium text-slate-500">Choose start/end colors, type and direction.</p>
+                    <h3 className="text-lg font-extrabold text-slate-900 sm:text-xl">Build Background Gradient</h3>
                   </div>
                   <button
                     onClick={closeGradientDialog}
@@ -2732,14 +3094,14 @@ function EditorUI() {
                   </button>
                 </div>
 
-                <div className="mt-5 rounded-3xl border border-slate-200 p-3">
-                  <div className="h-28 w-full rounded-[1.1rem] border border-slate-100 sm:h-36" style={gradientPreviewStyle} />
+                <div className="mt-3 rounded-[1.4rem] border border-slate-200 bg-slate-50/60 p-3">
+                  <div className="mx-auto h-16 w-[80%] rounded-[0.95rem] border border-slate-100 sm:h-20" style={gradientPreviewStyle} />
                 </div>
 
-                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
                   <button
                     onClick={() => openGradientColorDialog('start')}
-                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition-all hover:border-orange-300"
+                    className="rounded-[1.2rem] border border-slate-200 bg-white px-4 py-2.5 text-left transition-all hover:border-orange-300"
                   >
                     <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Start</p>
                     <div className="mt-2 flex items-center gap-3">
@@ -2749,7 +3111,7 @@ function EditorUI() {
                   </button>
                   <button
                     onClick={() => openGradientColorDialog('end')}
-                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition-all hover:border-orange-300"
+                    className="rounded-[1.2rem] border border-slate-200 bg-white px-4 py-2.5 text-left transition-all hover:border-orange-300"
                   >
                     <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">End</p>
                     <div className="mt-2 flex items-center gap-3">
@@ -2759,73 +3121,80 @@ function EditorUI() {
                   </button>
                 </div>
 
-                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Gradient Type</p>
-                  <div className="mt-3 flex flex-wrap items-center gap-3">
-                    <button
-                      onClick={() => setGradientType('linear')}
-                      className={`rounded-full px-4 py-2 text-sm font-bold transition-all ${
-                        gradientType === 'linear'
-                          ? `${gradients.primary} text-white shadow-md`
-                          : 'bg-white text-slate-600 border border-slate-200'
-                      }`}
-                    >
-                      Linear
-                    </button>
-                    <button
-                      onClick={() => setGradientType('radial')}
-                      className={`rounded-full px-4 py-2 text-sm font-bold transition-all ${
-                        gradientType === 'radial'
-                          ? `${gradients.primary} text-white shadow-md`
-                          : 'bg-white text-slate-600 border border-slate-200'
-                      }`}
-                    >
-                      Radial
-                    </button>
+                <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
+                  <div className="rounded-[1.2rem] border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Gradient Type</p>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <button
+                        onClick={() => setGradientType('linear')}
+                        className={`rounded-full px-4 py-2 text-sm font-bold transition-all ${
+                          gradientType === 'linear'
+                            ? `${gradients.primary} text-white shadow-md`
+                            : 'bg-white text-slate-600 border border-slate-200'
+                        }`}
+                      >
+                        Linear
+                      </button>
+                      <button
+                        onClick={() => setGradientType('radial')}
+                        className={`rounded-full px-4 py-2 text-sm font-bold transition-all ${
+                          gradientType === 'radial'
+                            ? `${gradients.primary} text-white shadow-md`
+                            : 'bg-white text-slate-600 border border-slate-200'
+                        }`}
+                      >
+                        Radial
+                      </button>
+                    </div>
                   </div>
 
-                  {gradientType === 'linear' ? (
-                    <div className="mt-4 flex flex-wrap items-center gap-2">
-                      {gradientDirectionOptions.map((option) => {
-                        const Icon = option.icon;
-                        const isActive = gradientDirection === option.id;
+                  <div className="rounded-[1.2rem] border border-slate-200 bg-slate-50 p-3">
+                    {gradientType === 'linear' ? (
+                      <>
+                        <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Direction</p>
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          {gradientDirectionOptions.map((option) => {
+                            const Icon = option.icon;
+                            const isActive = gradientDirection === option.id;
 
-                        return (
-                          <button
-                            key={option.id}
-                            onClick={() => setGradientDirection(option.id)}
-                            className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
-                              isActive
-                                ? `${gradients.primary} text-white shadow-md`
-                                : 'bg-white border border-slate-200 text-slate-600'
-                            }`}
-                            title={option.label}
-                          >
-                            <Icon size={17} />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="mt-4">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Gradient Angle</p>
-                        <span className="text-sm font-bold text-slate-600">{gradientRadialAngle}°</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="360"
-                        step="1"
-                        value={gradientRadialAngle}
-                        onChange={(event) => setGradientRadialAngle(Number(event.target.value))}
-                        className="mt-3 w-full accent-orange-500"
-                      />
-                    </div>
-                  )}
+                            return (
+                              <button
+                                key={option.id}
+                                onClick={() => setGradientDirection(option.id)}
+                                className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
+                                  isActive
+                                    ? `${gradients.primary} text-white shadow-md`
+                                    : 'bg-white border border-slate-200 text-slate-600'
+                                }`}
+                                title={option.label}
+                              >
+                                <Icon size={17} />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Gradient Angle</p>
+                          <span className="text-sm font-bold text-slate-600">{gradientRadialAngle}°</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="360"
+                          step="1"
+                          value={gradientRadialAngle}
+                          onChange={(event) => setGradientRadialAngle(Number(event.target.value))}
+                          className="mt-3 w-full accent-orange-500"
+                        />
+                      </>
+                    )}
+                  </div>
                 </div>
 
-                <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
+                <div className="mt-3 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
                   <button
                     onClick={closeGradientDialog}
                     className="rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-600 transition-all hover:border-slate-300 hover:text-slate-900"
@@ -2845,15 +3214,15 @@ function EditorUI() {
           )}
 
           {gradientColorDialogOpen && (
-            <div className="absolute inset-0 z-40 overflow-y-auto bg-slate-950/25 p-4 backdrop-blur-sm">
-              <div className="flex min-h-full items-center justify-center py-6">
-              <div className="w-full max-w-[380px] rounded-[1.35rem] border border-slate-100 bg-white p-4 shadow-2xl sm:max-w-[420px] sm:p-5">
+            <div className="absolute inset-0 z-40 overflow-hidden bg-slate-950/30 p-3 backdrop-blur-md sm:p-4">
+              <div className="flex h-full items-center justify-center">
+              <div className="w-full max-w-[760px] rounded-[1.6rem] border border-slate-100 bg-white p-4 shadow-2xl sm:p-5">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
-                      {gradientColorTarget === 'start' ? 'Start Color' : 'End Color'}
+                    <h3 className="text-xl font-extrabold text-slate-900">Choose a Color</h3>
+                    <p className="mt-1 text-sm font-medium text-slate-500">
+                      {gradientColorTarget === 'start' ? 'Set the gradient start tone.' : 'Set the gradient end tone.'}
                     </p>
-                    <h3 className="mt-2 text-xl font-extrabold text-slate-900">Choose a Color</h3>
                   </div>
                   <button
                     onClick={closeGradientColorDialog}
@@ -2863,8 +3232,8 @@ function EditorUI() {
                   </button>
                 </div>
 
-                <div className="mt-6 space-y-5">
-                  <div>
+                <div className="mt-5 grid gap-4 md:grid-cols-[1.25fr_0.95fr]">
+                  <div className="rounded-[1.35rem] border border-slate-100 bg-slate-50/80 p-4">
                     <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Starter Colors</p>
                     <div className="mt-3 grid grid-cols-4 gap-2.5 sm:grid-cols-5">
                       {backgroundColorSwatches.map((color, index) => {
@@ -2888,12 +3257,10 @@ function EditorUI() {
                         );
                       })}
                     </div>
-                  </div>
 
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Shade Scale</p>
-                    <div className="mt-3 overflow-x-auto pb-2">
-                      <div className="flex min-w-max items-center gap-2">
+                    <div className="mt-5">
+                      <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Shade Scale</p>
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
                         {gradientDialogShadeOptions.map((shade, index) => {
                           const isSelected = gradientDialogSelectedColor === shade;
 
@@ -2905,7 +3272,7 @@ function EditorUI() {
                                 setGradientDialogSelectedColor(shade);
                                 setGradientCustomColorValue(shade);
                               }}
-                              className={`h-9 w-9 shrink-0 rounded-full border-[3px] transition-all sm:h-10 sm:w-10 ${
+                              className={`h-9 w-9 rounded-full border-[3px] transition-all sm:h-10 sm:w-10 ${
                                 isSelected ? 'ring-2 ring-orange-300 border-black scale-105' : 'border-black/70'
                               }`}
                               style={{ backgroundColor: shade }}
@@ -2915,19 +3282,41 @@ function EditorUI() {
                       </div>
                     </div>
                   </div>
+
+                  <div className="rounded-[1.35rem] border border-slate-100 bg-white p-4 shadow-sm">
+                    <div
+                      className="h-28 rounded-[1.25rem] border border-slate-100 shadow-inner"
+                      style={{ backgroundColor: isValidHexColor(gradientCustomColorValue) ? gradientCustomColorValue : normalizeHexColor(gradientCustomColorValue, '#111827') }}
+                    />
+                    <div className="mt-4">
+                      <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Color Picker</p>
+                      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <ColorPickerField
+                          value={isValidHexColor(gradientCustomColorValue) ? gradientCustomColorValue : normalizeHexColor(gradientCustomColorValue, '#111827')}
+                          onChange={(event) => {
+                            const nextColor = normalizeHexColor(event.target.value, '#111827');
+                            setGradientDialogBaseColor(nextColor);
+                            setGradientDialogSelectedColor(nextColor);
+                            setGradientCustomColorValue(nextColor);
+                          }}
+                        />
+                        <HexColorInput
+                          value={gradientCustomColorValue}
+                          onValidColorChange={(nextValue) => {
+                            const safeColor = normalizeHexColor(nextValue, '#111827');
+                            setGradientCustomColorValue(safeColor);
+                            setGradientDialogBaseColor(safeColor);
+                            setGradientDialogSelectedColor(safeColor);
+                          }}
+                          onSubmit={applyGradientDialogColor}
+                          placeholder="#1A1A1A"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
-                  <button
-                    onClick={() => {
-                      setGradientCustomColorValue(gradientDialogSelectedColor);
-                      setGradientCustomColorDialogOpen(true);
-                      setGradientColorDialogOpen(false);
-                    }}
-                    className="rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-600 transition-all hover:border-slate-300 hover:text-slate-900"
-                  >
-                    Custom
-                  </button>
+                <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
                   <button
                     onClick={closeGradientColorDialog}
                     className="rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-600 transition-all hover:border-slate-300 hover:text-slate-900"
@@ -2946,76 +3335,13 @@ function EditorUI() {
             </div>
           )}
 
-          {gradientCustomColorDialogOpen && (
-            <div className="absolute inset-0 z-50 overflow-y-auto bg-slate-950/25 p-4 backdrop-blur-sm">
-              <div className="flex min-h-full items-center justify-center py-6">
-              <div className="w-full max-w-[360px] rounded-[1.35rem] border border-slate-100 bg-white p-4 shadow-2xl sm:max-w-[400px] sm:p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">Custom Color</p>
-                    <h3 className="mt-2 text-xl font-extrabold text-slate-900">Color Picker</h3>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setGradientCustomColorDialogOpen(false);
-                      setGradientColorDialogOpen(true);
-                    }}
-                    className="rounded-full bg-slate-100 p-2 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-700"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="mt-1 flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={isValidHexColor(gradientCustomColorValue) ? gradientCustomColorValue : normalizeHexColor(gradientCustomColorValue, '#111827')}
-                      onChange={(event) => setGradientCustomColorValue(normalizeHexColor(event.target.value, '#111827'))}
-                      className="h-12 w-12 cursor-pointer rounded-xl border border-slate-200 bg-white p-1"
-                    />
-                    <input
-                      type="text"
-                      value={gradientCustomColorValue}
-                      onChange={(event) => setGradientCustomColorValue(event.target.value.toUpperCase())}
-                      className="h-12 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-orange-300"
-                      placeholder="#1A1A1A"
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
-                  <button
-                    onClick={() => {
-                      setGradientCustomColorDialogOpen(false);
-                      setGradientColorDialogOpen(true);
-                    }}
-                    className="rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-600 transition-all hover:border-slate-300 hover:text-slate-900"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={applyGradientCustomColor}
-                    className={`rounded-full px-5 py-2.5 text-sm font-bold text-white shadow-lg transition-all ${gradients.primary}`}
-                  >
-                    Select
-                  </button>
-                </div>
-              </div>
-              </div>
-            </div>
-          )}
-
           {assetPickerDialog.open && (
-            <div className="absolute inset-0 z-[55] overflow-y-auto bg-slate-950/25 p-4 backdrop-blur-sm">
-              <div className="flex min-h-full items-center justify-center py-6">
-                <div className="w-full max-w-4xl rounded-[1.75rem] border border-slate-100 bg-white p-4 shadow-2xl sm:p-5">
+            <div className="absolute inset-0 z-[55] overflow-hidden bg-slate-950/30 p-3 backdrop-blur-md sm:p-4">
+              <div className="flex h-full items-center justify-center">
+                <div className="w-full max-w-5xl rounded-[1.75rem] border border-slate-100 bg-white p-4 shadow-2xl sm:p-5">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
-                        {assetPickerDialog.type === 'texture' ? 'Textures' : 'Backgrounds'}
-                      </p>
-                      <h3 className="mt-2 text-xl font-extrabold text-slate-900">{assetPickerDialog.title}</h3>
+                      <h3 className="text-xl font-extrabold text-slate-900">{assetPickerDialog.title}</h3>
                       <p className="mt-1 text-sm font-medium text-slate-500">
                         Kisi bhi card par click karo aur woh current background par apply ho jayega.
                       </p>
@@ -3028,7 +3354,7 @@ function EditorUI() {
                     </button>
                   </div>
 
-                  <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                  <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                     {assetPickerDialog.items.map((imageUrl, index) => (
                       <button
                         key={imageUrl}
@@ -3036,9 +3362,9 @@ function EditorUI() {
                           applyPresetBackgroundImage(imageUrl);
                           closeAssetPickerDialog();
                         }}
-                        className="overflow-hidden rounded-3xl border border-slate-100 bg-white text-left shadow-sm transition-all hover:border-orange-300 hover:shadow-md"
+                        className="overflow-hidden rounded-[1.5rem] border border-slate-100 bg-white text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-orange-300 hover:shadow-lg"
                         >
-                          <div className="aspect-[4/3] bg-slate-100">
+                          <div className="aspect-[5/4] bg-slate-100">
                             <img
                               src={imageUrl}
                               alt={`${assetPickerDialog.title} ${index + 1}`}
@@ -3054,41 +3380,43 @@ function EditorUI() {
           )}
 
           {previewDialogOpen && (
-            <div className="absolute inset-0 z-[60] overflow-y-auto bg-slate-950/40 p-4 backdrop-blur-sm">
-              <div className="flex min-h-full items-center justify-center py-6">
-                <div className="w-full max-w-3xl rounded-[2rem] border border-slate-100 bg-white p-4 shadow-2xl sm:p-6">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">Preview</p>
-                      <h3 className="mt-2 text-xl font-extrabold text-slate-900">Review Your Updated Logo</h3>
-                      <p className="mt-1 text-sm font-medium text-slate-500">Current editor changes yahan exactly review kar sakte ho.</p>
+            <div
+              className="fixed inset-0 z-[140] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+              onClick={() => setPreviewDialogOpen(false)}
+            >
+              <div
+                className="relative w-full max-w-lg rounded-[2rem] bg-white p-5 shadow-2xl sm:rounded-[3rem] sm:p-6 md:p-8"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <button
+                  onClick={() => setPreviewDialogOpen(false)}
+                  className="absolute right-5 top-5 rounded-full bg-slate-100 p-2 text-slate-500 transition-colors hover:bg-red-100 hover:text-red-600"
+                >
+                  <X size={24} />
+                </button>
+
+                <div className="mb-5 aspect-[7/5] w-full overflow-hidden rounded-[1.5rem] border border-slate-100 bg-slate-50 sm:mb-6 sm:rounded-[2rem]">
+                  {previewImageUrl ? (
+                    <img src={previewImageUrl} alt="Edited logo preview" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-sm font-semibold text-slate-400">
+                      Preview unavailable
                     </div>
-                    <button
-                      onClick={() => setPreviewDialogOpen(false)}
-                      className="rounded-full bg-slate-100 p-2 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-700"
-                    >
-                      <X size={18} />
-                    </button>
-                  </div>
+                  )}
+                </div>
 
-                  <div className="mt-6 overflow-hidden rounded-[2rem] border border-slate-100 bg-slate-50">
-                    {previewImageUrl ? (
-                      <img src={previewImageUrl} alt="Edited logo preview" className="h-auto w-full object-contain" />
-                    ) : (
-                      <div className="flex h-[320px] items-center justify-center text-sm font-semibold text-slate-400">
-                        Preview unavailable
-                      </div>
-                    )}
-                  </div>
+                <div className="mb-6 text-center sm:mb-8">
+                  <h2 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">Review Your Updated Logo</h2>
+                  <p className="mt-1 text-sm font-medium text-slate-500 sm:text-base">Current editor changes yahan same review style me dikh rahi hain.</p>
+                </div>
 
-                  <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
-                    <button
-                      onClick={() => setPreviewDialogOpen(false)}
-                      className="rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-600 transition-all hover:border-slate-300 hover:text-slate-900"
-                    >
-                      Close
-                    </button>
-                  </div>
+                <div className="flex justify-center">
+                  <button
+                    onClick={() => setPreviewDialogOpen(false)}
+                    className="flex min-w-40 items-center justify-center rounded-2xl border border-slate-200 bg-white px-6 py-3.5 font-bold text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:text-slate-900"
+                  >
+                    Close
+                  </button>
                 </div>
               </div>
             </div>
@@ -3107,6 +3435,7 @@ function EditorUI() {
             selectionOverride={canvasSelectionOverride}
             clearSelectionToken={canvasClearSelectionToken}
             stageRef={stageRef}
+            zoom={canvasZoom}
           />
           </div>
         </div>

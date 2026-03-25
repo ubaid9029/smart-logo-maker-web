@@ -6,20 +6,24 @@ import { useState, useEffect } from 'react';
 
 const Hero = () => {
   const [mounted, setMounted] = useState(false);
-  const [dotsData, setDotsData] = useState([]);
-
-  useEffect(() => {
-    const generatedDots = Array.from({ length: 20 }).map((_, i) => ({
+  const [dotsData] = useState(() =>
+    Array.from({ length: 20 }).map((_, i) => ({
       id: i,
       width: Math.random() * 8 + 4 + 'px',
       height: Math.random() * 8 + 4 + 'px',
       left: Math.random() * 100 + '%',
       top: (Math.random() * 40 + 60) + '%',
       duration: Math.random() * 5 + 5,
-      delay: Math.random() * 5
-    }));
-    setDotsData(generatedDots);
-    setMounted(true);
+      delay: Math.random() * 5,
+    }))
+  );
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      setMounted(true);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   return (

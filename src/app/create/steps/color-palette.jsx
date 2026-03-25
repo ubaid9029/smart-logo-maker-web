@@ -1,10 +1,10 @@
 'use client';
-import { Palette, ChevronLeft, Check, Loader2 } from 'lucide-react';
+import { useCallback, useEffect } from 'react';
+import { Check, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useDispatch, useSelector } from "react-redux";
 import { updateFormData, generateLogosAction } from "../../../store/slices/logoSlice";
 import { useState } from 'react';
-
 
 const palettes = [
   { id: "1", name: 'Vibrant Energy', gradient: 'from-orange-400 via-pink-500 to-yellow-400', colors: ['bg-orange-400', 'bg-pink-500', 'bg-yellow-400', 'bg-red-400'] },
@@ -21,19 +21,16 @@ const ColorPalette = ({ onBack, data, setData }) => {
   const router = useRouter();
   const dispatch = useDispatch();
   const [submissionError, setSubmissionError] = useState("");
-
-  // Redux se data nikaalna
   const { status, formData } = useSelector((state) => state.logo);
   const isLoading = status === 'loading';
 
   const handleSelect = (palette) => {
     setData({ ...data, color: palette.name });
     setSubmissionError("");
-    // Color ID ko Redux mein update karna
     dispatch(updateFormData({ colorId: palette.id }));
   };
 
-  const handleGenerate = async () => {
+  const handleGenerate = useCallback(async () => {
     const selectedPalette = palettes.find((palette) => palette.name === data.color);
     const selectedColorId = selectedPalette?.id || formData?.colorId;
 
@@ -62,95 +59,94 @@ const ColorPalette = ({ onBack, data, setData }) => {
     setSubmissionError("");
     router.push('/generating');
     dispatch(generateLogosAction(payload));
-  };
+  }, [data.color, dispatch, formData, router]);
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Enter' && data.color && !isLoading) {
+        event.preventDefault();
+        handleGenerate();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [data.color, handleGenerate, isLoading]);
 
   return (
-    <div className="pt-10 flex flex-col items-center w-full animate-in fade-in slide-in-from-bottom-6 duration-700 max-w-6xl mx-auto px-4 md:px-6">
+    <div className="mx-auto flex h-full w-full max-w-4xl flex-col animate-in fade-in slide-in-from-bottom-6 duration-700 px-2 md:px-3">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="mb-2 flex flex-col items-center text-center pt-1 md:mb-3 md:pt-1.5">
+          <h1 className="mb-2 text-2xl font-black tracking-tight text-[#1A1A1A] md:text-4xl">Choose Your Colors</h1>
+          <p className="max-w-lg px-2 text-xs font-medium text-slate-500 md:text-sm">Select a color scheme that matches your brand personality</p>
+        </div>
 
-      {/* Back Button */}
-      <div className="w-full max-w-4xl flex justify-start mb-6 md:mb-10">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-2 text-slate-600 hover:text-black transition-all bg-white px-4 py-2 md:px-5 md:py-2.5 rounded-xl border border-slate-100 shadow-sm font-bold active:scale-95"
-        >
-          <ChevronLeft size={18} strokeWidth={3} />
-          Back
-        </button>
-      </div>
+        <div className="mx-auto mt-3 grid w-full max-w-[880px] flex-1 grid-cols-2 gap-x-2 gap-y-1.5 lg:grid-cols-3 md:mt-4 md:gap-x-2.5 md:gap-y-2">
+          {palettes.map((palette) => {
+            const isSelected = data.color === palette.name;
 
-      {/* Header */}
-      <div className="flex flex-col items-center mb-8 md:mb-12 text-center">
-        <div className=" p-4 md:p-5 rounded-[1.5rem] md:rounded-[2rem] bg-white shadow-xl shadow-pink-100/50 mb-4 md:mb-6 border border-white">
-          <Palette size={32} className="text-pink-600 md:w-10 md:h-10" />
-        </div> 
-        <h1 className="text-3xl md:text-5xl font-black text-[#1A1A1A] tracking-tight mb-3 md:mb-4">Choose Your Colors</h1>
-        <p className="text-base md:text-xl text-slate-500 font-medium max-w-lg px-2">Select a color scheme that matches your brand personality</p>
-      </div>
-
-      {/* Palette Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 w-full max-w-5xl mb-10 md:mb-12">
-        {palettes.map((palette) => {
-          const isSelected = data.color === palette.name;
-
-          return (
-            <button
-              key={palette.id}
-              onClick={() => handleSelect(palette)}
-              className={`relative p-4 md:p-5 rounded-[1.8rem] md:rounded-[2.5rem] flex flex-col items-center justify-between gap-4 md:gap-5 transition-all duration-500 ease-out border-2 ${isSelected ? 'bg-white shadow-2xl border-pink-300 scale-[1.03] z-10' : 'bg-white/60 border-transparent hover:bg-white hover:shadow-md'
+            return (
+              <button
+                key={palette.id}
+                onClick={() => handleSelect(palette)}
+                className={`relative flex h-[104px] flex-col items-center justify-between gap-1.5 rounded-[1rem] border-2 px-2.5 py-2.5 transition-all duration-500 ease-out sm:h-[122px] md:h-[162px] md:rounded-[1.15rem] md:px-4 md:py-4 ${
+                  isSelected
+                    ? 'z-10 scale-[1.03] border-pink-300 bg-white shadow-2xl'
+                    : 'border-transparent bg-white/60 hover:bg-white hover:shadow-md'
                 }`}
-            >
-              <div className={`w-full h-24 md:h-32 rounded-[1.2rem] md:rounded-[1.5rem] bg-linear-to-r ${palette.gradient} shadow-inner`}></div>
+              >
+                <div className={`h-10 w-full rounded-[0.9rem] bg-linear-to-r shadow-inner sm:h-12 md:h-[72px] ${palette.gradient}`}></div>
 
-              <div className="flex gap-2 justify-center w-full">
-                {palette.colors.map((colorClass, index) => (
-                  <div key={index} className={`w-5 h-5 md:w-6 md:h-6 rounded-full ${colorClass} border border-white shadow-sm`}></div>
-                ))}
-              </div>
-
-              <span className={`text-xs md:text-sm font-black mb-1 md:mb-2 ${isSelected ? 'text-slate-900' : 'text-slate-500'}`}>{palette.name}</span>
-
-              {isSelected && (
-                <div className="absolute top-2 right-2 md:-top-2 md:-right-2 bg-linear-to-r from-[#FF5C00] to-[#FF007A] p-1.5 md:p-2 rounded-full shadow-lg border-2 border-white animate-in zoom-in-50 duration-300">
-                  <Check size={14} className="text-white md:w-4" strokeWidth={4} />
+                <div className="flex w-full justify-center gap-1.5 sm:gap-2.5">
+                  {palette.colors.map((colorClass, index) => (
+                    <div key={index} className={`h-3.5 w-3.5 rounded-full border border-white shadow-sm sm:h-[16px] sm:w-[16px] md:h-[22px] md:w-[22px] ${colorClass}`}></div>
+                  ))}
                 </div>
-              )}
-            </button>
-          );
-        })}
-      </div>
 
-      {/* Action Buttons */}
-      <div className="flex flex-col-reverse md:flex-row items-center justify-center gap-4 md:gap-6 w-full max-w-2xl mb-10">
-        <button
-          onClick={onBack}
-          className="w-full md:w-1/2 py-4 md:py-5 rounded-2xl text-lg font-bold text-slate-400 bg-white shadow-sm hover:text-slate-600 border border-slate-50 transition-all active:scale-95"
-        >
-          Go Back
-        </button>
+                <span className={`mb-0.5 text-[9px] font-black leading-tight sm:text-[11px] md:text-[14px] ${isSelected ? 'text-slate-900' : 'text-slate-500'}`}>{palette.name}</span>
 
-        <button
-          onClick={handleGenerate}
-          disabled={!data.color || isLoading}
-          className={`w-full md:w-1/2 py-5 md:py-6 rounded-2xl text-lg md:text-xl font-black text-white transition-all duration-500 shadow-xl flex items-center justify-center gap-3 ${data.color && !isLoading
-              ? 'bg-linear-to-r from-[#ff5c01] via-[#ff007a] to-[#c400ff] hover:scale-[1.02] active:scale-95 shadow-pink-500/30'
-              : 'bg-slate-200 text-slate-400 cursor-not-allowed opacity-60'
+                {isSelected && (
+                  <div className="absolute right-2 top-2 rounded-full border-2 border-white bg-linear-to-r from-[#FF5C00] to-[#FF007A] p-1.5 shadow-lg md:-right-2 md:-top-2 md:p-2">
+                    <Check size={14} className="text-white md:w-4" strokeWidth={4} />
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mx-auto flex w-full max-w-xl flex-col-reverse items-center justify-center gap-2 pb-[10px] pt-2 md:flex-row md:justify-center md:gap-1">
+          <button
+            onClick={onBack}
+            className="w-full rounded-2xl border border-slate-50 bg-white py-3 text-sm font-bold text-slate-400 shadow-sm transition-all hover:text-slate-600 active:scale-95 md:w-48"
+          >
+            Go Back
+          </button>
+
+          <button
+            onClick={handleGenerate}
+            disabled={!data.color || isLoading}
+            className={`flex w-full items-center justify-center gap-3 rounded-2xl py-3 text-base font-black text-white shadow-xl transition-all duration-500 md:w-48 ${
+              data.color && !isLoading
+                ? 'bg-linear-to-r from-[#ff5c01] via-[#ff007a] to-[#c400ff] hover:scale-[1.02] active:scale-95 shadow-pink-500/30'
+                : 'cursor-not-allowed bg-slate-200 text-slate-400 opacity-60'
             }`}
-        >
-          {isLoading ? (
-            <div className="flex items-center gap-2">
-              <Loader2 className="animate-spin" size={24} />
-              <span>Generating...</span>
-            </div>
-          ) : "Generate Logo"}
-        </button>
-      </div>
+          >
+            {isLoading ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="animate-spin" size={24} />
+                <span>Generating...</span>
+              </div>
+            ) : "Generate Logo"}
+          </button>
+        </div>
 
-      {submissionError && (
-        <p className="mb-8 text-sm font-medium text-red-500">{submissionError}</p>
-      )}
+        {submissionError && (
+          <p className="pb-4 text-sm font-medium text-red-500">{submissionError}</p>
+        )}
+      </div>
     </div>
   );
 };
 
 export default ColorPalette;
-
