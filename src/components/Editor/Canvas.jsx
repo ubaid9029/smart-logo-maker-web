@@ -132,6 +132,125 @@ const getCanvasItemSize = (item, type) => {
   };
 };
 
+const getItemBox = (item, type) => {
+  const transform = item.transform || {};
+  const { width, height } = getCanvasItemSize(item, type);
+  const scaleX = Math.abs(Number(transform.scaleX ?? 1));
+  const scaleY = Math.abs(Number(transform.scaleY ?? 1));
+
+  return {
+    x: Number(transform.x ?? 0),
+    y: Number(transform.y ?? 0),
+    width: width * scaleX,
+    height: height * scaleY,
+  };
+};
+
+const getGuideStops = (logoItems, textItems, cardX, cardY, cardWidth, cardHeight, skipKeysInput) => {
+  const skipKeys = skipKeysInput instanceof Set
+    ? skipKeysInput
+    : new Set(skipKeysInput ? [skipKeysInput] : []);
+  const vertical = [0, CANVAS_WIDTH / 2, CANVAS_WIDTH, cardX, cardX + cardWidth / 2, cardX + cardWidth];
+  const horizontal = [0, CANVAS_HEIGHT / 2, CANVAS_HEIGHT, cardY, cardY + cardHeight / 2, cardY + cardHeight];
+
+  [...logoItems.map((item) => ({ type: 'logo', item })), ...textItems.map((item) => ({ type: 'text', item }))].forEach(({ type, item }) => {
+    const itemKey = `${type}:${item.id}`;
+    if (skipKeys.has(itemKey)) {
+      return;
+    }
+
+    const box = getItemBox(item, type);
+    vertical.push(box.x, box.x + box.width / 2, box.x + box.width);
+    horizontal.push(box.y, box.y + box.height / 2, box.y + box.height);
+  });
+
+  return { vertical, horizontal };
+};
+
+const getCombinedBox = (items) => {
+  if (!items.length) {
+    return null;
+  }
+
+  const boxes = items.map(({ item, type, x, y }) => {
+    const transform = item.transform || {};
+    const { width, height } = getCanvasItemSize(item, type);
+    const scaleX = Math.abs(Number(transform.scaleX ?? 1));
+    const scaleY = Math.abs(Number(transform.scaleY ?? 1));
+
+    return {
+      x,
+      y,
+      width: width * scaleX,
+      height: height * scaleY,
+    };
+  });
+
+  const minX = Math.min(...boxes.map((box) => box.x));
+  const minY = Math.min(...boxes.map((box) => box.y));
+  const maxX = Math.max(...boxes.map((box) => box.x + box.width));
+  const maxY = Math.max(...boxes.map((box) => box.y + box.height));
+
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY,
+  };
+};
+
+const getObjectSnappingEdges = (box) => ({
+  vertical: [
+    { guide: box.x, offset: 0, snap: 'start' },
+    { guide: box.x + box.width / 2, offset: box.width / 2, snap: 'center' },
+    { guide: box.x + box.width, offset: box.width, snap: 'end' },
+  ],
+  horizontal: [
+    { guide: box.y, offset: 0, snap: 'start' },
+    { guide: box.y + box.height / 2, offset: box.height / 2, snap: 'center' },
+    { guide: box.y + box.height, offset: box.height, snap: 'end' },
+  ],
+});
+
+const getClosestGuide = (lineGuideStops, itemBounds, threshold = 6) => {
+  const itemEdges = getObjectSnappingEdges(itemBounds);
+
+  const verticalMatches = [];
+  lineGuideStops.vertical.forEach((lineGuide) => {
+    itemEdges.vertical.forEach((itemEdge) => {
+      const diff = Math.abs(lineGuide - itemEdge.guide);
+      if (diff < threshold) {
+        verticalMatches.push({
+          lineGuide,
+          diff,
+          offset: itemEdge.offset,
+          snap: itemEdge.snap,
+        });
+      }
+    });
+  });
+
+  const horizontalMatches = [];
+  lineGuideStops.horizontal.forEach((lineGuide) => {
+    itemEdges.horizontal.forEach((itemEdge) => {
+      const diff = Math.abs(lineGuide - itemEdge.guide);
+      if (diff < threshold) {
+        horizontalMatches.push({
+          lineGuide,
+          diff,
+          offset: itemEdge.offset,
+          snap: itemEdge.snap,
+        });
+      }
+    });
+  });
+
+  const minVertical = verticalMatches.sort((a, b) => a.diff - b.diff)[0];
+  const minHorizontal = horizontalMatches.sort((a, b) => a.diff - b.diff)[0];
+
+  return { vertical: minVertical, horizontal: minHorizontal };
+};
+
 const clampCanvasItemPosition = (item, type, position) => {
   const transform = item.transform || {};
   const { width, height } = getCanvasItemSize(item, type);
@@ -517,6 +636,8 @@ function LogoNode({
   selected,
   onSelect,
   onTransformChange,
+  onTransformPreview,
+  onTransformFinish,
   onNodeDragStart,
   onNodeDragMove,
   onNodeDragEnd,
@@ -537,7 +658,7 @@ function LogoNode({
       return "";
     }
 
-    if (!item.style?.applyColorOverrides) {
+    if (!item.style?.applyColorOverrides || !item.style?.fillColor) {
       return item.imageUrl || "";
     }
 
@@ -552,7 +673,7 @@ function LogoNode({
     return nextSvgMarkup ? encodeSvgDataUri(nextSvgMarkup) : item.imageUrl || "";
   }, [isLineNode, item.imageUrl, item.style]);
   const outlineImageUrl = useMemo(() => {
-    if (isLineNode || !outlineWidth || !item.style?.applyColorOverrides) {
+    if (isLineNode || !outlineWidth || !item.style?.applyColorOverrides || !item.style?.outlineColor) {
       return "";
     }
 
@@ -569,6 +690,7 @@ function LogoNode({
   const [img] = useImage(styledImageUrl || "");
   const [outlineImg] = useImage(outlineImageUrl || "");
   const transform3d = get3dTransforms(item.style);
+  const nodeOpacity = Math.max(0.05, Math.min(1, Number(item.opacity ?? 1)));
   let imageWidth = Number(item.baseWidth || item.width || 220);
   let imageHeight = Number(item.baseHeight || item.height || 160);
 
@@ -629,8 +751,12 @@ function LogoNode({
         onNodeDragEnd?.(event, item, 'logo', getTransformPayload(event));
       }}
       onTransformStart={() => setCursor('grabbing')}
+      onTransform={(event) => {
+        onTransformPreview?.(event, item, 'logo');
+      }}
       onTransformEnd={(event) => {
         setCursor('grab');
+        onTransformFinish?.();
         onTransformChange(getTransformPayload(event));
       }}
       onMouseEnter={() => setCursor('grab')}
@@ -714,12 +840,12 @@ function LogoNode({
                     y={offsetY}
                     width={imageWidth}
                     height={imageHeight}
-                    opacity={0.92}
+                    opacity={Math.min(0.92, nodeOpacity)}
                   />
                 ))}
               </>
             )}
-            <KonvaImage image={img} width={imageWidth} height={imageHeight} />
+            <KonvaImage image={img} width={imageWidth} height={imageHeight} opacity={nodeOpacity} />
           </>
         )}
       </Group>
@@ -734,6 +860,8 @@ function TextNode({
   selected,
   onSelect,
   onTransformChange,
+  onTransformPreview,
+  onTransformFinish,
   onNodeDragStart,
   onNodeDragMove,
   onNodeDragEnd,
@@ -751,6 +879,7 @@ function TextNode({
   const shouldRenderSvgText = item.renderMode === 'svg' && Boolean(item.svgDataUri);
   const [svgTextImage] = useImage(shouldRenderSvgText ? item.svgDataUri : '');
   const transform3d = get3dTransforms(item.style);
+  const nodeOpacity = Math.max(0.05, Math.min(1, Number(item.opacity ?? 1)));
   const actualScaleX = transform.scaleX || 1;
   const actualScaleY = transform.scaleY || 1;
   const maxX = Math.max(0, CANVAS_WIDTH - (blockWidth * Math.abs(actualScaleX)));
@@ -801,8 +930,12 @@ function TextNode({
         onNodeDragEnd?.(event, item, 'text', getTransformPayload(event));
       }}
       onTransformStart={() => setCursor('grabbing')}
+      onTransform={(event) => {
+        onTransformPreview?.(event, item, 'text');
+      }}
       onTransformEnd={(event) => {
         setCursor('grab');
+        onTransformFinish?.();
         onTransformChange(getTransformPayload(event));
       }}
       onMouseEnter={() => setCursor('grab')}
@@ -836,7 +969,7 @@ function TextNode({
           />
         )}
         {shouldRenderSvgText && svgTextImage ? (
-          <KonvaImage image={svgTextImage} width={blockWidth} height={blockHeight} />
+          <KonvaImage image={svgTextImage} width={blockWidth} height={blockHeight} opacity={nodeOpacity} />
         ) : (
           <Text
             text={value}
@@ -851,6 +984,7 @@ function TextNode({
             align={item.align || "center"}
             verticalAlign="middle"
             letterSpacing={Number(item.letterSpacing || 0)}
+            opacity={nodeOpacity}
           />
         )}
       </Group>
@@ -874,6 +1008,8 @@ export default function Canvas({
   const [dimensions, setDimensions] = useState({ width: 700, height: 500, scale: 1 });
   const [selectedItem, setSelectedItem] = useState(null);
   const [selectedItems, setSelectedItems] = useState([]);
+  const [guideLines, setGuideLines] = useState({ vertical: [], horizontal: [] });
+  const [rotationInfo, setRotationInfo] = useState(null);
   const [backgroundImage] = useImage(config.bgImageUrl || '');
 
   const canvasWidth = CANVAS_WIDTH;
@@ -914,6 +1050,11 @@ export default function Canvas({
     } else {
       delete nodeMapRef.current[key];
     }
+  };
+
+  const clearHelpers = () => {
+    setGuideLines({ vertical: [], horizontal: [] });
+    setRotationInfo(null);
   };
 
   useEffect(() => {
@@ -1070,6 +1211,7 @@ export default function Canvas({
   };
 
   const handleNodeDragStart = (event, item, type) => {
+    clearHelpers();
     const itemKey = `${type}:${item.id}`;
     const isGroupDrag = selectedItems.length > 1 && selectedItems.some((entry) => `${entry.type}:${entry.id}` === itemKey);
     if (!isGroupDrag) {
@@ -1101,11 +1243,61 @@ export default function Canvas({
   const handleNodeDragMove = (event, item, type) => {
     const dragSelection = dragSelectionRef.current;
     if (!dragSelection || dragSelection.draggedKey !== `${type}:${item.id}`) {
+      const itemKey = `${type}:${item.id}`;
+      const currentItem = type === 'logo'
+        ? logoItems.find((entry) => entry.id === item.id) || item
+        : textItems.find((entry) => entry.id === item.id) || item;
+      const widthHeight = getCanvasItemSize(currentItem, type);
+      const scaleX = Math.abs(Number(event.target.scaleX() || currentItem.transform?.scaleX || 1));
+      const scaleY = Math.abs(Number(event.target.scaleY() || currentItem.transform?.scaleY || 1));
+      const boundedPosition = clampCanvasItemPosition(currentItem, type, {
+        x: event.target.x(),
+        y: event.target.y(),
+      });
+      const activeBox = {
+        x: boundedPosition.x,
+        y: boundedPosition.y,
+        width: widthHeight.width * scaleX,
+        height: widthHeight.height * scaleY,
+      };
+      const guideStops = getGuideStops(logoItems, textItems, cardX, cardY, cardWidth, cardHeight, itemKey);
+      const activeGuides = getClosestGuide(guideStops, activeBox);
+      const nextPosition = { ...boundedPosition };
+
+      if (activeGuides.vertical) {
+        nextPosition.x = activeGuides.vertical.lineGuide - activeGuides.vertical.offset;
+      }
+
+      if (activeGuides.horizontal) {
+        nextPosition.y = activeGuides.horizontal.lineGuide - activeGuides.horizontal.offset;
+      }
+
+      const finalPosition = clampCanvasItemPosition(currentItem, type, nextPosition);
+      event.target.position(finalPosition);
+      setGuideLines({
+        vertical: activeGuides.vertical ? [activeGuides.vertical.lineGuide] : [],
+        horizontal: activeGuides.horizontal ? [activeGuides.horizontal.lineGuide] : [],
+      });
       return;
     }
 
     const deltaX = event.target.x() - dragSelection.origin.x;
     const deltaY = event.target.y() - dragSelection.origin.y;
+    const selectedKeys = new Set(dragSelection.items.map((entry) => `${entry.type}:${entry.id}`));
+    const proposedItems = dragSelection.items.map((entry) => ({
+      ...entry,
+      x: entry.start.x + deltaX,
+      y: entry.start.y + deltaY,
+    }));
+    const combinedBox = getCombinedBox(proposedItems);
+    const guideStops = getGuideStops(logoItems, textItems, cardX, cardY, cardWidth, cardHeight, selectedKeys);
+    const activeGuides = combinedBox ? getClosestGuide(guideStops, combinedBox) : { vertical: null, horizontal: null };
+    const snappedDeltaX = activeGuides.vertical
+      ? deltaX + (activeGuides.vertical.lineGuide - (combinedBox.x + activeGuides.vertical.offset))
+      : deltaX;
+    const snappedDeltaY = activeGuides.horizontal
+      ? deltaY + (activeGuides.horizontal.lineGuide - (combinedBox.y + activeGuides.horizontal.offset))
+      : deltaY;
 
     dragSelection.items.forEach((entry) => {
       const nodeKey = `${entry.type}:${entry.id}`;
@@ -1117,17 +1309,22 @@ export default function Canvas({
       const nextPosition = clampCanvasItemPosition(
         entry.item,
         entry.type,
-        { x: entry.start.x + deltaX, y: entry.start.y + deltaY }
+        { x: entry.start.x + snappedDeltaX, y: entry.start.y + snappedDeltaY }
       );
       node.position(nextPosition);
     });
 
+    setGuideLines({
+      vertical: activeGuides.vertical ? [activeGuides.vertical.lineGuide] : [],
+      horizontal: activeGuides.horizontal ? [activeGuides.horizontal.lineGuide] : [],
+    });
     event.target.getLayer()?.batchDraw();
   };
 
   const handleNodeDragEnd = (event, item, type, nextTransform) => {
     const dragSelection = dragSelectionRef.current;
     if (!dragSelection || dragSelection.draggedKey !== `${type}:${item.id}`) {
+      clearHelpers();
       updateItemTransform(type === 'logo' ? 'logoItems' : 'textItems', item.id, nextTransform);
       return;
     }
@@ -1150,7 +1347,27 @@ export default function Canvas({
     });
 
     dragSelectionRef.current = null;
+    clearHelpers();
     commitSelectionTransforms(updates);
+  };
+
+  const handleTransformPreview = (event, item, type) => {
+    const node = event.target;
+    const currentItem = type === 'logo'
+      ? logoItems.find((entry) => entry.id === item.id) || item
+      : textItems.find((entry) => entry.id === item.id) || item;
+    const size = getCanvasItemSize(currentItem, type);
+    const scaleX = Math.abs(Number(node.scaleX() || 1));
+    const width = size.width * scaleX;
+    const x = node.x();
+    const y = node.y();
+    const normalizedRotation = ((Number(node.rotation() || 0) % 360) + 360) % 360;
+
+    setRotationInfo({
+      x: x + width / 2,
+      y: Math.max(24, y - 26),
+      rotation: Math.round(normalizedRotation),
+    });
   };
 
   return (
@@ -1240,6 +1457,8 @@ export default function Canvas({
                 selected={selectedItems.some((entry) => entry.type === 'logo' && entry.id === item.id)}
                   onSelect={(event) => handleItemSelect({ type: 'logo', id: item.id }, event)}
                   onTransformChange={(transform) => updateItemTransform('logoItems', item.id, transform)}
+                  onTransformPreview={handleTransformPreview}
+                  onTransformFinish={clearHelpers}
                   onNodeDragStart={handleNodeDragStart}
                   onNodeDragMove={handleNodeDragMove}
                   onNodeDragEnd={handleNodeDragEnd}
@@ -1257,6 +1476,8 @@ export default function Canvas({
                 selected={selectedItems.some((entry) => entry.type === 'text' && entry.id === item.id)}
                   onSelect={(event) => handleItemSelect({ type: 'text', id: item.id }, event)}
                   onTransformChange={(transform) => updateItemTransform('textItems', item.id, transform)}
+                  onTransformPreview={handleTransformPreview}
+                  onTransformFinish={clearHelpers}
                   onNodeDragStart={handleNodeDragStart}
                   onNodeDragMove={handleNodeDragMove}
                   onNodeDragEnd={handleNodeDragEnd}
@@ -1264,6 +1485,55 @@ export default function Canvas({
                   registerNode={registerNode}
                 />
               ))}
+
+              {guideLines.vertical.map((guideX) => (
+                <Line
+                  key={`guide-v-${guideX}`}
+                  points={[guideX, 0, guideX, CANVAS_HEIGHT]}
+                  stroke="#22C55E"
+                  strokeWidth={1.5}
+                  dash={[6, 6]}
+                  listening={false}
+                />
+              ))}
+
+              {guideLines.horizontal.map((guideY) => (
+                <Line
+                  key={`guide-h-${guideY}`}
+                  points={[0, guideY, CANVAS_WIDTH, guideY]}
+                  stroke="#22C55E"
+                  strokeWidth={1.5}
+                  dash={[6, 6]}
+                  listening={false}
+                />
+              ))}
+
+              {rotationInfo ? (
+                <Group x={rotationInfo.x} y={rotationInfo.y} listening={false}>
+                  <Rect
+                    x={-28}
+                    y={-16}
+                    width={56}
+                    height={24}
+                    cornerRadius={12}
+                    fill="#111827"
+                    opacity={0.92}
+                    shadowColor="#0F172A"
+                    shadowBlur={10}
+                    shadowOpacity={0.18}
+                  />
+                  <Text
+                    x={-28}
+                    y={-10}
+                    width={56}
+                    align="center"
+                    text={`${rotationInfo.rotation}°`}
+                    fontSize={12}
+                    fontStyle="bold"
+                    fill="#FFFFFF"
+                  />
+                </Group>
+              ) : null}
 
               <Transformer
                 ref={transformerRef}

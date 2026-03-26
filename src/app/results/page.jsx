@@ -270,7 +270,7 @@ const ResultsPage = () => {
           </div>
           <button
             onClick={() => router.push('/create?preserve=1')}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border bg-white px-5 py-3 text-sm font-bold shadow-sm sm:w-auto"
+            className="brand-button-outline w-full gap-2 rounded-xl px-5 py-3 text-sm sm:w-auto"
           >
             <ChevronLeft size={18} /> Change Info
           </button>
@@ -294,21 +294,21 @@ const ResultsPage = () => {
                 )}
                 <div className="absolute inset-0 hidden items-end justify-center bg-black/20 pb-4 opacity-0 transition-opacity group-hover:opacity-100 sm:flex sm:pb-6">
                   <div className="flex w-full justify-center gap-2 px-2">
-                    <button onClick={() => setSelectedDesign(design)} className="rounded-full bg-white p-3 text-sky-500 shadow-md"><Bookmark size={16} /></button>
-                    <button onClick={() => handleEditOnCanva(design)} className="rounded-full bg-white p-3 text-emerald-500 shadow-md"><Edit3 size={16} /></button>
-                    <button onClick={() => setDownloadDesign(design)} className="rounded-full bg-orange-500 p-3 text-white shadow-md"><ShoppingCart size={16} /></button>
+                    <button onClick={() => setSelectedDesign(design)} className="brand-icon-button h-11 w-11 p-0"><Bookmark size={16} /></button>
+                    <button onClick={() => handleEditOnCanva(design)} className="brand-icon-button h-11 w-11 p-0"><Edit3 size={16} /></button>
+                    <button onClick={() => setDownloadDesign(design)} className="brand-icon-button h-11 w-11 p-0"><ShoppingCart size={16} /></button>
                   </div>
                 </div>
               </div>
 
               <div className="mt-2 flex items-center justify-center gap-2 sm:hidden">
-                  <button onClick={() => setSelectedDesign(design)} className="rounded-full bg-sky-50 p-3 text-sky-600 shadow-sm">
+                  <button onClick={() => setSelectedDesign(design)} className="brand-icon-button h-11 w-11 p-0">
                     <Bookmark size={16} />
                   </button>
-                  <button onClick={() => handleEditOnCanva(design)} className="rounded-full bg-emerald-50 p-3 text-emerald-600 shadow-sm">
+                  <button onClick={() => handleEditOnCanva(design)} className="brand-icon-button h-11 w-11 p-0">
                     <Edit3 size={16} />
                   </button>
-                  <button onClick={() => setDownloadDesign(design)} className="rounded-full bg-orange-500 p-3 text-white shadow-sm">
+                  <button onClick={() => setDownloadDesign(design)} className="brand-icon-button h-11 w-11 p-0">
                     <ShoppingCart size={16} />
                   </button>
               </div>
@@ -335,7 +335,7 @@ const ResultsPage = () => {
             >
               <button
                 onClick={() => setSelectedDesign(null)}
-                className="absolute top-5 right-5 p-2 bg-slate-100 hover:bg-red-100 hover:text-red-600 transition-colors rounded-full z-10"
+                className="brand-icon-button absolute top-5 right-5 z-10 h-11 w-11 p-0"
               >
                 <X size={24} />
               </button>
@@ -356,7 +356,7 @@ const ResultsPage = () => {
               <div className="flex flex-col sm:flex-row gap-4">
                 <button
                   onClick={() => handleEditOnCanva(selectedDesign)}
-                  className="flex-1 flex items-center justify-center gap-2 bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all active:scale-95 shadow-lg shadow-slate-200"
+                  className="brand-button-outline flex-1 gap-2 rounded-2xl py-4"
                 >
                   <Edit3 size={18} />
                   Edit Design
@@ -364,7 +364,7 @@ const ResultsPage = () => {
 
                 <button
                   onClick={() => setDownloadDesign(selectedDesign)}
-                  className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-[#FF6B00] to-[#E02424] text-white py-4 rounded-2xl font-bold hover:opacity-90 transition-all active:scale-95 shadow-lg shadow-orange-200"
+                  className="brand-button-outline flex-1 gap-2 rounded-2xl py-4"
                 >
                   <ShoppingCart size={18} />
                   Buy Now

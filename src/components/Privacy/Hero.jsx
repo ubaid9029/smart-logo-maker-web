@@ -54,7 +54,7 @@ const Hero = () => {
             maskImage: 'linear-gradient(to bottom, black 70%, transparent 100%)',
             WebkitMaskImage: 'linear-gradient(to bottom, black 70%, transparent 100%)'
           }}
-          onError={(e) => console.log("Check if /logos/logo1.svg exists")}
+          onError={() => console.log("Check if /logos/logo1.svg exists")}
         />
       </div>
 
@@ -147,15 +147,15 @@ const Hero = () => {
           transition={{ delay: 0.6, duration: 0.5 }}
           className="flex flex-col sm:flex-row items-center justify-center gap-4 md:gap-6"
         >
-          <Link href="/create/bussiness-info">
-            <button className="group flex items-center gap-3 bg-linear-to-r from-[#ff5c01] via-[#ff007a] to-[#c400ff] text-white px-8 md:px-10 py-3 md:py-4 rounded-full font-bold text-base md:text-lg shadow-xl hover:scale-105 active:scale-95 transition-all duration-300">
-              Get Started Free
-              <HiArrowRight className="text-xl group-hover:translate-x-1 transition-transform" />
+            <Link href="/create/bussiness-info">
+              <button className="brand-button-primary group gap-3 px-8 md:px-10 py-3 md:py-4 text-base md:text-lg">
+                Get Started Free
+                <HiArrowRight className="text-xl group-hover:translate-x-1 transition-transform" />
+              </button>
+            </Link>
+            <button className="brand-button-outline px-8 md:px-10 py-3 md:py-4 text-base md:text-lg">
+              See How It Works
             </button>
-          </Link>
-          <button className="px-8 md:px-10 py-3 md:py-4 text-[#0f172a] font-bold text-base md:text-lg border-2 border-gray-100 rounded-full bg-white hover:border-[#0f172a] hover:scale-105 active:scale-95 transition-all duration-300 shadow-sm">
-            See How It Works
-          </button>
         </motion.div>
       </div>
     </section>

@@ -17,6 +17,8 @@ import {
   Sparkles,
   Palette,
   Images,
+  Eye,
+  Maximize2,
   Save,
   ShoppingCart,
   Menu,
@@ -817,6 +819,7 @@ function EditorUI() {
   const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
   const [downloadingFormat, setDownloadingFormat] = useState(null);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [previewFullscreenOpen, setPreviewFullscreenOpen] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState('');
   const [savingChanges, setSavingChanges] = useState(false);
   const [canvasZoom, setCanvasZoom] = useState(1);
@@ -968,6 +971,15 @@ function EditorUI() {
 
   const updateSelectedItemStyle = (styleUpdate) => {
     updateSelectedElements((type, item) => {
+      const currentStyle = item.style || {};
+      const resolvedStyleUpdate = typeof styleUpdate === 'function'
+        ? styleUpdate(currentStyle)
+        : styleUpdate;
+      const shouldEnableColorOverrides = Boolean(
+        currentStyle.applyColorOverrides ||
+        resolvedStyleUpdate?.fillColor !== undefined ||
+        resolvedStyleUpdate?.outlineColor !== undefined
+      );
       const styledItem = {
         ...item,
         ...(type === 'text'
@@ -979,9 +991,9 @@ function EditorUI() {
             }
           : {}),
         style: {
-          ...(item.style || {}),
-          applyColorOverrides: true,
-          ...(typeof styleUpdate === 'function' ? styleUpdate(item.style || {}) : styleUpdate),
+          ...currentStyle,
+          ...resolvedStyleUpdate,
+          applyColorOverrides: shouldEnableColorOverrides,
         },
       };
       const nextItem = type === 'text'
@@ -1080,6 +1092,15 @@ function EditorUI() {
         ...item.transform,
         rotation: (item.transform.rotation || 0) + delta,
       },
+    }));
+  };
+
+  const handleSelectedOpacityChange = (opacityValue) => {
+    const nextOpacity = Math.max(0.05, Math.min(1, Number(opacityValue || 1)));
+
+    updateSelectedElements((type, item) => ({
+      ...item,
+      opacity: nextOpacity,
     }));
   };
 
@@ -1285,7 +1306,7 @@ function EditorUI() {
       return undefined;
     }
 
-    if (previewDialogOpen) {
+    if (previewDialogOpen || previewFullscreenOpen) {
       document.body.classList.add('modal-open');
       document.documentElement.classList.add('modal-open');
     } else {
@@ -1297,7 +1318,7 @@ function EditorUI() {
       document.body.classList.remove('modal-open');
       document.documentElement.classList.remove('modal-open');
     };
-  }, [previewDialogOpen]);
+  }, [previewDialogOpen, previewFullscreenOpen]);
 
   useEffect(() => {
     const handleEditorKeyDown = (event) => {
@@ -1527,6 +1548,29 @@ function EditorUI() {
   };
   const dialogShadeOptions = buildShadeScale(dialogBaseColor, 10);
   const gradientDialogShadeOptions = buildShadeScale(gradientDialogBaseColor, 10);
+  const showFloatingToolbar = Boolean(
+    selectedCanvasItem ||
+    activeTool === 'background'
+  );
+  const shouldShowDesktopSidebar = Boolean(
+    selectedCanvasItem ||
+    activeTool === 'background' ||
+    activeTool === 'art' ||
+    activeTool === 'effect' ||
+    activeTool === 'palette'
+  );
+  const floatingToolbarOffsetStyle = {
+    top: 'max(0.75rem, calc(50% - 215px))',
+  };
+  const floatingActionDockOffsetStyle = {
+    bottom: 'max(0.75rem, calc(50% - 230px))',
+  };
+
+  useEffect(() => {
+    if (!shouldShowDesktopSidebar) {
+      setSidebarOpen(false);
+    }
+  }, [shouldShowDesktopSidebar]);
 
   const applyBackgroundColor = useCallback((colorValue) => {
     const safeColor = normalizeHexColor(colorValue, '#FFFFFF');
@@ -1810,6 +1854,7 @@ function EditorUI() {
       setSelectedCanvasItems([nextSelection]);
       setCanvasSelectionOverride(nextSelection);
       setActiveObjectPanel('controls');
+      setSidebarOpen(false);
     };
 
     reader.readAsDataURL(file);
@@ -1923,6 +1968,7 @@ function EditorUI() {
       businessValue: nextTextItem.text,
       sloganValue: '',
     });
+    setSidebarOpen(false);
   };
 
   const handleBackgroundOptionSelect = (optionId) => {
@@ -2262,6 +2308,26 @@ function EditorUI() {
                 <RefreshCcw size={18} />
               </button>
             </div>
+          </div>
+
+          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                Opacity
+              </p>
+              <span className="text-sm font-bold text-slate-600">
+                {Math.round((Number(selectedItemData.opacity ?? 1) || 1) * 100)}%
+              </span>
+            </div>
+            <input
+              type="range"
+              min="0.05"
+              max="1"
+              step="0.05"
+              value={Math.max(0.05, Math.min(1, Number(selectedItemData.opacity ?? 1)))}
+              onChange={(event) => handleSelectedOpacityChange(event.target.value)}
+              className="mt-4 w-full accent-orange-500"
+            />
           </div>
         </div>
       );
@@ -2661,9 +2727,9 @@ function EditorUI() {
     >
 
       {/* SIDEBAR (Variations) */}
-      <div className={`fixed inset-0 z-[200] lg:hidden transition-all duration-300 ${sidebarOpen ? "visible opacity-100" : "invisible opacity-0"}`}>
+      <div className={`fixed inset-0 z-[200] lg:hidden transition-all duration-300 ${sidebarOpen && shouldShowDesktopSidebar ? "visible opacity-100" : "invisible opacity-0"}`}>
         <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
-        <aside className={`absolute inset-y-0 left-0 w-[88vw] max-w-sm bg-white shadow-2xl transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        <aside className={`absolute inset-y-0 left-0 w-[88vw] max-w-sm bg-white shadow-2xl transition-transform duration-300 ${sidebarOpen && shouldShowDesktopSidebar ? "translate-x-0" : "-translate-x-full"}`}>
           <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white/95 p-5 backdrop-blur">
             <span className={`text-sm font-black uppercase tracking-[0.24em] ${gradients.text}`}>{sidebarHeading}</span>
             <X onClick={() => setSidebarOpen(false)} className="cursor-pointer text-gray-400" size={24} />
@@ -2674,28 +2740,72 @@ function EditorUI() {
         </aside>
       </div>
 
-      {/* DESKTOP SIDEBAR */}
-      <aside className="hidden w-[300px] shrink-0 flex-col border-r border-gray-100 bg-white xl:w-[320px] lg:flex">
-        <div className="border-b border-gray-50 p-8">
-          <h2 className={`text-xs font-black uppercase tracking-widest ${gradients.text}`}>{sidebarHeading}</h2>
-        </div>
-        <div className="flex-1 overflow-y-auto bg-gray-50/30 p-4 space-y-4">
-          {renderSidebarContent()}
+      <aside className="hidden w-[92px] shrink-0 border-r border-gray-100 bg-white lg:flex lg:flex-col lg:items-start lg:px-3 lg:py-6">
+        <div className="flex w-full flex-col items-stretch gap-5">
+          {editorTools.map((tool) => {
+            const Icon = tool.icon;
+            const isActive = activeTool === tool.id;
+
+            return (
+              <button
+                key={tool.id}
+                onClick={() => {
+                  closeEditorOverlays();
+                  clearCanvasSelection();
+                  setActiveBackgroundOption(null);
+
+                  if (tool.id === 'text') {
+                    setActiveTool(null);
+                    handleAddTextLayer();
+                    return;
+                  }
+
+                  if (tool.id === 'images') {
+                    setActiveTool(null);
+                    openImageBrowser();
+                    return;
+                  }
+
+                  setActiveTool(tool.id);
+                }}
+                title={tool.label}
+                className={`brand-icon-button flex h-[72px] w-full items-center justify-center rounded-[1.55rem] px-3 py-4 transition-all ${
+                  isActive
+                    ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200'
+                    : ''
+                }`}
+              >
+                <Icon size={19} />
+              </button>
+            );
+          })}
         </div>
       </aside>
+
+      {/* DESKTOP SIDEBAR */}
+      {shouldShowDesktopSidebar && (
+        <aside className="hidden w-[300px] shrink-0 flex-col border-r border-gray-100 bg-white xl:w-[320px] lg:flex">
+          <div className="border-b border-gray-50 p-8">
+            <h2 className={`text-xs font-black uppercase tracking-widest ${gradients.text}`}>{sidebarHeading}</h2>
+          </div>
+          <div className="flex-1 overflow-y-auto bg-gray-50/30 p-4 space-y-4">
+            {renderSidebarContent()}
+          </div>
+        </aside>
+      )}
 
       {/* MAIN CONTENT AREA */}
       <main className="flex-1 flex flex-col relative h-full min-w-0">
 
         {/* TOPBAR */}
-        <div className="z-[100] shrink-0 border-b border-gray-100 bg-white/95 px-4 py-4 backdrop-blur md:px-8 md:py-5">
-          <div className="relative flex items-center justify-center">
+        <div className="z-[100] shrink-0 border-b border-gray-100 bg-white/95 px-4 py-4 backdrop-blur md:px-8 md:py-5 lg:hidden">
+          <div className="relative flex items-center justify-start">
             <button onClick={() => setSidebarOpen(true)} className="lg:hidden absolute left-0 p-2.5 bg-gray-50 rounded-xl">
               <Menu size={22} className="text-gray-600" />
             </button>
 
-            <div className="w-full overflow-x-auto px-14 lg:px-0">
-              <div className="flex min-w-max items-center justify-center gap-2 md:gap-3">
+            <div className="w-full overflow-x-auto pl-14">
+              <div className="flex min-w-max items-center justify-start gap-2 md:gap-3">
                 {editorTools.map((tool) => {
                   const Icon = tool.icon;
                   const isActive = activeTool === tool.id;
@@ -2706,17 +2816,26 @@ function EditorUI() {
                       onClick={() => {
                         closeEditorOverlays();
                         clearCanvasSelection();
-                        setActiveTool(tool.id);
-                        if (tool.id === 'background') {
-                          setActiveBackgroundOption(null);
-                        } else {
-                          setActiveBackgroundOption(null);
+                        setActiveBackgroundOption(null);
+
+                        if (tool.id === 'text') {
+                          setActiveTool(null);
+                          handleAddTextLayer();
+                          return;
                         }
+
+                        if (tool.id === 'images') {
+                          setActiveTool(null);
+                          openImageBrowser();
+                          return;
+                        }
+
+                        setActiveTool(tool.id);
                       }}
-                      className={`flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-bold transition-all ${
+                      className={`brand-chip-button flex min-w-[88px] shrink-0 flex-col items-center justify-center gap-1.5 rounded-2xl px-4 py-3 text-center text-sm font-bold transition-all ${
                         isActive
-                          ? `${gradients.primary} text-white shadow-lg`
-                          : 'bg-gray-50 text-slate-600 hover:bg-gray-100'
+                          ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200'
+                          : ''
                       }`}
                     >
                       <Icon size={18} />
@@ -2726,127 +2845,6 @@ function EditorUI() {
                 })}
               </div>
             </div>
-          </div>
-        </div>
-
-        <div className="border-b border-gray-100 bg-white/90 px-4 py-3 md:px-8">
-          <div className="relative flex min-h-[52px] flex-col gap-3 md:flex-row md:items-center">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleUndo}
-                disabled={editorState.past.length === 0}
-                className={`flex h-10 w-10 items-center justify-center rounded-full border bg-white shadow-sm transition-all ${
-                  editorState.past.length === 0
-                    ? 'cursor-not-allowed border-slate-100 text-slate-300'
-                    : 'cursor-pointer border-slate-200 text-slate-700 hover:border-orange-300 hover:text-orange-500'
-                }`}
-              >
-                <Undo2 size={18} />
-              </button>
-              <button
-                onClick={handleRedo}
-                disabled={editorState.future.length === 0}
-                className={`flex h-10 w-10 items-center justify-center rounded-full border bg-white shadow-sm transition-all ${
-                  editorState.future.length === 0
-                    ? 'cursor-not-allowed border-slate-100 text-slate-300'
-                    : 'cursor-pointer border-slate-200 text-slate-700 hover:border-orange-300 hover:text-orange-500'
-                }`}
-              >
-                <Redo2 size={18} />
-              </button>
-            </div>
-
-            {selectedCanvasItem ? (
-              <div className="w-full overflow-x-auto md:absolute md:left-1/2 md:w-auto md:-translate-x-1/2">
-                <div className="flex min-w-max items-center justify-center gap-2">
-                  <span className="mr-1 shrink-0 text-xs font-black uppercase tracking-[0.25em] text-slate-400">
-                    {selectedCanvasItem.type === 'logo' ? 'Logo' : 'Brand Line'}
-                  </span>
-                  {objectPanels.map((panel) => (
-                    <button
-                      key={panel}
-                      onClick={() => setActiveObjectPanel(panel)}
-                      className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold transition-all ${
-                        activeObjectPanel === panel
-                          ? `${gradients.primary} text-white shadow-md`
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      {panel}
-                    </button>
-                  ))}
-                  {canDuplicate && (
-                    <button
-                      onClick={handleDuplicateSelected}
-                      className="shrink-0 rounded-full bg-slate-900 px-4 py-2 text-xs font-bold text-white transition-all hover:bg-slate-800"
-                    >
-                      Duplicate
-                    </button>
-                  )}
-                  {selectedCanvasItem && (
-                    <button
-                      onClick={handleDeleteSelected}
-                      className="flex shrink-0 items-center gap-2 rounded-full bg-rose-500 px-4 py-2 text-xs font-bold text-white transition-all hover:bg-rose-600"
-                    >
-                      <Trash2 size={14} />
-                      <span>Delete</span>
-                    </button>
-                  )}
-                  {canEditSingleText && (
-                    <button
-                      onClick={handleEditSelectedText}
-                      className="shrink-0 rounded-full bg-orange-500 px-4 py-2 text-xs font-bold text-white transition-all hover:bg-orange-600"
-                    >
-                      Edit
-                    </button>
-                  )}
-                </div>
-              </div>
-            ) : activeTool === 'background' ? (
-              <div className="w-full overflow-x-auto md:absolute md:left-1/2 md:w-auto md:-translate-x-1/2">
-                <div className="flex min-w-max items-center justify-center gap-2">
-                  {backgroundOptions.map((option) => {
-                    const Icon = option.icon;
-                    const isActiveOption = activeBackgroundOption === option.id;
-
-                    return (
-                      <button
-                        key={option.id}
-                        onClick={() => handleBackgroundOptionSelect(option.id)}
-                        className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-all ${
-                          isActiveOption
-                            ? `${gradients.primary} text-white shadow-md`
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                        }`}
-                      >
-                        <Icon size={14} />
-                        <span>{option.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : activeTool === 'images' ? (
-              <div className="flex w-full flex-wrap items-center justify-center gap-2 md:absolute md:left-1/2 md:w-auto md:-translate-x-1/2">
-                <button
-                  onClick={openImageBrowser}
-                  className={`flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold text-white shadow-md transition-all ${gradients.primary}`}
-                >
-                  <Images size={14} />
-                  <span>Browse Image</span>
-                </button>
-              </div>
-            ) : activeTool === 'text' ? (
-              <div className="flex w-full flex-wrap items-center justify-center gap-2 md:absolute md:left-1/2 md:w-auto md:-translate-x-1/2">
-                <button
-                  onClick={handleAddTextLayer}
-                  className={`flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold text-white shadow-md transition-all ${gradients.primary}`}
-                >
-                  <Type size={14} />
-                  <span>Add Text</span>
-                </button>
-              </div>
-            ) : null}
           </div>
         </div>
 
@@ -2867,6 +2865,128 @@ function EditorUI() {
             onChange={handleBackgroundImageUpload}
           />
 
+          <div className="absolute left-4 top-4 z-20 flex items-center gap-3 sm:left-6 sm:top-6">
+            <button
+              onClick={handleUndo}
+              disabled={editorState.past.length === 0}
+              className={`brand-icon-button flex h-11 w-11 items-center justify-center rounded-full bg-white/95 backdrop-blur transition-all ${
+                editorState.past.length === 0
+                  ? 'cursor-not-allowed text-slate-300'
+                  : ''
+              }`}
+              title="Undo"
+            >
+              <Undo2 size={18} />
+            </button>
+            <button
+              onClick={handleRedo}
+              disabled={editorState.future.length === 0}
+              className={`brand-icon-button flex h-11 w-11 items-center justify-center rounded-full bg-white/95 backdrop-blur transition-all ${
+                editorState.future.length === 0
+                  ? 'cursor-not-allowed text-slate-300'
+                  : ''
+              }`}
+              title="Redo"
+            >
+              <Redo2 size={18} />
+            </button>
+          </div>
+
+          {showFloatingToolbar && (
+            <div
+              className="absolute left-1/2 z-20 w-[calc(100%-2rem)] max-w-max -translate-x-1/2 sm:w-auto"
+              style={floatingToolbarOffsetStyle}
+            >
+              <div className="overflow-x-auto rounded-[1.7rem] border border-slate-200/80 bg-white/95 px-3 py-3 shadow-xl backdrop-blur">
+                {selectedCanvasItem ? (
+                  <div className="flex min-w-max items-center justify-center gap-2">
+                    <span className="mr-1 shrink-0 rounded-full bg-slate-100 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">
+                      {selectedCanvasItem.type === 'logo' ? 'Logo' : 'Text'}
+                    </span>
+                    {objectPanels.map((panel) => (
+                      <button
+                        key={panel}
+                        onClick={() => setActiveObjectPanel(panel)}
+                        className={`brand-chip-button shrink-0 px-4 py-2 text-xs transition-all ${
+                          activeObjectPanel === panel
+                            ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200'
+                            : ''
+                        }`}
+                      >
+                        {panel}
+                      </button>
+                    ))}
+                    {canDuplicate && (
+                      <button
+                        onClick={handleDuplicateSelected}
+                        className="brand-button-outline shrink-0 px-4 py-2 text-xs"
+                      >
+                        Duplicate
+                      </button>
+                    )}
+                    <button
+                      onClick={handleDeleteSelected}
+                      className="brand-button-outline flex shrink-0 items-center gap-2 px-4 py-2 text-xs"
+                    >
+                      <Trash2 size={14} />
+                      <span>Delete</span>
+                    </button>
+                    {canEditSingleText && (
+                      <button
+                        onClick={handleEditSelectedText}
+                        className="brand-button-outline shrink-0 px-4 py-2 text-xs"
+                      >
+                        Edit
+                      </button>
+                    )}
+                  </div>
+                ) : activeTool === 'background' ? (
+                  <div className="flex min-w-max items-center justify-center gap-2">
+                    {backgroundOptions.map((option) => {
+                      const Icon = option.icon;
+                      const isActiveOption = activeBackgroundOption === option.id;
+
+                      return (
+                        <button
+                          key={option.id}
+                          onClick={() => handleBackgroundOptionSelect(option.id)}
+                          className={`brand-chip-button flex shrink-0 items-center gap-2 px-4 py-2 text-xs transition-all ${
+                            isActiveOption
+                              ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200'
+                              : ''
+                          }`}
+                        >
+                          <Icon size={14} />
+                          <span>{option.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : activeTool === 'images' ? (
+                  <div className="flex min-w-max items-center justify-center gap-2">
+                    <button
+                      onClick={openImageBrowser}
+                      className="brand-button-outline flex items-center gap-2 px-4 py-2 text-xs"
+                    >
+                      <Images size={14} />
+                      <span>Browse Image</span>
+                    </button>
+                  </div>
+                ) : activeTool === 'text' ? (
+                  <div className="flex min-w-max items-center justify-center gap-2">
+                    <button
+                      onClick={handleAddTextLayer}
+                      className="brand-button-outline flex items-center gap-2 px-4 py-2 text-xs"
+                    >
+                      <Type size={14} />
+                      <span>Add Text</span>
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          )}
+
           {editDialog.open && (
             <div className="absolute inset-0 z-30 overflow-y-auto bg-slate-950/25 p-4 backdrop-blur-sm">
               <div className="flex min-h-full items-center justify-center py-6">
@@ -2882,7 +3002,7 @@ function EditorUI() {
                   </div>
                   <button
                     onClick={() => setEditDialog({ open: false, type: null, mode: null, id: null, businessValue: '', sloganValue: '' })}
-                    className="rounded-full bg-slate-100 p-2 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-700"
+                    className="brand-icon-button h-10 w-10 p-0"
                   >
                     <X size={18} />
                   </button>
@@ -2939,13 +3059,13 @@ function EditorUI() {
                 <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
                   <button
                     onClick={() => setEditDialog({ open: false, type: null, mode: null, id: null, businessValue: '', sloganValue: '' })}
-                    className="rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-600 transition-all hover:border-slate-300 hover:text-slate-900"
+                    className="brand-button-outline px-5 py-2.5 text-sm"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleSaveEditedText}
-                    className={`rounded-full px-5 py-2.5 text-sm font-bold text-white shadow-lg transition-all ${gradients.primary}`}
+                    className="brand-button-outline px-5 py-2.5 text-sm"
                   >
                     Save
                   </button>
@@ -2970,7 +3090,7 @@ function EditorUI() {
                   </div>
                   <button
                     onClick={closePickAnotherDialog}
-                    className="rounded-full bg-slate-100 p-2 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-700"
+                    className="brand-icon-button h-10 w-10 p-0"
                   >
                     <X size={18} />
                   </button>
@@ -3062,13 +3182,13 @@ function EditorUI() {
                 <div className="mt-4 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
                   <button
                     onClick={closePickAnotherDialog}
-                    className="rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-600 transition-all hover:border-slate-300 hover:text-slate-900"
+                    className="brand-button-outline px-5 py-2.5 text-sm"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleDialogSelect}
-                    className={`rounded-full px-5 py-2.5 text-sm font-bold text-white shadow-lg transition-all ${gradients.primary}`}
+                    className="brand-button-outline px-5 py-2.5 text-sm"
                   >
                     Select
                   </button>
@@ -3088,7 +3208,7 @@ function EditorUI() {
                   </div>
                   <button
                     onClick={closeGradientDialog}
-                    className="rounded-full bg-slate-100 p-2 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-700"
+                    className="brand-icon-button h-10 w-10 p-0"
                   >
                     <X size={18} />
                   </button>
@@ -3127,20 +3247,20 @@ function EditorUI() {
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <button
                         onClick={() => setGradientType('linear')}
-                        className={`rounded-full px-4 py-2 text-sm font-bold transition-all ${
+                        className={`brand-chip-button px-4 py-2 text-sm transition-all ${
                           gradientType === 'linear'
-                            ? `${gradients.primary} text-white shadow-md`
-                            : 'bg-white text-slate-600 border border-slate-200'
+                            ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200'
+                            : ''
                         }`}
                       >
                         Linear
                       </button>
                       <button
                         onClick={() => setGradientType('radial')}
-                        className={`rounded-full px-4 py-2 text-sm font-bold transition-all ${
+                        className={`brand-chip-button px-4 py-2 text-sm transition-all ${
                           gradientType === 'radial'
-                            ? `${gradients.primary} text-white shadow-md`
-                            : 'bg-white text-slate-600 border border-slate-200'
+                            ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200'
+                            : ''
                         }`}
                       >
                         Radial
@@ -3161,10 +3281,10 @@ function EditorUI() {
                               <button
                                 key={option.id}
                                 onClick={() => setGradientDirection(option.id)}
-                                className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
+                                className={`brand-icon-button flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
                                   isActive
-                                    ? `${gradients.primary} text-white shadow-md`
-                                    : 'bg-white border border-slate-200 text-slate-600'
+                                    ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200'
+                                    : ''
                                 }`}
                                 title={option.label}
                               >
@@ -3197,13 +3317,13 @@ function EditorUI() {
                 <div className="mt-3 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
                   <button
                     onClick={closeGradientDialog}
-                    className="rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-600 transition-all hover:border-slate-300 hover:text-slate-900"
+                    className="brand-button-outline px-5 py-2.5 text-sm"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={applyGradientToBackground}
-                    className={`rounded-full px-5 py-2.5 text-sm font-bold text-white shadow-lg transition-all ${gradients.primary}`}
+                    className="brand-button-outline px-5 py-2.5 text-sm"
                   >
                     Apply
                   </button>
@@ -3226,7 +3346,7 @@ function EditorUI() {
                   </div>
                   <button
                     onClick={closeGradientColorDialog}
-                    className="rounded-full bg-slate-100 p-2 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-700"
+                    className="brand-icon-button h-10 w-10 p-0"
                   >
                     <X size={18} />
                   </button>
@@ -3319,13 +3439,13 @@ function EditorUI() {
                 <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
                   <button
                     onClick={closeGradientColorDialog}
-                    className="rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-600 transition-all hover:border-slate-300 hover:text-slate-900"
+                    className="brand-button-outline px-5 py-2.5 text-sm"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={applyGradientDialogColor}
-                    className={`rounded-full px-5 py-2.5 text-sm font-bold text-white shadow-lg transition-all ${gradients.primary}`}
+                    className="brand-button-outline px-5 py-2.5 text-sm"
                   >
                     Select
                   </button>
@@ -3348,7 +3468,7 @@ function EditorUI() {
                     </div>
                     <button
                       onClick={closeAssetPickerDialog}
-                      className="rounded-full bg-slate-100 p-2 text-slate-500 transition-all hover:bg-slate-200 hover:text-slate-700"
+                      className="brand-icon-button h-10 w-10 p-0"
                     >
                       <X size={18} />
                     </button>
@@ -3385,12 +3505,12 @@ function EditorUI() {
               onClick={() => setPreviewDialogOpen(false)}
             >
               <div
-                className="relative w-full max-w-lg rounded-[2rem] bg-white p-5 shadow-2xl sm:rounded-[3rem] sm:p-6 md:p-8"
+                className="relative w-full max-w-lg rounded-[2rem] border border-orange-100 bg-white p-5 shadow-[0_30px_90px_rgba(255,92,1,0.12)] sm:rounded-[3rem] sm:p-6 md:p-8"
                 onClick={(event) => event.stopPropagation()}
               >
                 <button
                   onClick={() => setPreviewDialogOpen(false)}
-                  className="absolute right-5 top-5 rounded-full bg-slate-100 p-2 text-slate-500 transition-colors hover:bg-red-100 hover:text-red-600"
+                  className="brand-icon-button absolute right-5 top-5 h-11 w-11 p-0"
                 >
                   <X size={24} />
                 </button>
@@ -3411,60 +3531,106 @@ function EditorUI() {
                 </div>
 
                 <div className="flex justify-center">
-                  <button
-                    onClick={() => setPreviewDialogOpen(false)}
-                    className="flex min-w-40 items-center justify-center rounded-2xl border border-slate-200 bg-white px-6 py-3.5 font-bold text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:text-slate-900"
-                  >
-                    Close
-                  </button>
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <button
+                      onClick={() => setPreviewFullscreenOpen(true)}
+                      className="brand-button-outline flex min-w-40 items-center justify-center gap-2 rounded-2xl px-6 py-3.5"
+                    >
+                      <Maximize2 size={18} />
+                      Full View
+                    </button>
+                    <button
+                      onClick={() => setPreviewDialogOpen(false)}
+                      className="brand-button-outline flex min-w-40 items-center justify-center rounded-2xl px-6 py-3.5"
+                    >
+                      Close
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
-          <div className="flex h-full items-center justify-center">
-          <LogoCanvas
-            config={logoConfig}
-            onConfigChange={(partialConfig) =>
-              applyLogoConfigChange((prev) => ({
-                ...prev,
-                ...partialConfig,
-              }))
-            }
-            onSelectionChange={handleCanvasSelectionChange}
-            selectionOverride={canvasSelectionOverride}
-            clearSelectionToken={canvasClearSelectionToken}
-            stageRef={stageRef}
-            zoom={canvasZoom}
-          />
+          {previewFullscreenOpen && (
+            <div
+              className="fixed inset-0 z-[160] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-md"
+              onClick={() => setPreviewFullscreenOpen(false)}
+            >
+              <div
+                className="relative flex h-full max-h-[96vh] w-full max-w-7xl items-center justify-center rounded-[2rem] border border-white/10 bg-black/20 p-4 shadow-2xl sm:p-6"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <button
+                  onClick={() => setPreviewFullscreenOpen(false)}
+                  className="brand-icon-button absolute right-5 top-5 h-11 w-11 p-0"
+                >
+                  <X size={22} />
+                </button>
+
+                <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-[1.5rem]">
+                  {previewImageUrl ? (
+                    <img
+                      src={previewImageUrl}
+                      alt="Full screen edited logo preview"
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  ) : (
+                    <div className="flex h-full min-h-[280px] w-full items-center justify-center text-sm font-semibold text-white/70">
+                      Preview unavailable
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex h-full w-full items-center justify-center">
+            <div className="h-full w-full max-w-[880px] max-h-[380px]">
+              <LogoCanvas
+                config={logoConfig}
+                onConfigChange={(partialConfig) =>
+                  applyLogoConfigChange((prev) => ({
+                    ...prev,
+                    ...partialConfig,
+                  }))
+                }
+                onSelectionChange={handleCanvasSelectionChange}
+                selectionOverride={canvasSelectionOverride}
+                clearSelectionToken={canvasClearSelectionToken}
+                stageRef={stageRef}
+                zoom={canvasZoom}
+              />
+            </div>
           </div>
-        </div>
 
-        {/* BOTTOM NAV */}
-        <div className="z-50 shrink-0 border-t border-gray-100 bg-white px-4 py-4 sm:px-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center sm:gap-4">
-          <button
-            onClick={handlePreviewOpen}
-            className={`flex w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-bold text-white shadow-xl transition-all sm:w-auto sm:px-10 ${gradients.primary}`}
+          <div
+            className="absolute left-1/2 z-20 -translate-x-1/2 "
+            style={floatingActionDockOffsetStyle}
           >
-            <Save size={18} />
-            <span>Preview</span>
-          </button>
-          <button
-            onClick={handleSaveDesign}
-            disabled={!designId || savingChanges}
-            className={`flex w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-bold text-white shadow-xl transition-all sm:w-auto sm:px-10 ${gradients.primary} ${!designId || savingChanges ? 'cursor-not-allowed opacity-60' : ''}`}
-          >
-            <Save size={18} />
-            <span>{savingChanges ? 'Saving...' : 'Save Design'}</span>
-          </button>
-
-          <button
-            onClick={handleOpenDownloadDialog}
-            className="flex w-full items-center justify-center gap-2 rounded-full border border-orange-200 bg-white px-6 py-3.5 text-sm font-bold text-orange-600 sm:w-auto sm:px-8"
-          >
-            <ShoppingCart size={18} /> <span>Download</span>
-          </button>
+            <div className="flex items-center gap-3 rounded-full border border-slate-200/80 bg-white/95 px-4 py-3 shadow-xl backdrop-blur">
+              <button
+                onClick={handlePreviewOpen}
+                className="brand-icon-button flex h-12 w-12 items-center justify-center rounded-full transition-all"
+                title="Preview"
+              >
+                <Eye size={15} />
+              </button>
+              <button
+                onClick={handleSaveDesign}
+                disabled={!designId || savingChanges}
+                className={`brand-icon-button flex h-12 w-12 items-center justify-center rounded-full transition-all ${!designId || savingChanges ? 'cursor-not-allowed opacity-60' : ''}`}
+                title={savingChanges ? 'Saving...' : 'Save Design'}
+              >
+                <Save size={15} />
+              </button>
+              <button
+                onClick={handleOpenDownloadDialog}
+                className="brand-icon-button flex h-12 w-12 items-center justify-center rounded-full transition-all"
+                title="Download"
+              >
+                <ShoppingCart size={15} />
+              </button>
+            </div>
           </div>
         </div>
       </main>

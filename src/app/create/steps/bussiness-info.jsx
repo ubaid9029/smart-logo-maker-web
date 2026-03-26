@@ -86,9 +86,9 @@ const BusinessInfo = ({ onNext, data, setData }) => {
           <button
             onClick={handleContinue}
             disabled={!isFormValid}
-            className={`flex w-full items-center justify-center gap-3 rounded-2xl py-3.5 text-lg font-black text-white shadow-2xl transition-all duration-500 md:w-56 md:py-4 md:text-xl ${
+            className={`flex w-full items-center justify-center gap-3 rounded-2xl py-3.5 text-lg font-black transition-all duration-500 md:w-56 md:py-4 md:text-xl ${
               isFormValid
-                ? 'bg-linear-to-r from-[#ff5c01] via-[#ff007a] to-[#c400ff] hover:scale-[1.01] active:scale-95 shadow-pink-500/30'
+                ? 'brand-button-primary hover:scale-[1.01] shadow-pink-500/30'
                 : 'cursor-not-allowed bg-slate-200 text-slate-400 opacity-90'
             }`}
           >

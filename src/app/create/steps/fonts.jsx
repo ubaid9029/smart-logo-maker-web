@@ -86,7 +86,7 @@ const Fonts = ({ onNext, onBack, data, setData }) => {
         <div className="mx-auto flex w-full max-w-xl flex-col-reverse items-center justify-center gap-2 px-2 pb-[10px] pt-2 md:flex-row md:justify-center md:gap-1">
           <button
             onClick={onBack}
-            className="w-full rounded-2xl border border-slate-50 bg-white py-3 text-sm font-bold text-slate-400 shadow-sm transition-all hover:text-slate-600 active:scale-95 md:w-48"
+            className="brand-button-outline w-full rounded-2xl py-3 text-sm md:w-48"
           >
             Go Back
           </button>
@@ -94,9 +94,9 @@ const Fonts = ({ onNext, onBack, data, setData }) => {
           <button
             onClick={onNext}
             disabled={!data.font}
-            className={`flex w-full items-center justify-center gap-3 rounded-2xl py-3 text-base font-black text-white shadow-2xl transition-all duration-500 md:w-48 ${
+            className={`flex w-full items-center justify-center gap-3 rounded-2xl py-3 text-base font-black transition-all duration-500 md:w-48 ${
               data.font
-                ? 'bg-linear-to-r from-[#ff5c01] via-[#ff007a] to-[#c400ff] hover:scale-[1.02] active:scale-95 shadow-pink-500/30'
+                ? 'brand-button-primary hover:scale-[1.02] shadow-pink-500/30'
                 : 'cursor-not-allowed bg-slate-200 text-slate-400 opacity-60 shadow-none'
             }`}
           >
