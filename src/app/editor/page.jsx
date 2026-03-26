@@ -21,8 +21,9 @@ import {
   Maximize2,
   Save,
   ShoppingCart,
-  Menu,
   X,
+  SlidersHorizontal,
+  Minimize2,
   Diamond,
   Pentagon,
   Hexagon,
@@ -34,17 +35,15 @@ import {
   Trash2,
   Undo2,
   Redo2,
+  RotateCcw,
+  RotateCw,
+  RefreshCcw,
   ArrowUp,
   ArrowDown,
   ArrowLeft,
   ArrowRight,
-  ZoomIn,
-  ZoomOut,
-  RotateCcw,
-  RotateCw,
   AlignHorizontalJustifyCenter,
   AlignVerticalJustifyCenter,
-  RefreshCcw,
 } from 'lucide-react';
 import { useSelector } from 'react-redux'; // Redux check ke liye
 
@@ -89,6 +88,8 @@ const editorTools = [
   { id: 'palette', label: 'Palette', icon: Palette },
   { id: 'images', label: 'Images', icon: Images },
 ];
+
+const mobileControlsTool = { id: 'controls', label: 'Controls', icon: SlidersHorizontal };
 
 const backgroundOptions = [
   { id: 'color', label: 'Color', icon: Palette },
@@ -208,6 +209,14 @@ const CARD_HEIGHT = 420;
 const CARD_X = (CANVAS_WIDTH - CARD_WIDTH) / 2;
 const CARD_Y = (CANVAS_HEIGHT - CARD_HEIGHT) / 2;
 const EDITED_LOGO_STORAGE_PREFIX = 'edited-logo:';
+const EMPTY_EDIT_DIALOG = {
+  open: false,
+  type: null,
+  mode: null,
+  id: null,
+  businessValue: '',
+  sloganValue: '',
+};
 const waitForNextFrame = () => new Promise((resolve) => {
   if (typeof window === 'undefined') {
     resolve();
@@ -821,8 +830,10 @@ function EditorUI() {
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [previewFullscreenOpen, setPreviewFullscreenOpen] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState('');
+  const [hideCanvasSelectionUi, setHideCanvasSelectionUi] = useState(false);
   const [savingChanges, setSavingChanges] = useState(false);
   const [canvasZoom, setCanvasZoom] = useState(1);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [assetPickerDialog, setAssetPickerDialog] = useState({
     open: false,
     type: null,
@@ -831,12 +842,7 @@ function EditorUI() {
   });
   const clipboardRef = useRef([]);
   const [editDialog, setEditDialog] = useState({
-    open: false,
-    type: null,
-    mode: null,
-    id: null,
-    businessValue: '',
-    sloganValue: '',
+    ...EMPTY_EDIT_DIALOG,
   });
 
   const areAllSelectedText = selectedCanvasItems.length > 0 && selectedCanvasItems.every((item) => item.type === 'text');
@@ -874,6 +880,10 @@ function EditorUI() {
       title: '',
       items: [],
     });
+  }, []);
+
+  const closeEditDialog = useCallback(() => {
+    setEditDialog(EMPTY_EDIT_DIALOG);
   }, []);
 
   const closeEditorOverlays = useCallback(() => {
@@ -1074,27 +1084,6 @@ function EditorUI() {
     }));
   };
 
-  const handleScale = (factor) => {
-    updateSelectedElements((type, item) => ({
-      ...item,
-      transform: {
-        ...item.transform,
-        scaleX: Math.min(Math.max((item.transform.scaleX || 1) * factor, 0.35), 3),
-        scaleY: Math.min(Math.max((item.transform.scaleY || 1) * factor, 0.35), 3),
-      },
-    }));
-  };
-
-  const handleRotate = (delta) => {
-    updateSelectedElements((type, item) => ({
-      ...item,
-      transform: {
-        ...item.transform,
-        rotation: (item.transform.rotation || 0) + delta,
-      },
-    }));
-  };
-
   const handleSelectedOpacityChange = (opacityValue) => {
     const nextOpacity = Math.max(0.05, Math.min(1, Number(opacityValue || 1)));
 
@@ -1102,6 +1091,77 @@ function EditorUI() {
       ...item,
       opacity: nextOpacity,
     }));
+  };
+
+  const handleScaleSelected = (scaleValue) => {
+    const safeScale = Math.max(0.2, Math.min(3, Number(scaleValue || 1)));
+
+    updateSelectedElements((type, item) => {
+      const currentTransform = item.transform || {};
+      const currentScaleX = Math.abs(currentTransform.scaleX ?? 1);
+      const currentScaleY = Math.abs(currentTransform.scaleY ?? 1);
+      const nextScaleX = safeScale * Math.sign(currentTransform.scaleX || 1 || 1);
+      const nextScaleY = safeScale * Math.sign(currentTransform.scaleY || 1 || 1);
+      const baseMetrics = type === 'logo'
+        ? {
+            width: Number(item.baseWidth || item.width || 280),
+            height: Number(item.baseHeight || item.height || 200),
+          }
+        : getTextMetrics(item);
+      const centerX = (currentTransform.x ?? 0) + (baseMetrics.width * currentScaleX) / 2;
+      const centerY = (currentTransform.y ?? 0) + (baseMetrics.height * currentScaleY) / 2;
+
+      return {
+        ...item,
+        transform: {
+          ...currentTransform,
+          scaleX: nextScaleX,
+          scaleY: nextScaleY,
+          x: centerX - (baseMetrics.width * Math.abs(nextScaleX)) / 2,
+          y: centerY - (baseMetrics.height * Math.abs(nextScaleY)) / 2,
+        },
+      };
+    });
+  };
+
+  const handleRotateSelected = (rotationValue) => {
+    const safeRotation = Number(rotationValue || 0);
+
+    updateSelectedElements((type, item) => ({
+      ...item,
+      transform: {
+        ...item.transform,
+        rotation: safeRotation,
+      },
+    }));
+  };
+
+  const handleResetSelectedTransform = () => {
+    updateSelectedElements((type, item) => {
+      const currentTransform = item.transform || {};
+      const currentScaleX = Math.abs(currentTransform.scaleX ?? 1);
+      const currentScaleY = Math.abs(currentTransform.scaleY ?? 1);
+      const baseMetrics = type === 'logo'
+        ? {
+            width: Number(item.baseWidth || item.width || 280),
+            height: Number(item.baseHeight || item.height || 200),
+          }
+        : getTextMetrics(item);
+      const centerX = (currentTransform.x ?? 0) + (baseMetrics.width * currentScaleX) / 2;
+      const centerY = (currentTransform.y ?? 0) + (baseMetrics.height * currentScaleY) / 2;
+
+      return {
+        ...item,
+        transform: {
+          ...currentTransform,
+          scaleX: 1,
+          scaleY: 1,
+          rotation: 0,
+          x: centerX - baseMetrics.width / 2,
+          y: centerY - baseMetrics.height / 2,
+        },
+      };
+    });
   };
 
   const handleCenter = (axis) => {
@@ -1133,28 +1193,6 @@ function EditorUI() {
         },
       };
     });
-  };
-
-  const handleResetSelected = () => {
-    if (!selectedCanvasItems.length) {
-      return;
-    }
-
-    updateSelectedElements((type, item) => ({
-      ...item,
-      transform: {
-        ...item.transform,
-        scaleX: 1,
-        scaleY: 1,
-        rotation: 0,
-      },
-      style: {
-        ...(item.style || {}),
-        rotateX: 0,
-        rotateY: 0,
-        rotateZ: 0,
-      },
-    }));
   };
 
   const handleDuplicateSelected = () => {
@@ -1319,6 +1357,74 @@ function EditorUI() {
       document.documentElement.classList.remove('modal-open');
     };
   }, [previewDialogOpen, previewFullscreenOpen]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || isMobileViewport) {
+      return undefined;
+    }
+
+    const handleDialogEscape = (event) => {
+      if (event.key !== 'Escape') {
+        return;
+      }
+
+      if (downloadDialogOpen && !downloadingFormat) {
+        setDownloadDialogOpen(false);
+        return;
+      }
+
+      if (previewFullscreenOpen) {
+        setPreviewFullscreenOpen(false);
+        return;
+      }
+
+      if (previewDialogOpen) {
+        setPreviewDialogOpen(false);
+        return;
+      }
+
+      if (assetPickerDialog.open) {
+        closeAssetPickerDialog();
+        return;
+      }
+
+      if (gradientColorDialogOpen) {
+        setGradientColorDialogOpen(false);
+        setGradientDialogOpen(true);
+        return;
+      }
+
+      if (gradientDialogOpen) {
+        setGradientDialogOpen(false);
+        return;
+      }
+
+      if (colorDialogOpen) {
+        setColorDialogOpen(false);
+        return;
+      }
+
+      if (editDialog.open) {
+        closeEditDialog();
+      }
+    };
+
+    window.addEventListener('keydown', handleDialogEscape);
+    return () => window.removeEventListener('keydown', handleDialogEscape);
+  }, [
+    assetPickerDialog.open,
+    closeAssetPickerDialog,
+    closeEditDialog,
+    colorDialogOpen,
+    downloadDialogOpen,
+    downloadingFormat,
+    editDialog.open,
+    gradientColorDialogOpen,
+    gradientDialogOpen,
+    isMobileViewport,
+    previewDialogOpen,
+    previewFullscreenOpen,
+  ]);
 
   useEffect(() => {
     const handleEditorKeyDown = (event) => {
@@ -1528,6 +1634,11 @@ function EditorUI() {
     selectedCanvasItemRef.current = nextPrimaryItem;
     setSelectedCanvasItem(nextPrimaryItem);
     setSelectedCanvasItems(nextItems);
+
+    if (typeof window !== 'undefined' && window.innerWidth < 1024 && nextPrimaryItem) {
+      setActiveTool(null);
+      setSidebarOpen(true);
+    }
   }, []);
 
   const clearCanvasSelection = useCallback(() => {
@@ -1559,18 +1670,44 @@ function EditorUI() {
     activeTool === 'effect' ||
     activeTool === 'palette'
   );
+  const mobileEditorTools = useMemo(
+    () => (selectedCanvasItem ? [mobileControlsTool, ...editorTools] : editorTools),
+    [selectedCanvasItem]
+  );
   const floatingToolbarOffsetStyle = {
     top: 'max(0.75rem, calc(50% - 215px))',
   };
   const floatingActionDockOffsetStyle = {
     bottom: 'max(0.75rem, calc(50% - 230px))',
   };
+  const mobileFloatingControlsStyle = isMobileViewport
+    ? {
+        bottom: sidebarOpen && shouldShowDesktopSidebar
+          ? 'calc(4.15rem + 18.5svh + 0.3rem)'
+          : '4.4rem',
+      }
+    : undefined;
 
   useEffect(() => {
     if (!shouldShowDesktopSidebar) {
       setSidebarOpen(false);
     }
   }, [shouldShowDesktopSidebar]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const syncViewport = () => {
+      setIsMobileViewport(window.innerWidth < 1024);
+    };
+
+    syncViewport();
+    window.addEventListener('resize', syncViewport);
+
+    return () => window.removeEventListener('resize', syncViewport);
+  }, []);
 
   const applyBackgroundColor = useCallback((colorValue) => {
     const safeColor = normalizeHexColor(colorValue, '#FFFFFF');
@@ -1674,10 +1811,16 @@ function EditorUI() {
     setDialogSelectedColor(safeColor);
     setCustomColorValue(safeColor);
     setColorDialogOpen(false);
+    if (isMobileViewport && activeTool === 'background') {
+      setSidebarOpen(true);
+    }
   };
 
   const closePickAnotherDialog = () => {
     setColorDialogOpen(false);
+    if (isMobileViewport && activeTool === 'background') {
+      setSidebarOpen(true);
+    }
   };
 
   const applyGradientToBackground = () => {
@@ -1694,6 +1837,9 @@ function EditorUI() {
       },
     }));
     setGradientDialogOpen(false);
+    if (isMobileViewport && activeTool === 'background') {
+      setSidebarOpen(true);
+    }
   };
 
   const openGradientDialog = () => {
@@ -1724,6 +1870,9 @@ function EditorUI() {
 
   const closeGradientDialog = () => {
     setGradientDialogOpen(false);
+    if (isMobileViewport && activeTool === 'background') {
+      setSidebarOpen(true);
+    }
   };
 
   const openGradientColorDialog = (target) => {
@@ -1975,6 +2124,41 @@ function EditorUI() {
     closeEditorOverlays();
     setActiveBackgroundOption(optionId);
 
+    if (isMobileViewport && activeTool === 'background') {
+      if (optionId === 'color') {
+        const currentBackgroundColor = normalizeHexColor(logoConfig.bgColor || '#FFFFFF', '#FFFFFF');
+        setDialogBaseColor(currentBackgroundColor);
+        setDialogSelectedColor(currentBackgroundColor);
+        setCustomColorValue(currentBackgroundColor);
+        setSidebarOpen(false);
+        setColorDialogOpen(true);
+        return;
+      }
+
+      if (optionId === 'gradient') {
+        const existingFill = logoConfig.bgFill;
+
+        if (existingFill?.type === 'linear' || existingFill?.type === 'radial') {
+          const nextStart = normalizeHexColor(existingFill.startColor || '#000000', '#000000');
+          const nextEnd = normalizeHexColor(existingFill.endColor || '#64748B', '#64748B');
+
+          setGradientType(existingFill.type);
+          setGradientDirection(existingFill.direction || 'down');
+          setGradientRadialAngle(Number(existingFill.radialAngle ?? 225));
+          setGradientStartColor(nextStart);
+          setGradientEndColor(nextEnd);
+        }
+
+        setSidebarOpen(false);
+        setGradientDialogOpen(true);
+        return;
+      }
+
+      if (optionId === 'background' || optionId === 'texture' || optionId === 'image') {
+        return;
+      }
+    }
+
     if (optionId === 'color') {
       const currentBackgroundColor = normalizeHexColor(logoConfig.bgColor || '#FFFFFF', '#FFFFFF');
       setDialogBaseColor(currentBackgroundColor);
@@ -1999,6 +2183,42 @@ function EditorUI() {
     }
   };
 
+  const handleEditorToolSelect = useCallback((toolId) => {
+    closeEditorOverlays();
+    clearCanvasSelection();
+    setActiveBackgroundOption(null);
+
+    if (toolId === 'text') {
+      setActiveTool(null);
+      setSidebarOpen(false);
+      handleAddTextLayer();
+      return;
+    }
+
+    if (toolId === 'images') {
+      setActiveTool(null);
+      setSidebarOpen(false);
+      openImageBrowser();
+      return;
+    }
+
+    setActiveTool(toolId);
+    setSidebarOpen(['background', 'art', 'effect', 'palette'].includes(toolId));
+  }, [clearCanvasSelection, closeEditorOverlays, handleAddTextLayer, openImageBrowser]);
+
+  const handleMobileToolSelect = useCallback((toolId) => {
+    if (toolId === 'controls') {
+      if (selectedCanvasItem) {
+        setActiveTool(null);
+        setActiveObjectPanel('controls');
+        setSidebarOpen(true);
+      }
+      return;
+    }
+
+    handleEditorToolSelect(toolId);
+  }, [handleEditorToolSelect, selectedCanvasItem]);
+
   const captureEditorPreview = useCallback(async (pixelRatio = 2, options = {}) => {
     const stage = stageRef.current;
     if (!stage) {
@@ -2008,24 +2228,35 @@ function EditorUI() {
     const shouldHideSelection = Boolean(options.hideSelection);
     const previousSelection = selectedCanvasItemRef.current;
     const previousSelections = [...selectedCanvasItems];
+    const restoredPrimarySelection = previousSelection || previousSelections[previousSelections.length - 1] || null;
 
-    if (shouldHideSelection && previousSelection) {
+    if (shouldHideSelection && previousSelections.length) {
       clearCanvasSelection();
       await waitForFrames(3);
       stage.batchDraw();
     }
 
-    const dataUrl = stage.toDataURL({ pixelRatio });
+    setHideCanvasSelectionUi(true);
+    await waitForFrames(2);
+    stage.batchDraw();
 
-    if (shouldHideSelection && previousSelection) {
-      selectedCanvasItemRef.current = previousSelection;
-      setSelectedCanvasItem(previousSelection);
-      setSelectedCanvasItems(previousSelections);
-      setCanvasSelectionOverride(previousSelection);
-      await waitForFrames(2);
+    try {
+      return stage.toDataURL({ pixelRatio });
+    } finally {
+      setHideCanvasSelectionUi(false);
+      await waitForFrames(1);
+
+      if (shouldHideSelection && previousSelections.length && restoredPrimarySelection) {
+        selectedCanvasItemRef.current = restoredPrimarySelection;
+        setSelectedCanvasItem(restoredPrimarySelection);
+        setSelectedCanvasItems(previousSelections);
+        setCanvasSelectionOverride({
+          primary: restoredPrimarySelection,
+          items: previousSelections,
+        });
+        await waitForFrames(2);
+      }
     }
-
-    return dataUrl;
   }, [clearCanvasSelection, selectedCanvasItems]);
 
   const buildEditableSavePayload = useCallback(() => JSON.parse(JSON.stringify(logoConfig)), [logoConfig]);
@@ -2075,14 +2306,18 @@ function EditorUI() {
   }, [buildEditableSavePayload, captureEditorPreview, designId, editScopeKey, payloadKey, router]);
 
   const handlePreviewOpen = useCallback(async () => {
+    clearCanvasSelection();
+    await waitForFrames(3);
+
     const nextPreviewImageUrl = await captureEditorPreview(2, { hideSelection: true });
     if (!nextPreviewImageUrl) {
       return;
     }
 
+    await persistEditorChanges({ previewDataUrl: nextPreviewImageUrl });
     setPreviewImageUrl(nextPreviewImageUrl);
     setPreviewDialogOpen(true);
-  }, [captureEditorPreview]);
+  }, [captureEditorPreview, clearCanvasSelection, persistEditorChanges]);
 
   const handleSaveDesign = useCallback(async () => {
     clearCanvasSelection();
@@ -2162,6 +2397,82 @@ function EditorUI() {
 
   const renderSidebarContent = () => {
     if (isControlsContext && selectedItemData) {
+      if (isMobileViewport) {
+        return (
+          <div className="space-y-1">
+            <div className="rounded-[0.95rem] border border-slate-100 bg-white p-2.5 shadow-sm">
+              <div className="grid grid-cols-3 gap-1">
+                <div />
+                <button
+                  title="Move Up"
+                  onClick={() => handleNudge(0, -movementStep)}
+                  className="flex h-8 items-center justify-center rounded-[1rem] bg-slate-100 text-slate-700 transition-all hover:bg-slate-200"
+                >
+                  <ArrowUp size={14} />
+                </button>
+                <div />
+                <button
+                  title="Move Left"
+                  onClick={() => handleNudge(-movementStep, 0)}
+                  className="flex h-8 items-center justify-center rounded-[1rem] bg-slate-100 text-slate-700 transition-all hover:bg-slate-200"
+                >
+                  <ArrowLeft size={14} />
+                </button>
+                <button
+                  title="Center Horizontally"
+                  onClick={() => handleCenter('x')}
+                  className="flex h-8 items-center justify-center rounded-[1rem] bg-orange-50 text-orange-600 transition-all hover:bg-orange-100"
+                >
+                  <AlignHorizontalJustifyCenter size={14} />
+                </button>
+                <button
+                  title="Move Right"
+                  onClick={() => handleNudge(movementStep, 0)}
+                  className="flex h-8 items-center justify-center rounded-[1rem] bg-slate-100 text-slate-700 transition-all hover:bg-slate-200"
+                >
+                  <ArrowRight size={14} />
+                </button>
+                <div />
+                <button
+                  title="Move Down"
+                  onClick={() => handleNudge(0, movementStep)}
+                  className="flex h-8 items-center justify-center rounded-[1rem] bg-slate-100 text-slate-700 transition-all hover:bg-slate-200"
+                >
+                  <ArrowDown size={14} />
+                </button>
+                <button
+                  title="Center Vertically"
+                  onClick={() => handleCenter('y')}
+                  className="flex h-8 items-center justify-center rounded-[1rem] bg-orange-50 text-orange-600 transition-all hover:bg-orange-100"
+                >
+                  <AlignVerticalJustifyCenter size={14} />
+                </button>
+              </div>
+
+              <div className="mt-2 rounded-[0.95rem] border border-slate-100 bg-slate-50 px-2.5 py-2">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+                    Opacity
+                  </p>
+                  <span className="text-xs font-bold text-slate-600">
+                    {Math.round((Number(selectedItemData.opacity ?? 1) || 1) * 100)}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0.05"
+                  max="1"
+                  step="0.05"
+                  value={Math.max(0.05, Math.min(1, Number(selectedItemData.opacity ?? 1)))}
+                  onChange={(event) => handleSelectedOpacityChange(event.target.value)}
+                  className="mt-1.5 w-full accent-orange-500"
+                />
+              </div>
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div className="space-y-4">
           <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
@@ -2248,65 +2559,62 @@ function EditorUI() {
           </div>
 
           <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-            <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
-              Transform
-            </p>
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              {(() => {
-                const Icon = ZoomIn;
-                return (
-                  <button
-                    title="Scale Up"
-                    onClick={() => handleScale(1.08)}
-                    className="flex h-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 transition-all hover:bg-slate-200"
-                  >
-                    <Icon size={18} />
-                  </button>
-                );
-              })()}
-              {(() => {
-                const Icon = ZoomOut;
-                return (
-                  <button
-                    title="Scale Down"
-                    onClick={() => handleScale(0.92)}
-                    className="flex h-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 transition-all hover:bg-slate-200"
-                  >
-                    <Icon size={18} />
-                  </button>
-                );
-              })()}
-              {(() => {
-                const Icon = RotateCcw;
-                return (
-                  <button
-                    title="Rotate Left"
-                    onClick={() => handleRotate(-10)}
-                    className="flex h-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 transition-all hover:bg-slate-200"
-                  >
-                    <Icon size={18} />
-                  </button>
-                );
-              })()}
-              {(() => {
-                const Icon = RotateCw;
-                return (
-                  <button
-                    title="Rotate Right"
-                    onClick={() => handleRotate(10)}
-                    className="flex h-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 transition-all hover:bg-slate-200"
-                  >
-                    <Icon size={18} />
-                  </button>
-                );
-              })()}
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                Transform
+              </p>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600">
+                  {Math.round((Math.abs(selectedItemData.transform?.scaleX ?? 1) || 1) * 100)}%
+                </span>
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600">
+                  {Math.round(Number(selectedItemData.transform?.rotation ?? 0))}°
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              <div />
+              <button
+                title="Scale Up"
+                onClick={() => handleScaleSelected((Math.abs(selectedItemData.transform?.scaleX ?? 1) || 1) + 0.1)}
+                className="flex h-14 w-full items-center justify-center rounded-[1.4rem] bg-slate-100 text-slate-700 transition-all hover:bg-slate-200"
+              >
+                <Maximize2 size={18} />
+              </button>
+              <div />
+
+              <button
+                title="Rotate Left"
+                onClick={() => handleRotateSelected(Number(selectedItemData.transform?.rotation ?? 0) - 15)}
+                className="flex h-14 w-full items-center justify-center rounded-[1.4rem] bg-slate-100 text-slate-700 transition-all hover:bg-slate-200"
+              >
+                <RotateCcw size={18} />
+              </button>
               <button
                 title="Reset Transform"
-                onClick={handleResetSelected}
-                className="col-span-2 flex h-12 items-center justify-center rounded-2xl bg-slate-900 text-white transition-all hover:bg-slate-800"
+                onClick={handleResetSelectedTransform}
+                className="flex h-14 w-full items-center justify-center rounded-[1.4rem] bg-orange-50 text-orange-600 transition-all hover:bg-orange-100"
               >
                 <RefreshCcw size={18} />
               </button>
+              <button
+                title="Rotate Right"
+                onClick={() => handleRotateSelected(Number(selectedItemData.transform?.rotation ?? 0) + 15)}
+                className="flex h-14 w-full items-center justify-center rounded-[1.4rem] bg-slate-100 text-slate-700 transition-all hover:bg-slate-200"
+              >
+                <RotateCw size={18} />
+              </button>
+
+              <div />
+              <button
+                title="Scale Down"
+                onClick={() => handleScaleSelected((Math.abs(selectedItemData.transform?.scaleX ?? 1) || 1) - 0.1)}
+                className="flex h-14 w-full items-center justify-center rounded-[1.4rem] bg-slate-100 text-slate-700 transition-all hover:bg-slate-200"
+              >
+                <Minimize2 size={18} />
+              </button>
+              <div />
             </div>
           </div>
 
@@ -2334,6 +2642,42 @@ function EditorUI() {
     }
 
     if (selectedCanvasItem && activeObjectPanel === 'colors' && selectedItemData) {
+      if (isMobileViewport) {
+        return (
+          <div className="space-y-2">
+            <div className="rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                Fill Color
+              </p>
+              <div className="mt-2 flex items-center gap-2">
+                <ColorPickerField
+                  value={isValidHexColor(selectedStyle.fillColor) ? selectedStyle.fillColor : normalizeHexColor(selectedStyle.fillColor, '#111827')}
+                  onChange={(event) => updateSelectedItemStyle({ fillColor: normalizeHexColor(event.target.value, '#111827') })}
+                />
+                <HexColorInput
+                  value={normalizeHexColor(selectedStyle.fillColor || '#111827', '#111827')}
+                  onValidColorChange={(nextValue) => updateSelectedItemStyle({ fillColor: normalizeHexColor(nextValue, '#111827') })}
+                  placeholder="#111827"
+                />
+              </div>
+              <div className="mt-2 flex items-center gap-1.5 overflow-x-auto pb-1">
+                {colorSwatches.map((color) => (
+                  <button
+                    key={color}
+                    title={color}
+                    onClick={() => updateSelectedItemStyle({ fillColor: color })}
+                    className={`h-7 w-7 shrink-0 rounded-full border-[3px] transition-all ${
+                      selectedStyle.fillColor === color ? 'scale-105 ring-2 ring-orange-300 border-black' : 'border-black/80'
+                    }`}
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div className="space-y-4">
           <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
@@ -2370,6 +2714,38 @@ function EditorUI() {
     }
 
     if (selectedCanvasItem && activeObjectPanel === 'fonts' && selectedItemData && canEditText) {
+      if (isMobileViewport) {
+        return (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 overflow-x-auto rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
+              {AVAILABLE_EDITOR_FONTS.map((fontName) => {
+                const isActiveFont = (selectedItemData.fontFamily || logoConfig.fontFamily || 'Arial') === fontName;
+
+                return (
+                  <button
+                    key={fontName}
+                    onClick={() => handleSelectedTextFontChange(fontName)}
+                    className={`w-[96px] shrink-0 rounded-[1rem] border px-3 py-3 text-left transition-all ${
+                      isActiveFont
+                        ? 'border-black bg-orange-50 shadow-sm ring-2 ring-orange-200'
+                        : 'border-slate-100 bg-white hover:border-orange-300 hover:shadow-sm'
+                    }`}
+                  >
+                    <p
+                      className="text-lg text-slate-900"
+                      style={{ fontFamily: fontName }}
+                    >
+                      Aa
+                    </p>
+                    <p className="mt-1 text-[10px] font-extrabold leading-snug text-slate-900">{fontName}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div className="space-y-4">
           <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
@@ -2434,6 +2810,60 @@ function EditorUI() {
     }
 
     if (selectedCanvasItem && activeObjectPanel === 'outlines' && selectedItemData) {
+      if (isMobileViewport) {
+        return (
+          <div className="space-y-2">
+            <div className="rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                Outline Color
+              </p>
+              <div className="mt-2 flex items-center gap-2">
+                <ColorPickerField
+                  value={isValidHexColor(selectedStyle.outlineColor) ? selectedStyle.outlineColor : normalizeHexColor(selectedStyle.outlineColor, '#111827')}
+                  onChange={(event) => updateSelectedItemStyle({ outlineColor: normalizeHexColor(event.target.value, '#111827') })}
+                />
+                <HexColorInput
+                  value={normalizeHexColor(selectedStyle.outlineColor || '#111827', '#111827')}
+                  onValidColorChange={(nextValue) => updateSelectedItemStyle({ outlineColor: normalizeHexColor(nextValue, '#111827') })}
+                  placeholder="#111827"
+                />
+              </div>
+              <div className="mt-2 flex items-center gap-1.5 overflow-x-auto pb-1">
+                {colorSwatches.map((color) => (
+                  <button
+                    key={color}
+                    title={color}
+                    onClick={() => updateSelectedItemStyle({ outlineColor: color })}
+                    className={`h-7 w-7 shrink-0 rounded-full border-[3px] transition-all ${
+                      selectedStyle.outlineColor === color ? 'scale-105 ring-2 ring-orange-300 border-black' : 'border-black/80'
+                    }`}
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                  Thickness
+                </p>
+                <span className="text-xs font-bold text-slate-600">{selectedStyle.outlineWidth ?? 0}</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="10"
+                step="1"
+                value={selectedStyle.outlineWidth ?? 0}
+                onChange={(event) => updateSelectedItemStyle({ outlineWidth: Number(event.target.value) })}
+                className="mt-2 w-full accent-orange-500"
+              />
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div className="space-y-4">
           <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
@@ -2488,6 +2918,42 @@ function EditorUI() {
     }
 
     if (selectedCanvasItem && activeObjectPanel === '3D' && selectedItemData) {
+      const rotateControls = [
+        { key: 'rotateX', label: 'X Axis', value: selectedStyle.rotateX ?? 0 },
+        { key: 'rotateY', label: 'Y Axis', value: selectedStyle.rotateY ?? 0 },
+        { key: 'rotateZ', label: 'Z Axis', value: selectedStyle.rotateZ ?? 0 },
+      ];
+
+      if (isMobileViewport) {
+        return (
+          <div className="space-y-2">
+            <div className="rounded-[0.95rem] border border-slate-100 bg-white p-1 shadow-sm">
+              <div className="space-y-1">
+                {rotateControls.map((control) => (
+                  <div key={control.key} className="rounded-[0.85rem] border border-slate-100 bg-slate-50 px-2 py-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">
+                        {control.label}
+                      </p>
+                      <span className="text-xs font-bold text-slate-600">{control.value}°</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="360"
+                      step="1"
+                      value={control.value}
+                      onChange={(event) => updateSelectedItemStyle({ [control.key]: Number(event.target.value) })}
+                      className="mt-0.5 h-4 w-full accent-orange-500"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div className="space-y-4">
           {[
@@ -2520,101 +2986,339 @@ function EditorUI() {
     if (activeTool === 'background') {
       return (
         <div className="space-y-4">
-          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-            <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
-              Shape Library
-            </p>
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              {backgroundShapeOptions.map((shapeOption) => {
-                const Icon = shapeOption.icon;
-                const isActiveShape = activeBackgroundShapeType === shapeOption.id;
+          <div className="space-y-2 lg:hidden">
+            {!isMobileViewport && (activeBackgroundOption === 'color' || !activeBackgroundOption) && (
+              <div className="flex items-stretch gap-2 overflow-x-auto pb-1">
+                <div className="w-[220px] shrink-0 rounded-[0.95rem] border border-slate-100 bg-white px-2.5 py-2 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="shrink-0 text-slate-400">
+                      <Palette size={15} />
+                    </span>
+                    <input
+                      type="range"
+                      min="0.05"
+                      max="1"
+                      step="0.05"
+                      value={activeBackgroundOpacity}
+                      onChange={(event) => applyBackgroundOpacity(event.target.value)}
+                      className="w-full accent-orange-500"
+                    />
+                    <span className="min-w-[38px] text-right text-xs font-bold text-slate-600">
+                      {Math.round(activeBackgroundOpacity * 100)}%
+                    </span>
+                  </div>
+                </div>
 
-                return (
+                <div className="w-[420px] shrink-0 rounded-[0.95rem] border border-slate-100 bg-white px-2 py-2 shadow-sm">
+                  <div className="flex items-center gap-1.5 overflow-x-auto">
+                    {backgroundShapeOptions.map((shapeOption) => {
+                      const Icon = shapeOption.icon;
+                      const isActiveShape = activeBackgroundShapeType === shapeOption.id;
+
+                      return (
+                        <button
+                          key={shapeOption.id}
+                          onClick={() => applyBackgroundShape(shapeOption.id)}
+                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-all ${
+                            isActiveShape
+                              ? 'border-black bg-orange-50 text-orange-600 ring-2 ring-orange-200'
+                              : 'border-slate-200 bg-white text-slate-500'
+                          }`}
+                        >
+                          <Icon size={15} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="w-[330px] shrink-0 rounded-[0.95rem] border border-slate-100 bg-white px-2.5 py-2 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <ColorPickerField
+                      value={customColorValue}
+                      onChange={(event) => {
+                        const safeColor = normalizeHexColor(event.target.value, '#FFFFFF');
+                        setDialogBaseColor(safeColor);
+                        setDialogSelectedColor(safeColor);
+                        setCustomColorValue(safeColor);
+                        applyBackgroundColor(safeColor);
+                      }}
+                    />
+                    <HexColorInput
+                      value={customColorValue}
+                      onValidColorChange={(nextValue) => {
+                        const safeColor = normalizeHexColor(nextValue, '#FFFFFF');
+                        setDialogBaseColor(safeColor);
+                        setDialogSelectedColor(safeColor);
+                        setCustomColorValue(safeColor);
+                        applyBackgroundColor(safeColor);
+                      }}
+                      placeholder="#FFFFFF"
+                    />
+                  </div>
+                  <div className="mt-2 flex items-center gap-1.5 overflow-x-auto">
+                    {backgroundColorSwatches.map((color) => (
+                      <button
+                        key={color}
+                        title={color}
+                        onClick={() => {
+                          const safeColor = normalizeHexColor(color, '#FFFFFF');
+                          setDialogBaseColor(safeColor);
+                          setDialogSelectedColor(safeColor);
+                          setCustomColorValue(safeColor);
+                          applyBackgroundColor(safeColor);
+                        }}
+                        className={`h-7 w-7 shrink-0 rounded-full border-[3px] transition-all ${
+                          dialogSelectedColor === normalizeHexColor(color, '#FFFFFF')
+                            ? 'scale-105 ring-2 ring-orange-300 border-black'
+                            : 'border-black/80'
+                        }`}
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!isMobileViewport && activeBackgroundOption === 'gradient' && (
+              <div className="space-y-2.5 rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
+                <div className="h-16 rounded-[0.85rem] border border-slate-100" style={gradientPreviewStyle} />
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2.5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Start</p>
+                    <div className="mt-2 flex items-center gap-3">
+                      <ColorPickerField
+                        value={gradientStartColor}
+                        onChange={(event) => setGradientStartColor(normalizeHexColor(event.target.value, '#000000'))}
+                      />
+                      <HexColorInput
+                        value={gradientStartColor}
+                        onValidColorChange={(nextValue) => setGradientStartColor(normalizeHexColor(nextValue, '#000000'))}
+                        placeholder="#000000"
+                      />
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2.5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">End</p>
+                    <div className="mt-2 flex items-center gap-3">
+                      <ColorPickerField
+                        value={gradientEndColor}
+                        onChange={(event) => setGradientEndColor(normalizeHexColor(event.target.value, '#64748B'))}
+                      />
+                      <HexColorInput
+                        value={gradientEndColor}
+                        onValidColorChange={(nextValue) => setGradientEndColor(normalizeHexColor(nextValue, '#64748B'))}
+                        placeholder="#64748B"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      onClick={() => setGradientType('linear')}
+                      className={`brand-chip-button px-3 py-1.5 text-[11px] ${gradientType === 'linear' ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200' : ''}`}
+                    >
+                      Linear
+                    </button>
+                    <button
+                      onClick={() => setGradientType('radial')}
+                      className={`brand-chip-button px-3 py-1.5 text-[11px] ${gradientType === 'radial' ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200' : ''}`}
+                    >
+                      Radial
+                    </button>
+                  </div>
+                  {gradientType === 'linear' ? (
+                    <div className="mt-2.5 flex items-center gap-1.5 overflow-x-auto pb-1">
+                      {gradientDirectionOptions.map((option) => {
+                        const Icon = option.icon;
+                        const isActive = gradientDirection === option.id;
+
+                        return (
+                          <button
+                            key={option.id}
+                            onClick={() => setGradientDirection(option.id)}
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-all ${
+                              isActive
+                                ? 'border-black bg-orange-50 text-orange-600 ring-2 ring-orange-200'
+                                : 'border-slate-200 bg-white text-slate-600'
+                            }`}
+                          >
+                            <Icon size={15} />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="mt-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-500">Angle</span>
+                        <span className="text-sm font-bold text-slate-700">{gradientRadialAngle}°</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="360"
+                        step="1"
+                        value={gradientRadialAngle}
+                        onChange={(event) => setGradientRadialAngle(Number(event.target.value))}
+                        className="mt-2 w-full accent-orange-500"
+                      />
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={applyGradientToBackground}
+                  className="brand-button-outline w-full px-4 py-2.5 text-sm"
+                >
+                  Apply Gradient
+                </button>
+              </div>
+            )}
+
+            {activeBackgroundOption === 'background' && (
+              <div className="flex items-center gap-1.5 overflow-x-auto rounded-[0.95rem] border border-slate-100 bg-white p-2 shadow-sm">
+                {backgroundLibraryImages.map((imageUrl, index) => (
                   <button
-                    key={shapeOption.id}
-                    onClick={() => applyBackgroundShape(shapeOption.id)}
-                    className={`rounded-2xl border px-4 py-4 text-left transition-all ${
-                      isActiveShape
-                        ? 'border-black bg-orange-50 text-orange-700 shadow-sm ring-2 ring-orange-200'
-                        : 'border-slate-200 bg-white text-slate-700 hover:border-orange-200'
-                    }`}
+                    key={imageUrl}
+                    onClick={() => applyPresetBackgroundImage(imageUrl)}
+                    className="w-[62px] shrink-0 overflow-hidden rounded-[0.8rem] border border-slate-100 bg-white shadow-sm transition-all hover:border-orange-300"
                   >
-                    <div className="flex items-center justify-center">
-                      <span className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
-                        isActiveShape ? 'border-2 border-black bg-white text-orange-600' : 'border-2 border-transparent bg-slate-100 text-slate-600'
-                      }`}>
-                        <Icon size={18} />
-                      </span>
+                    <div className="aspect-[1/1] bg-slate-100">
+                      <img src={imageUrl} alt={`Background ${index + 1}`} className="h-full w-full object-cover" />
                     </div>
                   </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
-                Background Opacity
-              </p>
-              <span className="text-sm font-bold text-slate-600">
-                {Math.round(activeBackgroundOpacity * 100)}%
-              </span>
-            </div>
-            <input
-              type="range"
-              min="0.05"
-              max="1"
-              step="0.05"
-              value={activeBackgroundOpacity}
-              onChange={(event) => applyBackgroundOpacity(event.target.value)}
-              className="mt-4 w-full accent-orange-500"
-            />
-          </div>
-
-          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
-                  Shape Fill
-                </p>
-                <p className="mt-1 text-sm font-medium text-slate-500">
-                  {activeBackgroundShape ? 'Selected shape ka fill color change karo.' : 'Pehle koi shape choose karo.'}
-                </p>
+                ))}
               </div>
-              <span
-                className="h-10 w-10 rounded-2xl border border-slate-200"
-                style={{ backgroundColor: activeBackgroundShape ? activeBackgroundShapeColor : '#F8FAFC' }}
-              />
-            </div>
-            <div className="mt-4 flex items-center gap-3">
-              <ColorPickerField
-                disabled={!activeBackgroundShape}
-                value={activeBackgroundShape ? activeBackgroundShapeColor : '#FFFFFF'}
-                onChange={(event) => applyBackgroundShapeColor(event.target.value)}
-              />
-              <HexColorInput
-                disabled={!activeBackgroundShape}
-                value={activeBackgroundShape ? activeBackgroundShapeColor : '#FFFFFF'}
-                onValidColorChange={(nextValue) => applyBackgroundShapeColor(nextValue)}
-                placeholder="#FFFFFF"
-              />
-            </div>
-            <div className="mt-4 grid grid-cols-4 gap-3">
-              {backgroundColorSwatches.map((color) => (
+            )}
+
+            {activeBackgroundOption === 'texture' && (
+              <div className="flex items-center gap-1.5 overflow-x-auto rounded-[0.95rem] border border-slate-100 bg-white p-2 shadow-sm">
+                {textureLibraryImages.map((imageUrl, index) => (
+                  <button
+                    key={imageUrl}
+                    onClick={() => applyPresetBackgroundImage(imageUrl)}
+                    className="w-[62px] shrink-0 overflow-hidden rounded-[0.8rem] border border-slate-100 bg-white shadow-sm transition-all hover:border-orange-300"
+                  >
+                    <div className="aspect-[1/1] bg-slate-100">
+                      <img src={imageUrl} alt={`Texture ${index + 1}`} className="h-full w-full object-cover" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {activeBackgroundOption === 'image' && (
+              <div className="rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
                 <button
-                  key={color}
-                  title={color}
-                  disabled={!activeBackgroundShape}
-                  onClick={() => applyBackgroundShapeColor(color)}
-                  className={`mx-auto h-12 w-12 rounded-full border-[3px] transition-all ${
-                    activeBackgroundShapeColor === normalizeHexColor(color, '#FFFFFF')
-                      ? 'scale-105 ring-2 ring-orange-300 border-black'
-                      : 'border-black/80'
-                  } ${activeBackgroundShape ? '' : 'cursor-not-allowed opacity-40'}`}
-                  style={{ backgroundColor: color }}
+                  onClick={openBackgroundImageBrowser}
+                  className="brand-button-outline flex w-full items-center justify-center gap-2 px-4 py-2.5 text-sm"
+                >
+                  <Images size={16} />
+                  <span>Choose Background Image</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="hidden space-y-4 lg:block">
+            <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                Shape Library
+              </p>
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                {backgroundShapeOptions.map((shapeOption) => {
+                  const Icon = shapeOption.icon;
+                  const isActiveShape = activeBackgroundShapeType === shapeOption.id;
+
+                  return (
+                    <button
+                      key={shapeOption.id}
+                      onClick={() => applyBackgroundShape(shapeOption.id)}
+                      className={`rounded-2xl border px-4 py-4 text-left transition-all ${
+                        isActiveShape
+                          ? 'border-black bg-orange-50 text-orange-700 shadow-sm ring-2 ring-orange-200'
+                          : 'border-slate-200 bg-white text-slate-700 hover:border-orange-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center">
+                        <span className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
+                          isActiveShape ? 'border-2 border-black bg-white text-orange-600' : 'border-2 border-transparent bg-slate-100 text-slate-600'
+                        }`}>
+                          <Icon size={18} />
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                  Background Opacity
+                </p>
+                <span className="text-sm font-bold text-slate-600">
+                  {Math.round(activeBackgroundOpacity * 100)}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0.05"
+                max="1"
+                step="0.05"
+                value={activeBackgroundOpacity}
+                onChange={(event) => applyBackgroundOpacity(event.target.value)}
+                className="mt-4 w-full accent-orange-500"
+              />
+            </div>
+
+            <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                    Shape Fill
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-slate-500">
+                    {activeBackgroundShape ? 'Selected shape ka fill color change karo.' : 'Pehle koi shape choose karo.'}
+                  </p>
+                </div>
+                <span
+                  className="h-10 w-10 rounded-2xl border border-slate-200"
+                  style={{ backgroundColor: activeBackgroundShape ? activeBackgroundShapeColor : '#F8FAFC' }}
                 />
-              ))}
+              </div>
+              <div className="mt-4 flex items-center gap-3">
+                <ColorPickerField
+                  disabled={!activeBackgroundShape}
+                  value={activeBackgroundShape ? activeBackgroundShapeColor : '#FFFFFF'}
+                  onChange={(event) => applyBackgroundShapeColor(event.target.value)}
+                />
+                <HexColorInput
+                  disabled={!activeBackgroundShape}
+                  value={activeBackgroundShape ? activeBackgroundShapeColor : '#FFFFFF'}
+                  onValidColorChange={(nextValue) => applyBackgroundShapeColor(nextValue)}
+                  placeholder="#FFFFFF"
+                />
+              </div>
+              <div className="mt-4 grid grid-cols-4 gap-3">
+                {backgroundColorSwatches.map((color) => (
+                  <button
+                    key={color}
+                    title={color}
+                    disabled={!activeBackgroundShape}
+                    onClick={() => applyBackgroundShapeColor(color)}
+                    className={`mx-auto h-12 w-12 rounded-full border-[3px] transition-all ${
+                      activeBackgroundShapeColor === normalizeHexColor(color, '#FFFFFF')
+                        ? 'scale-105 ring-2 ring-orange-300 border-black'
+                        : 'border-black/80'
+                    } ${activeBackgroundShape ? '' : 'cursor-not-allowed opacity-40'}`}
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -2622,6 +3326,24 @@ function EditorUI() {
     }
 
     if (activeTool === 'effect') {
+      if (isMobileViewport) {
+        return (
+          <div className="flex items-center gap-2 overflow-x-auto rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
+            {effectLibraryImages.map((imageUrl, index) => (
+              <button
+                key={imageUrl}
+                onClick={() => applyPresetBackgroundImage(imageUrl)}
+                className="w-[84px] shrink-0 overflow-hidden rounded-[0.95rem] border border-slate-100 bg-white shadow-sm transition-all hover:border-orange-300"
+              >
+                <div className="aspect-[1/1] bg-slate-100">
+                  <img src={imageUrl} alt={`Effect ${index + 1}`} className="h-full w-full object-cover" />
+                </div>
+              </button>
+            ))}
+          </div>
+        );
+      }
+
       return (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -2642,6 +3364,37 @@ function EditorUI() {
     }
 
     if (activeTool === 'palette') {
+      if (isMobileViewport) {
+        return (
+          <div className="flex items-stretch gap-1.5 overflow-x-auto rounded-[0.95rem] border border-slate-100 bg-white p-2 shadow-sm">
+            {designPalettes.map((palette) => (
+              <button
+                key={palette.id}
+                onClick={() => applyDesignPalette(palette)}
+                className="group w-[88px] shrink-0 overflow-hidden rounded-[0.85rem] border border-slate-100 bg-white text-left shadow-sm transition-all hover:border-orange-300"
+              >
+                <div
+                  className="h-7 w-full"
+                  style={{ background: `linear-gradient(135deg, ${palette.colors.join(', ')})` }}
+                />
+                <div className="space-y-1.5 p-1.5">
+                  <div className="flex items-center gap-1">
+                    {palette.colors.map((color) => (
+                      <span
+                        key={`${palette.id}-${color}`}
+                        className="h-3 flex-1 rounded-full shadow-inner"
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                  <p className="line-clamp-1 text-[9px] font-extrabold leading-snug text-slate-800">{palette.name}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        );
+      }
+
       return (
         <div className="space-y-4">
           {designPalettes.map((palette) => (
@@ -2690,6 +3443,24 @@ function EditorUI() {
     }
 
     if (activeTool === 'art') {
+      if (isMobileViewport) {
+        return (
+          <div className="flex items-center gap-2 overflow-x-auto rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
+            {artLibraryImages.map((imageUrl, index) => (
+              <button
+                key={imageUrl}
+                onClick={() => handleAddPresetArt(imageUrl)}
+                className="w-[84px] shrink-0 overflow-hidden rounded-[0.95rem] border border-slate-100 bg-white shadow-sm transition-all hover:border-orange-300"
+              >
+                <div className="aspect-[1/1] bg-slate-50 p-2.5">
+                  <img src={imageUrl} alt={`Art ${index + 1}`} className="h-full w-full object-contain" />
+                </div>
+              </button>
+            ))}
+          </div>
+        );
+      }
+
       return (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -2720,26 +3491,113 @@ function EditorUI() {
     return null;
   };
 
+  const renderMobileContextBar = () => {
+    if (selectedCanvasItem) {
+      const orderedPanels = [
+        activeObjectPanel,
+        ...objectPanels.filter((panel) => panel !== activeObjectPanel),
+      ];
+      const mobilePanelLabels = {
+        controls: 'CONTROL',
+        fonts: 'FONT',
+        colors: 'COLOR',
+        outlines: 'OUTLINE',
+        '3D': '3D',
+      };
+      const actionButtons = [];
+
+      if (canDuplicate) {
+        actionButtons.push({
+          key: 'duplicate',
+          label: 'DUPLICATE',
+          onClick: handleDuplicateSelected,
+        });
+      }
+
+      actionButtons.push({
+        key: 'delete',
+        label: 'DELETE',
+        onClick: handleDeleteSelected,
+      });
+
+      if (canEditSingleText) {
+        actionButtons.push({
+          key: 'edit',
+          label: 'EDIT',
+          onClick: handleEditSelectedText,
+        });
+      }
+
+      const compactItems = [
+        ...orderedPanels.map((panel, index) => ({
+          key: panel,
+          label: mobilePanelLabels[panel] || panel.toUpperCase(),
+          onClick: () => setActiveObjectPanel(panel),
+          active: index === 0,
+        })),
+        ...actionButtons.map((action) => ({
+          ...action,
+          active: false,
+        })),
+      ];
+
+      return (
+        <div className="mb-1.5 rounded-[0.9rem] border border-slate-100 bg-white p-1.5 shadow-sm">
+          <div
+            className="grid gap-1"
+            style={{ gridTemplateColumns: `repeat(${compactItems.length}, minmax(0, 1fr))` }}
+          >
+            {compactItems.map((item) => (
+              <button
+                key={item.key}
+                onClick={item.onClick}
+                className={`min-w-0 rounded-full border px-1 py-1 text-[7px] font-black uppercase leading-none transition-all ${
+                  item.active
+                    ? 'border-orange-300 bg-orange-50 text-orange-600 ring-1 ring-orange-200'
+                    : 'border-slate-200 bg-white text-slate-600'
+                }`}
+              >
+                <span className="block truncate">{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (activeTool === 'background') {
+      return (
+        <div className="mb-2 flex min-w-max items-center gap-1.5 overflow-x-auto pb-1">
+          {backgroundOptions.map((option) => {
+            const Icon = option.icon;
+            const isActiveOption = activeBackgroundOption === option.id;
+
+            return (
+              <button
+                key={option.id}
+                onClick={() => handleBackgroundOptionSelect(option.id)}
+                className={`brand-chip-button flex shrink-0 items-center gap-1 px-2.5 py-1.5 text-[10px] transition-all ${
+                  isActiveOption ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200' : ''
+                }`}
+              >
+                <Icon size={12} />
+                <span>{option.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      );
+    }
+
+    return null;
+  };
+  const mobileContextBar = renderMobileContextBar();
+
   return (
     <div
       className="fixed inset-0 flex flex-col overflow-hidden bg-[radial-gradient(circle_at_top,#ffffff_0%,#f8fafc_48%,#eef2ff_100%)] font-sans lg:flex-row"
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
-
-      {/* SIDEBAR (Variations) */}
-      <div className={`fixed inset-0 z-[200] lg:hidden transition-all duration-300 ${sidebarOpen && shouldShowDesktopSidebar ? "visible opacity-100" : "invisible opacity-0"}`}>
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
-        <aside className={`absolute inset-y-0 left-0 w-[88vw] max-w-sm bg-white shadow-2xl transition-transform duration-300 ${sidebarOpen && shouldShowDesktopSidebar ? "translate-x-0" : "-translate-x-full"}`}>
-          <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white/95 p-5 backdrop-blur">
-            <span className={`text-sm font-black uppercase tracking-[0.24em] ${gradients.text}`}>{sidebarHeading}</span>
-            <X onClick={() => setSidebarOpen(false)} className="cursor-pointer text-gray-400" size={24} />
-          </div>
-          <div className="h-[calc(100vh-73px)] overflow-y-auto p-4 space-y-4">
-            {renderSidebarContent()}
-          </div>
-        </aside>
-      </div>
-
       <aside className="hidden w-[92px] shrink-0 border-r border-gray-100 bg-white lg:flex lg:flex-col lg:items-start lg:px-3 lg:py-6">
         <div className="flex w-full flex-col items-stretch gap-5">
           {editorTools.map((tool) => {
@@ -2797,59 +3655,71 @@ function EditorUI() {
       {/* MAIN CONTENT AREA */}
       <main className="flex-1 flex flex-col relative h-full min-w-0">
 
-        {/* TOPBAR */}
-        <div className="z-[100] shrink-0 border-b border-gray-100 bg-white/95 px-4 py-4 backdrop-blur md:px-8 md:py-5 lg:hidden">
-          <div className="relative flex items-center justify-start">
-            <button onClick={() => setSidebarOpen(true)} className="lg:hidden absolute left-0 p-2.5 bg-gray-50 rounded-xl">
-              <Menu size={22} className="text-gray-600" />
-            </button>
-
-            <div className="w-full overflow-x-auto pl-14">
-              <div className="flex min-w-max items-center justify-start gap-2 md:gap-3">
-                {editorTools.map((tool) => {
-                  const Icon = tool.icon;
-                  const isActive = activeTool === tool.id;
-
-                  return (
-                    <button
-                      key={tool.id}
-                      onClick={() => {
-                        closeEditorOverlays();
-                        clearCanvasSelection();
-                        setActiveBackgroundOption(null);
-
-                        if (tool.id === 'text') {
-                          setActiveTool(null);
-                          handleAddTextLayer();
-                          return;
-                        }
-
-                        if (tool.id === 'images') {
-                          setActiveTool(null);
-                          openImageBrowser();
-                          return;
-                        }
-
-                        setActiveTool(tool.id);
-                      }}
-                      className={`brand-chip-button flex min-w-[88px] shrink-0 flex-col items-center justify-center gap-1.5 rounded-2xl px-4 py-3 text-center text-sm font-bold transition-all ${
-                        isActive
-                          ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200'
-                          : ''
-                      }`}
-                    >
-                      <Icon size={18} />
-                      <span>{tool.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
+        {/* MOBILE HEADER */}
+        <div className="z-[100] shrink-0 border-b border-gray-100 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleUndo}
+                disabled={editorState.past.length === 0}
+                className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
+                  editorState.past.length === 0
+                    ? 'cursor-not-allowed bg-gray-50 text-slate-400'
+                    : 'bg-gray-50 text-gray-600'
+                }`}
+                title="Undo"
+              >
+                <Undo2 size={18} />
+              </button>
+              <button
+                onClick={handleRedo}
+                disabled={editorState.future.length === 0}
+                className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
+                  editorState.future.length === 0
+                    ? 'cursor-not-allowed bg-gray-50 text-slate-400'
+                    : 'bg-gray-50 text-gray-600'
+                }`}
+                title="Redo"
+              >
+                <Redo2 size={18} />
+              </button>
+            </div>
+            <h1 className="min-w-0 flex-1 text-center text-lg font-black tracking-tight text-slate-900">
+              Logo Maker
+            </h1>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handlePreviewOpen}
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-gray-600 transition-all"
+                title="Preview"
+              >
+                <Eye size={18} />
+              </button>
+              <button
+                onClick={handleSaveDesign}
+                disabled={!designId || savingChanges}
+                className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
+                  !designId || savingChanges
+                    ? 'cursor-not-allowed bg-gray-50 text-slate-400'
+                    : 'bg-gray-50 text-gray-600'
+                }`}
+                title={savingChanges ? 'Saving...' : 'Save Design'}
+              >
+                <Save size={18} />
+              </button>
+              <button
+                onClick={handleOpenDownloadDialog}
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-gray-600 transition-all"
+                title="Download"
+              >
+                <ShoppingCart size={18} />
+              </button>
             </div>
           </div>
         </div>
 
         {/* CANVAS */}
-        <div className="relative flex-1 overflow-hidden bg-[linear-gradient(180deg,#f8fafc_0%,#eef2ff_100%)] p-3 sm:p-4 lg:p-8">
+        <div className="relative flex-1 overflow-hidden bg-[linear-gradient(180deg,#f8fafc_0%,#eef2ff_100%)] p-2.5 pb-[7.1rem] sm:p-4 sm:pb-[8rem] lg:p-8 lg:pb-8">
           <input
             ref={imageInputRef}
             type="file"
@@ -2865,11 +3735,14 @@ function EditorUI() {
             onChange={handleBackgroundImageUpload}
           />
 
-          <div className="absolute left-4 top-4 z-20 flex items-center gap-3 sm:left-6 sm:top-6">
+          <div
+            className="absolute left-3 z-20 hidden items-center gap-2 sm:left-4 lg:flex lg:bottom-auto lg:left-6 lg:top-6 lg:gap-3"
+            style={mobileFloatingControlsStyle}
+          >
             <button
               onClick={handleUndo}
               disabled={editorState.past.length === 0}
-              className={`brand-icon-button flex h-11 w-11 items-center justify-center rounded-full bg-white/95 backdrop-blur transition-all ${
+              className={`brand-icon-button flex h-10 w-10 items-center justify-center rounded-full bg-white/95 backdrop-blur transition-all lg:h-11 lg:w-11 ${
                 editorState.past.length === 0
                   ? 'cursor-not-allowed text-slate-300'
                   : ''
@@ -2881,7 +3754,7 @@ function EditorUI() {
             <button
               onClick={handleRedo}
               disabled={editorState.future.length === 0}
-              className={`brand-icon-button flex h-11 w-11 items-center justify-center rounded-full bg-white/95 backdrop-blur transition-all ${
+              className={`brand-icon-button flex h-10 w-10 items-center justify-center rounded-full bg-white/95 backdrop-blur transition-all lg:h-11 lg:w-11 ${
                 editorState.future.length === 0
                   ? 'cursor-not-allowed text-slate-300'
                   : ''
@@ -2894,15 +3767,12 @@ function EditorUI() {
 
           {showFloatingToolbar && (
             <div
-              className="absolute left-1/2 z-20 w-[calc(100%-2rem)] max-w-max -translate-x-1/2 sm:w-auto"
+              className="absolute left-1/2 z-20 hidden w-[calc(100%-2rem)] max-w-max -translate-x-1/2 sm:w-auto lg:block"
               style={floatingToolbarOffsetStyle}
             >
               <div className="overflow-x-auto rounded-[1.7rem] border border-slate-200/80 bg-white/95 px-3 py-3 shadow-xl backdrop-blur">
                 {selectedCanvasItem ? (
                   <div className="flex min-w-max items-center justify-center gap-2">
-                    <span className="mr-1 shrink-0 rounded-full bg-slate-100 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">
-                      {selectedCanvasItem.type === 'logo' ? 'Logo' : 'Text'}
-                    </span>
                     {objectPanels.map((panel) => (
                       <button
                         key={panel}
@@ -2988,97 +3858,101 @@ function EditorUI() {
           )}
 
           {editDialog.open && (
-            <div className="absolute inset-0 z-30 overflow-y-auto bg-slate-950/25 p-4 backdrop-blur-sm">
-              <div className="flex min-h-full items-center justify-center py-6">
-              <div className="w-full max-w-sm rounded-[1.75rem] border border-slate-100 bg-white p-4 shadow-2xl sm:max-w-md sm:p-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
-                      {editDialog.mode === 'plain-text' ? 'Edit Text Layer' : 'Edit Brand Line'}
-                    </p>
-                    <h3 className="mt-2 text-xl font-extrabold text-slate-900">
-                      Update Text
-                    </h3>
+            <div className={`${isMobileViewport ? 'fixed' : 'absolute'} inset-0 z-[180] overflow-y-auto ${isMobileViewport ? 'bg-white p-0' : 'bg-slate-950/25 p-4 backdrop-blur-sm'}`}>
+              <div className={`flex min-h-full ${isMobileViewport ? 'items-stretch justify-stretch' : 'items-center justify-center py-6'}`}>
+                <div className={`w-full bg-white ${isMobileViewport ? 'flex min-h-screen max-w-none flex-col px-4 pb-6 pt-5 shadow-none' : 'max-w-sm rounded-[1.75rem] border border-slate-100 p-4 shadow-2xl sm:max-w-md sm:p-5'}`}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                        {editDialog.mode === 'plain-text' ? 'Edit Text Layer' : 'Edit Brand Line'}
+                      </p>
+                      <h3 className="mt-2 text-xl font-extrabold text-slate-900">
+                        Update Text
+                      </h3>
+                    </div>
+                    <button
+                      onClick={closeEditDialog}
+                      className={`${isMobileViewport ? 'flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-600' : 'brand-icon-button h-10 w-10 p-0'}`}
+                    >
+                      <X size={18} />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setEditDialog({ open: false, type: null, mode: null, id: null, businessValue: '', sloganValue: '' })}
-                    className="brand-icon-button h-10 w-10 p-0"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
 
-                <div className="mt-6">
-                  <label className="mb-2 block text-sm font-bold text-slate-600">
-                    {editDialog.mode === 'plain-text' ? 'Text' : 'Business Name'}
-                  </label>
-                  <input
-                    value={editDialog.businessValue}
-                    onChange={(event) =>
-                      setEditDialog((prev) => ({
-                        ...prev,
-                        businessValue: event.target.value,
-                      }))
-                    }
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' && !event.shiftKey) {
-                        event.preventDefault();
-                        handleSaveEditedText();
-                      }
-                    }}
-                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-900 outline-none transition-all focus:border-orange-400 focus:bg-white"
-                    placeholder={editDialog.mode === 'plain-text' ? 'Enter text' : 'Enter business name'}
-                    autoFocus
-                  />
-                  {editDialog.mode !== 'plain-text' && (
-                    <>
-                      <label className="mb-2 mt-4 block text-sm font-bold text-slate-600">
-                        Slogan
-                      </label>
-                      <input
-                        value={editDialog.sloganValue}
-                        onChange={(event) =>
-                          setEditDialog((prev) => ({
-                            ...prev,
-                            sloganValue: event.target.value,
-                          }))
-                        }
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter' && !event.shiftKey) {
-                            event.preventDefault();
-                            handleSaveEditedText();
+                  <div className={`${isMobileViewport ? 'flex flex-1 flex-col justify-center' : 'mt-6'}`}>
+                    <div className={isMobileViewport ? 'space-y-4' : ''}>
+                      <div>
+                        <label className="mb-2 block text-sm font-bold text-slate-600">
+                          {editDialog.mode === 'plain-text' ? 'Text' : 'Business Name'}
+                        </label>
+                        <input
+                          value={editDialog.businessValue}
+                          onChange={(event) =>
+                            setEditDialog((prev) => ({
+                              ...prev,
+                              businessValue: event.target.value,
+                            }))
                           }
-                        }}
-                        className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-900 outline-none transition-all focus:border-orange-400 focus:bg-white"
-                        placeholder="Enter slogan"
-                      />
-                    </>
-                  )}
-                </div>
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' && !event.shiftKey) {
+                              event.preventDefault();
+                              handleSaveEditedText();
+                            }
+                          }}
+                          className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-900 outline-none transition-all focus:border-orange-400 focus:bg-white"
+                          placeholder={editDialog.mode === 'plain-text' ? 'Enter text' : 'Enter business name'}
+                          autoFocus
+                        />
+                      </div>
+                      {editDialog.mode !== 'plain-text' && (
+                        <div>
+                          <label className="mb-2 block text-sm font-bold text-slate-600">
+                            Slogan
+                          </label>
+                          <input
+                            value={editDialog.sloganValue}
+                            onChange={(event) =>
+                              setEditDialog((prev) => ({
+                                ...prev,
+                                sloganValue: event.target.value,
+                              }))
+                            }
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter' && !event.shiftKey) {
+                                event.preventDefault();
+                                handleSaveEditedText();
+                              }
+                            }}
+                            className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-900 outline-none transition-all focus:border-orange-400 focus:bg-white"
+                            placeholder="Enter slogan"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-                <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
-                  <button
-                    onClick={() => setEditDialog({ open: false, type: null, mode: null, id: null, businessValue: '', sloganValue: '' })}
-                    className="brand-button-outline px-5 py-2.5 text-sm"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSaveEditedText}
-                    className="brand-button-outline px-5 py-2.5 text-sm"
-                  >
-                    Save
-                  </button>
+                  <div className={`mt-6 flex flex-col-reverse gap-3 ${isMobileViewport ? '' : 'sm:flex-row sm:items-center sm:justify-end'}`}>
+                    <button
+                      onClick={closeEditDialog}
+                      className="brand-button-outline px-5 py-2.5 text-sm"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveEditedText}
+                      className="brand-button-outline px-5 py-2.5 text-sm"
+                    >
+                      Save
+                    </button>
+                  </div>
                 </div>
-              </div>
               </div>
             </div>
           )}
 
           {colorDialogOpen && (
-            <div className="absolute inset-0 z-30 overflow-hidden bg-slate-950/30 p-2 backdrop-blur-md sm:p-3">
-              <div className="flex h-full items-center justify-center">
-              <div className="flex max-h-[calc(100vh-10rem)] w-full max-w-[700px] flex-col overflow-hidden rounded-[1.5rem] border border-slate-100 bg-white p-4 shadow-2xl sm:p-4">
+            <div className={`${isMobileViewport ? 'fixed' : 'absolute'} inset-0 z-30 overflow-hidden ${isMobileViewport ? 'bg-white p-0' : 'bg-slate-950/30 p-2 backdrop-blur-md sm:p-3'}`}>
+              <div className={`flex h-full ${isMobileViewport ? 'items-stretch justify-stretch' : 'items-center justify-center'}`}>
+              <div className={`flex w-full flex-col overflow-hidden bg-white ${isMobileViewport ? 'h-full max-w-none rounded-none border-0 p-4 shadow-none' : 'max-h-[calc(100vh-10rem)] max-w-[700px] rounded-[1.5rem] border border-slate-100 p-4 shadow-2xl sm:p-4'}`}>
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <h3 className="text-xl font-extrabold text-slate-900">
@@ -3199,9 +4073,9 @@ function EditorUI() {
           )}
 
           {gradientDialogOpen && (
-            <div className="absolute inset-0 z-30 overflow-hidden bg-slate-950/30 p-2 backdrop-blur-md sm:p-3">
-              <div className="flex h-full items-center justify-center">
-              <div className="flex max-h-[calc(100vh-10rem)] w-full max-w-[760px] flex-col overflow-hidden rounded-[1.45rem] border border-slate-200 bg-white p-3 shadow-[0_28px_90px_rgba(15,23,42,0.24)] sm:p-4">
+            <div className={`${isMobileViewport ? 'fixed' : 'absolute'} inset-0 z-30 overflow-hidden ${isMobileViewport ? 'bg-white p-0' : 'bg-slate-950/30 p-2 backdrop-blur-md sm:p-3'}`}>
+              <div className={`flex h-full ${isMobileViewport ? 'items-stretch justify-stretch' : 'items-center justify-center'}`}>
+              <div className={`flex w-full flex-col overflow-hidden bg-white ${isMobileViewport ? 'h-full max-w-none rounded-none border-0 p-4 shadow-none' : 'max-h-[calc(100vh-10rem)] max-w-[760px] rounded-[1.45rem] border border-slate-200 p-3 shadow-[0_28px_90px_rgba(15,23,42,0.24)] sm:p-4'}`}>
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <h3 className="text-lg font-extrabold text-slate-900 sm:text-xl">Build Background Gradient</h3>
@@ -3334,9 +4208,9 @@ function EditorUI() {
           )}
 
           {gradientColorDialogOpen && (
-            <div className="absolute inset-0 z-40 overflow-hidden bg-slate-950/30 p-3 backdrop-blur-md sm:p-4">
-              <div className="flex h-full items-center justify-center">
-              <div className="w-full max-w-[760px] rounded-[1.6rem] border border-slate-100 bg-white p-4 shadow-2xl sm:p-5">
+            <div className={`${isMobileViewport ? 'fixed' : 'absolute'} inset-0 z-40 overflow-hidden ${isMobileViewport ? 'bg-white p-0' : 'bg-slate-950/30 p-3 backdrop-blur-md sm:p-4'}`}>
+              <div className={`flex h-full ${isMobileViewport ? 'items-stretch justify-stretch' : 'items-center justify-center'}`}>
+              <div className={`w-full bg-white ${isMobileViewport ? 'h-full max-w-none rounded-none border-0 p-4 shadow-none' : 'max-w-[760px] rounded-[1.6rem] border border-slate-100 p-4 shadow-2xl sm:p-5'}`}>
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <h3 className="text-xl font-extrabold text-slate-900">Choose a Color</h3>
@@ -3584,8 +4458,55 @@ function EditorUI() {
             </div>
           )}
 
-          <div className="flex h-full w-full items-center justify-center">
-            <div className="h-full w-full max-w-[880px] max-h-[380px]">
+          <div className="fixed inset-x-0 bottom-0 z-[120] lg:hidden">
+            <div className="overflow-hidden border-t border-slate-200 bg-[#0f172a] shadow-[0_-10px_30px_rgba(15,23,42,0.18)]">
+              <div
+                className={`overflow-hidden bg-white/98 transition-all duration-300 ${sidebarOpen && shouldShowDesktopSidebar ? 'max-h-[38svh] border-b border-slate-200 opacity-100' : 'max-h-0 opacity-0'}`}
+              >
+                <div className="max-h-[38svh] overflow-hidden px-2.5 pb-2 pt-2">
+                  {mobileContextBar && (
+                    <div className="-mx-2.5 mb-1.5 border-b border-slate-100 bg-white/96 px-2.5 pb-1.5">
+                      {mobileContextBar}
+                    </div>
+                  )}
+                  <div className="space-y-1.5 pb-1">
+                    {renderSidebarContent()}
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-2 pb-[calc(0.3rem+env(safe-area-inset-bottom))] pt-1">
+                <div className="flex items-stretch gap-1 overflow-x-auto pb-0.5">
+                  {mobileEditorTools.map((tool) => {
+                    const Icon = tool.icon;
+                    const isControlsTool = tool.id === 'controls';
+                    const isActive = isControlsTool
+                      ? Boolean(selectedCanvasItem && !activeTool)
+                      : activeTool === tool.id;
+
+                    return (
+                      <button
+                        key={tool.id}
+                        onClick={() => handleMobileToolSelect(tool.id)}
+                        title={tool.label}
+                        aria-label={tool.label}
+                        className={`flex min-h-[46px] min-w-[52px] flex-1 items-center justify-center rounded-2xl px-1.5 py-1.5 transition-all ${
+                          isActive
+                            ? 'bg-white text-[#0f172a] shadow-md'
+                            : 'text-white/88'
+                        }`}
+                      >
+                        <Icon size={18} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex h-full w-full items-start justify-center pt-2 sm:pt-3 lg:items-center lg:pt-0">
+            <div className="h-full w-full max-w-[880px] max-h-[44vh] sm:max-h-[52vh] lg:max-h-[380px]">
               <LogoCanvas
                 config={logoConfig}
                 onConfigChange={(partialConfig) =>
@@ -3599,12 +4520,13 @@ function EditorUI() {
                 clearSelectionToken={canvasClearSelectionToken}
                 stageRef={stageRef}
                 zoom={canvasZoom}
+                hideSelectionUi={hideCanvasSelectionUi}
               />
             </div>
           </div>
 
           <div
-            className="absolute left-1/2 z-20 -translate-x-1/2 "
+            className="absolute left-1/2 z-20 hidden -translate-x-1/2 lg:block"
             style={floatingActionDockOffsetStyle}
           >
             <div className="flex items-center gap-3 rounded-full border border-slate-200/80 bg-white/95 px-4 py-3 shadow-xl backdrop-blur">

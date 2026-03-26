@@ -1000,6 +1000,7 @@ export default function Canvas({
   clearSelectionToken = 0,
   stageRef: externalStageRef = null,
   zoom = 1,
+  hideSelectionUi = false,
 }) {
   const containerRef = useRef(null);
   const transformerRef = useRef(null);
@@ -1062,11 +1063,17 @@ export default function Canvas({
       return;
     }
 
+    if (hideSelectionUi) {
+      transformerRef.current.nodes([]);
+      transformerRef.current.getLayer()?.batchDraw();
+      return;
+    }
+
     const key = selectedItems.length === 1 ? `${selectedItems[0].type}:${selectedItems[0].id}` : null;
     const node = key ? nodeMapRef.current[key] : null;
     transformerRef.current.nodes(node ? [node] : []);
     transformerRef.current.getLayer()?.batchDraw();
-  }, [selectedItems, logoItems, textItems]);
+  }, [hideSelectionUi, selectedItems, logoItems, textItems]);
 
   useEffect(() => {
     if (typeof onSelectionChange === 'function') {
@@ -1079,9 +1086,17 @@ export default function Canvas({
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
-      const nextSelection = selectionOverride ?? null;
-      setSelectedItem(nextSelection);
-      setSelectedItems(nextSelection ? [nextSelection] : []);
+      const nextSelectionItems = Array.isArray(selectionOverride?.items)
+        ? selectionOverride.items
+        : selectionOverride
+          ? [selectionOverride]
+          : [];
+      const nextPrimarySelection = Array.isArray(selectionOverride?.items)
+        ? selectionOverride?.primary || nextSelectionItems[nextSelectionItems.length - 1] || null
+        : selectionOverride ?? null;
+
+      setSelectedItem(nextPrimarySelection);
+      setSelectedItems(nextSelectionItems);
     });
 
     return () => window.cancelAnimationFrame(frame);
@@ -1454,7 +1469,7 @@ export default function Canvas({
               <LogoNode
                 key={item.id}
                 item={item}
-                selected={selectedItems.some((entry) => entry.type === 'logo' && entry.id === item.id)}
+                selected={!hideSelectionUi && selectedItems.some((entry) => entry.type === 'logo' && entry.id === item.id)}
                   onSelect={(event) => handleItemSelect({ type: 'logo', id: item.id }, event)}
                   onTransformChange={(transform) => updateItemTransform('logoItems', item.id, transform)}
                   onTransformPreview={handleTransformPreview}
@@ -1473,7 +1488,7 @@ export default function Canvas({
                 item={item}
                 fontFamily={config.fontFamily}
                 textColor={config.textColor}
-                selected={selectedItems.some((entry) => entry.type === 'text' && entry.id === item.id)}
+                selected={!hideSelectionUi && selectedItems.some((entry) => entry.type === 'text' && entry.id === item.id)}
                   onSelect={(event) => handleItemSelect({ type: 'text', id: item.id }, event)}
                   onTransformChange={(transform) => updateItemTransform('textItems', item.id, transform)}
                   onTransformPreview={handleTransformPreview}
@@ -1486,7 +1501,7 @@ export default function Canvas({
                 />
               ))}
 
-              {guideLines.vertical.map((guideX) => (
+              {!hideSelectionUi && guideLines.vertical.map((guideX) => (
                 <Line
                   key={`guide-v-${guideX}`}
                   points={[guideX, 0, guideX, CANVAS_HEIGHT]}
@@ -1497,7 +1512,7 @@ export default function Canvas({
                 />
               ))}
 
-              {guideLines.horizontal.map((guideY) => (
+              {!hideSelectionUi && guideLines.horizontal.map((guideY) => (
                 <Line
                   key={`guide-h-${guideY}`}
                   points={[0, guideY, CANVAS_WIDTH, guideY]}
@@ -1508,7 +1523,7 @@ export default function Canvas({
                 />
               ))}
 
-              {rotationInfo ? (
+              {!hideSelectionUi && rotationInfo ? (
                 <Group x={rotationInfo.x} y={rotationInfo.y} listening={false}>
                   <Rect
                     x={-28}
@@ -1535,30 +1550,32 @@ export default function Canvas({
                 </Group>
               ) : null}
 
-              <Transformer
-                ref={transformerRef}
-                rotateEnabled
-                enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
-                borderStroke="#2563EB"
-                borderStrokeWidth={2}
-                borderDash={[8, 5]}
-                anchorFill="#ffffff"
-                anchorStroke="#2563EB"
-                anchorStrokeWidth={2}
-                anchorSize={10}
-                keepRatio={selectedItem?.type === 'logo'}
-                boundBoxFunc={(oldBox, newBox) => {
-                  if (newBox.width < 70 || newBox.height < 24) {
-                    return oldBox;
-                  }
+              {!hideSelectionUi && (
+                <Transformer
+                  ref={transformerRef}
+                  rotateEnabled
+                  enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
+                  borderStroke="#2563EB"
+                  borderStrokeWidth={2}
+                  borderDash={[8, 5]}
+                  anchorFill="#ffffff"
+                  anchorStroke="#2563EB"
+                  anchorStrokeWidth={2}
+                  anchorSize={10}
+                  keepRatio={selectedItem?.type === 'logo'}
+                  boundBoxFunc={(oldBox, newBox) => {
+                    if (newBox.width < 70 || newBox.height < 24) {
+                      return oldBox;
+                    }
 
-                  if (newBox.width > CANVAS_WIDTH || newBox.height > CANVAS_HEIGHT) {
-                    return oldBox;
-                  }
+                    if (newBox.width > CANVAS_WIDTH || newBox.height > CANVAS_HEIGHT) {
+                      return oldBox;
+                    }
 
-                  return newBox;
-                }}
-              />
+                    return newBox;
+                  }}
+                />
+              )}
             </Layer>
           </Stage>
         </div>
