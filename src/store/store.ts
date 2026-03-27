@@ -1,35 +1,39 @@
 import { configureStore, combineReducers } from '@reduxjs/toolkit';
 import logoReducer from './slices/logoSlice';
-import { persistStore, persistReducer, createTransform } from 'redux-persist';
+import { persistStore, persistReducer, createTransform, type PersistConfig } from 'redux-persist';
 import storage from 'redux-persist/lib/storage';
 
-const logoPersistTransform = createTransform(
-  (inboundState: {
-    formData?: {
-      name?: string;
-      slogan?: string;
-      industryId?: number | null;
-      fontId?: string;
-      colorId?: string;
-    };
-  }) => ({
+type PersistedLogoFormData = {
+  name: string;
+  slogan: string;
+  industryId: number | null;
+  fontId: string;
+  colorId: string;
+};
+
+type PersistedLogoState = {
+  formData: PersistedLogoFormData;
+};
+
+type RootLogoState = ReturnType<typeof logoReducer>;
+
+const rootReducer = combineReducers({
+  logo: logoReducer,
+});
+
+export type RootState = ReturnType<typeof rootReducer>;
+
+const logoPersistTransform = createTransform<RootLogoState, PersistedLogoState, RootState, RootState>(
+  (inboundState) => ({
     formData: {
-      name: inboundState?.formData?.name || '',
-      slogan: inboundState?.formData?.slogan || '',
-      industryId: inboundState?.formData?.industryId ?? null,
-      fontId: inboundState?.formData?.fontId || '',
-      colorId: inboundState?.formData?.colorId || '',
+      name: inboundState.formData?.name || '',
+      slogan: inboundState.formData?.slogan || '',
+      industryId: inboundState.formData?.industryId ?? null,
+      fontId: inboundState.formData?.fontId || '',
+      colorId: inboundState.formData?.colorId || '',
     },
   }),
-  (outboundState: {
-    formData?: {
-      name?: string;
-      slogan?: string;
-      industryId?: number | null;
-      fontId?: string;
-      colorId?: string;
-    };
-  }) => ({
+  (outboundState) => ({
     formData: {
       name: outboundState?.formData?.name || '',
       slogan: outboundState?.formData?.slogan || '',
@@ -44,17 +48,12 @@ const logoPersistTransform = createTransform(
   { whitelist: ['logo'] }
 );
 
-const persistConfig = {
+const persistConfig: PersistConfig<RootState> = {
   key: 'root',
   storage,
   whitelist: ['logo'],
   transforms: [logoPersistTransform],
 };
-
-// Saare reducers ko combine karein
-const rootReducer = combineReducers({
-  logo: logoReducer,
-});
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
 
@@ -71,5 +70,4 @@ export const store = configureStore({
 
 export const persistor = persistStore(store); // Ye zaroori hai
 
-export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
