@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Group, Image as KonvaImage, Layer, Line, Rect, Shape as KonvaShape, Stage, Text, Transformer } from 'react-konva';
 import useImage from 'use-image';
+import { getTextBlockMetrics } from './editorUtils';
 
 const CANVAS_WIDTH = 700;
 const CANVAS_HEIGHT = 500;
@@ -102,19 +103,14 @@ const getTextRenderValue = (item = {}) => {
 };
 
 const getTextNodeMetrics = (item = {}) => {
-  const value = getTextRenderValue(item);
-  const explicitFontSize = Number(item.fontSize || 0);
-  const fontSize = explicitFontSize > 0
-    ? explicitFontSize
-    : value.length > 28 ? 24 : value.length > 20 ? 30 : value.length > 12 ? 38 : 46;
-  const explicitWidth = Number(item.width || 0);
-  const explicitHeight = Number(item.height || 0);
-  const blockWidth = explicitWidth > 0
-    ? explicitWidth
-    : Math.min(520, Math.max(240, value.length * (fontSize * 0.6)));
-  const blockHeight = explicitHeight > 0 ? explicitHeight : fontSize + 16;
+  const metrics = getTextBlockMetrics(item);
 
-  return { value, fontSize, blockWidth, blockHeight };
+  return {
+    value: getTextRenderValue(item),
+    fontSize: metrics.fontSize,
+    blockWidth: metrics.width,
+    blockHeight: metrics.height,
+  };
 };
 
 const getCanvasItemSize = (item, type) => {
@@ -868,6 +864,7 @@ function TextNode({
   setCursor,
   registerNode,
 }) {
+  const [fontRenderVersion, setFontRenderVersion] = useState(0);
   const transform = item.transform || {
     x: Number(item.x || 0),
     y: Number(item.y || 0),
@@ -880,10 +877,50 @@ function TextNode({
   const [svgTextImage] = useImage(shouldRenderSvgText ? item.svgDataUri : '');
   const transform3d = get3dTransforms(item.style);
   const nodeOpacity = Math.max(0.05, Math.min(1, Number(item.opacity ?? 1)));
+  const resolvedFontFamily = item.fontFamily || fontFamily || 'Arial';
   const actualScaleX = transform.scaleX || 1;
   const actualScaleY = transform.scaleY || 1;
   const maxX = Math.max(0, CANVAS_WIDTH - (blockWidth * Math.abs(actualScaleX)));
   const maxY = Math.max(0, CANVAS_HEIGHT - (blockHeight * Math.abs(actualScaleY)));
+
+  useEffect(() => {
+    if (
+      typeof window === 'undefined' ||
+      typeof FontFace === 'undefined' ||
+      !item.fontUrl ||
+      !resolvedFontFamily
+    ) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    const normalizedFamily = resolvedFontFamily.replace(/["']/g, '').trim();
+    const existingFont = Array.from(document.fonts || []).find(
+      (fontFace) => fontFace.family.replace(/["']/g, '').trim() === normalizedFamily
+    );
+
+    if (existingFont) {
+      return undefined;
+    }
+
+    const customFont = new FontFace(resolvedFontFamily, `url(${item.fontUrl})`);
+    customFont.load()
+      .then((loadedFont) => {
+        document.fonts.add(loadedFont);
+        if (!cancelled) {
+          setFontRenderVersion((value) => value + 1);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setFontRenderVersion((value) => value + 1);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [item.fontUrl, resolvedFontFamily]);
 
   const getBoundedPosition = (position) => ({
     x: Math.min(Math.max(position.x, 0), maxX),
@@ -972,12 +1009,13 @@ function TextNode({
           <KonvaImage image={svgTextImage} width={blockWidth} height={blockHeight} opacity={nodeOpacity} />
         ) : (
           <Text
+            key={`${item.id}-${fontRenderVersion}`}
             text={value}
             width={blockWidth}
             height={blockHeight}
             fontSize={fontSize}
-            fontFamily={item.fontFamily || fontFamily || 'Arial'}
-            fontStyle={item.fontStyle || "bold"}
+            fontFamily={resolvedFontFamily}
+            fontStyle={item.fontStyle || "normal"}
             fill={item.style?.fillColor || item.fill || textColor || '#1F2937'}
             stroke={Number(item.style?.outlineWidth || 0) > 0 ? item.style?.outlineColor || '#111827' : undefined}
             strokeWidth={Number(item.style?.outlineWidth || 0)}
@@ -1001,6 +1039,7 @@ export default function Canvas({
   stageRef: externalStageRef = null,
   zoom = 1,
   hideSelectionUi = false,
+  clipContentToCard = false,
 }) {
   const containerRef = useRef(null);
   const transformerRef = useRef(null);
@@ -1465,41 +1504,49 @@ export default function Canvas({
                 backgroundOpacity={backgroundOpacity}
               />
 
-              {logoItems.map((item) => (
-              <LogoNode
-                key={item.id}
-                item={item}
-                selected={!hideSelectionUi && selectedItems.some((entry) => entry.type === 'logo' && entry.id === item.id)}
-                  onSelect={(event) => handleItemSelect({ type: 'logo', id: item.id }, event)}
-                  onTransformChange={(transform) => updateItemTransform('logoItems', item.id, transform)}
-                  onTransformPreview={handleTransformPreview}
-                  onTransformFinish={clearHelpers}
-                  onNodeDragStart={handleNodeDragStart}
-                  onNodeDragMove={handleNodeDragMove}
-                  onNodeDragEnd={handleNodeDragEnd}
-                  setCursor={setCursor}
-                  registerNode={registerNode}
-                />
-              ))}
+              <Group
+                clipFunc={clipContentToCard
+                  ? (context) => {
+                      drawRoundedRectPath(context, cardX, cardY, cardWidth, cardHeight, 40);
+                    }
+                  : undefined}
+              >
+                {logoItems.map((item) => (
+                  <LogoNode
+                    key={item.id}
+                    item={item}
+                    selected={!hideSelectionUi && selectedItems.some((entry) => entry.type === 'logo' && entry.id === item.id)}
+                    onSelect={(event) => handleItemSelect({ type: 'logo', id: item.id }, event)}
+                    onTransformChange={(transform) => updateItemTransform('logoItems', item.id, transform)}
+                    onTransformPreview={handleTransformPreview}
+                    onTransformFinish={clearHelpers}
+                    onNodeDragStart={handleNodeDragStart}
+                    onNodeDragMove={handleNodeDragMove}
+                    onNodeDragEnd={handleNodeDragEnd}
+                    setCursor={setCursor}
+                    registerNode={registerNode}
+                  />
+                ))}
 
-              {textItems.map((item) => (
-              <TextNode
-                key={item.id}
-                item={item}
-                fontFamily={config.fontFamily}
-                textColor={config.textColor}
-                selected={!hideSelectionUi && selectedItems.some((entry) => entry.type === 'text' && entry.id === item.id)}
-                  onSelect={(event) => handleItemSelect({ type: 'text', id: item.id }, event)}
-                  onTransformChange={(transform) => updateItemTransform('textItems', item.id, transform)}
-                  onTransformPreview={handleTransformPreview}
-                  onTransformFinish={clearHelpers}
-                  onNodeDragStart={handleNodeDragStart}
-                  onNodeDragMove={handleNodeDragMove}
-                  onNodeDragEnd={handleNodeDragEnd}
-                  setCursor={setCursor}
-                  registerNode={registerNode}
-                />
-              ))}
+                {textItems.map((item) => (
+                  <TextNode
+                    key={item.id}
+                    item={item}
+                    fontFamily={config.fontFamily}
+                    textColor={config.textColor}
+                    selected={!hideSelectionUi && selectedItems.some((entry) => entry.type === 'text' && entry.id === item.id)}
+                    onSelect={(event) => handleItemSelect({ type: 'text', id: item.id }, event)}
+                    onTransformChange={(transform) => updateItemTransform('textItems', item.id, transform)}
+                    onTransformPreview={handleTransformPreview}
+                    onTransformFinish={clearHelpers}
+                    onNodeDragStart={handleNodeDragStart}
+                    onNodeDragMove={handleNodeDragMove}
+                    onNodeDragEnd={handleNodeDragEnd}
+                    setCursor={setCursor}
+                    registerNode={registerNode}
+                  />
+                ))}
+              </Group>
 
               {!hideSelectionUi && guideLines.vertical.map((guideX) => (
                 <Line

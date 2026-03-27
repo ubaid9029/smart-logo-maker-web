@@ -101,7 +101,7 @@ export default async function Login({ searchParams }: Props) {
             type="submit"
             className="w-full h-10 rounded-xl border border-gray-300 flex items-center justify-center gap-2 text-sm text-gray-900 font-medium hover:bg-gray-100 transition"
           >
-            <img src="/assets/icons/google.png" className="w-4 h-4" alt="Google" />
+            <Image src="/assets/icons/google.png" width={16} height={16} className="h-4 w-4" alt="Google" />
             Continue with Google
           </button>
         </form>

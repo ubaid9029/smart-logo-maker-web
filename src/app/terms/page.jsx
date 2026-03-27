@@ -1,13 +1,12 @@
 "use client";
-import Image from "next/image";
 import FinalCTA from "../../components/Terms/FinalCTA";
-import Terms from "../../components/Terms/Terms"
+import Terms from "../../components/Terms/Terms";
 
-export default function Contact() {
-    return (
-        <>
-            <Terms />
-            <FinalCTA />
-        </>
-    );
+export default function TermsPage() {
+  return (
+    <>
+      <Terms />
+      <FinalCTA />
+    </>
+  );
 }

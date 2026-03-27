@@ -15,7 +15,6 @@ export default function ConditionalLayout({ children }) {
   // Navbar ab generating, result, aur editor par hide nahi hoga
   // Footer abhi bhi sirf editor par hide rahega
   const hideFooterOnly = isEditorRoute;
-  const hideAll = isEditorRoute; // Navbar sirf editor par hide hoga
 
   return (
     <>

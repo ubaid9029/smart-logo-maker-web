@@ -2,9 +2,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, Edit3, Bookmark, Loader2, ShoppingCart, X } from 'lucide-react';
+import { ChevronLeft, Edit3, Bookmark, Download, Loader2, X } from 'lucide-react';
 import { useSelector } from "react-redux";
 import DownloadDialog from '../../components/DownloadDialog';
+import { EDITOR_FONT_FAMILIES } from '../../components/Editor/editorConstants';
 import {
   buildPdfBlobFromJpegBytes,
   canvasToBlob,
@@ -30,6 +31,7 @@ const INDUSTRY_LABELS = {
 };
 
 const EDITED_LOGO_STORAGE_PREFIX = 'edited-logo:';
+const EDITED_LOGO_SESSION_PREFIX = 'edited-logo-session:';
 
 const hashString = (value) => {
   const input = String(value || '');
@@ -54,6 +56,95 @@ const buildResultsEditScope = (formData, results) => hashString(JSON.stringify({
     iconNormal: item?.icon_normal || '',
   })),
 }));
+
+const buildEditedLogoStorageKey = (editScopeKey, designId) => (
+  editScopeKey
+    ? `${EDITED_LOGO_STORAGE_PREFIX}${editScopeKey}:${designId}`
+    : `${EDITED_LOGO_STORAGE_PREFIX}${designId}`
+);
+
+const buildEditedLogoSessionKey = (editScopeKey, designId) => (
+  editScopeKey
+    ? `${EDITED_LOGO_SESSION_PREFIX}${editScopeKey}:${designId}`
+    : `${EDITED_LOGO_SESSION_PREFIX}${designId}`
+);
+
+const resolvePayloadTextTemplate = (item = {}, fallback = {}) => {
+  const fill = item?.style?.fillColor || item?.fill || fallback?.style?.fillColor || fallback?.fill || '#1A1A1A';
+
+  return {
+    text: typeof item?.text === 'string' ? item.text : (fallback?.text || ''),
+    fontSize: Number(item?.fontSize || fallback?.fontSize || 46),
+    align: item?.align || fallback?.align || 'center',
+    fill,
+    fontFamily: item?.fontFamily || fallback?.fontFamily || 'Arial',
+    fontUrl: item?.fontUrl || fallback?.fontUrl || null,
+    fontStyle: item?.fontStyle || fallback?.fontStyle || 'bold',
+    letterSpacing: Number(item?.letterSpacing ?? fallback?.letterSpacing ?? 0),
+    style: {
+      fillColor: fill,
+      outlineColor: item?.style?.outlineColor || fallback?.style?.outlineColor || '#111827',
+      outlineWidth: Number(item?.style?.outlineWidth ?? fallback?.style?.outlineWidth ?? 0),
+      applyColorOverrides: Boolean(item?.style?.applyColorOverrides ?? fallback?.style?.applyColorOverrides ?? false),
+      rotateX: Number(item?.style?.rotateX ?? fallback?.style?.rotateX ?? 0),
+      rotateY: Number(item?.style?.rotateY ?? fallback?.style?.rotateY ?? 0),
+      rotateZ: Number(item?.style?.rotateZ ?? fallback?.style?.rotateZ ?? 0),
+    },
+  };
+};
+
+const getPreferredPayloadTextSource = (textItems = []) => (
+  textItems.find((item) => item?.id === 'brand-name') || textItems[0] || null
+);
+
+const mergeEditablePayload = (basePayload, savedPayload) => {
+  if (!savedPayload || typeof savedPayload !== 'object') {
+    return basePayload;
+  }
+
+  const baseTextItems = Array.isArray(basePayload?.textItems) ? basePayload.textItems : [];
+  const savedTextItems = Array.isArray(savedPayload?.textItems) ? savedPayload.textItems : [];
+  const baseTextItemMap = new Map(baseTextItems.map((item) => [item?.id, item]));
+  const mergedTextItems = (savedTextItems.length ? savedTextItems : baseTextItems).map((item) => {
+    const baseItem = baseTextItemMap.get(item?.id);
+    if (!baseItem) {
+      return item;
+    }
+
+    const mergedTemplate = resolvePayloadTextTemplate(item, baseItem);
+
+    return {
+      ...baseItem,
+      ...item,
+      fill: mergedTemplate.fill,
+      fontFamily: mergedTemplate.fontFamily,
+      fontUrl: baseItem?.fontUrl || item?.fontUrl || null,
+      fontStyle: mergedTemplate.fontStyle,
+      align: mergedTemplate.align,
+      letterSpacing: mergedTemplate.letterSpacing,
+      style: mergedTemplate.style,
+    };
+  });
+  const mergedTextTemplate = resolvePayloadTextTemplate(
+    savedPayload?.textTemplate || getPreferredPayloadTextSource(mergedTextItems) || {},
+    basePayload?.textTemplate || getPreferredPayloadTextSource(baseTextItems) || {}
+  );
+
+  return {
+    ...basePayload,
+    ...savedPayload,
+    fontFamily: savedPayload.fontFamily || mergedTextTemplate.fontFamily || basePayload?.fontFamily,
+    textColor: savedPayload.textColor || mergedTextTemplate.fill || basePayload?.textColor,
+    textTemplate: {
+      ...mergedTextTemplate,
+      fontUrl: basePayload?.textTemplate?.fontUrl || mergedTextTemplate.fontUrl || null,
+    },
+    logoItems: Array.isArray(savedPayload.logoItems) && savedPayload.logoItems.length
+      ? savedPayload.logoItems
+      : basePayload?.logoItems,
+    textItems: mergedTextItems.length ? mergedTextItems : baseTextItems,
+  };
+};
 
 const normalizeLogoUrl = (value) => {
   if (typeof value !== 'string' || !value.trim()) return null;
@@ -92,8 +183,8 @@ const buildRasterSvgMarkup = (imageUrl) => {
   }
 
   return [
-    '<svg xmlns="http://www.w3.org/2000/svg" width="700" height="500" viewBox="0 0 700 500" preserveAspectRatio="xMidYMid meet">',
-    `<image href="${imageUrl}" x="0" y="0" width="700" height="500" preserveAspectRatio="xMidYMid meet" />`,
+    '<svg xmlns="http://www.w3.org/2000/svg" width="340" height="250" viewBox="40 40 620 420" preserveAspectRatio="xMidYMid meet">',
+    `<image href="${imageUrl}" x="0" y="0" width="700" height="500" preserveAspectRatio="none" />`,
     '</svg>',
   ].join('');
 };
@@ -117,15 +208,50 @@ const ResultsPage = () => {
 
     items.forEach((item, index) => {
       const designId = String(item?.id || index + 1);
-      const storageKey = `${EDITED_LOGO_STORAGE_PREFIX}${editScopeKey}:${designId}`;
+      const storageKey = buildEditedLogoStorageKey(editScopeKey, designId);
+      const sessionKey = buildEditedLogoSessionKey(editScopeKey, designId);
+      let localSavedEdit = null;
+      let sessionSavedEdit = null;
 
       try {
         const rawValue = window.localStorage.getItem(storageKey);
         if (rawValue) {
-          nextSavedEdits[designId] = JSON.parse(rawValue);
+          localSavedEdit = JSON.parse(rawValue);
         }
       } catch {
         // Ignore invalid saved edits and keep the original design visible.
+      }
+
+      try {
+        const rawSessionValue = window.sessionStorage.getItem(sessionKey);
+        if (rawSessionValue) {
+          sessionSavedEdit = JSON.parse(rawSessionValue);
+        }
+      } catch {
+        // Ignore invalid session snapshots and keep the persistent version.
+      }
+
+      const localUpdatedAt = Number(localSavedEdit?.updatedAt || 0);
+      const sessionUpdatedAt = Number(sessionSavedEdit?.updatedAt || 0);
+      const primarySavedEdit = sessionUpdatedAt >= localUpdatedAt ? sessionSavedEdit : localSavedEdit;
+      const secondarySavedEdit = primarySavedEdit === sessionSavedEdit ? localSavedEdit : sessionSavedEdit;
+
+      const mergedSavedEdit = localSavedEdit || sessionSavedEdit
+        ? {
+            ...(secondarySavedEdit || {}),
+            ...(primarySavedEdit || {}),
+            editablePayload: primarySavedEdit?.editablePayload || secondarySavedEdit?.editablePayload || null,
+            previewDataUrl: primarySavedEdit?.previewDataUrl || secondarySavedEdit?.previewDataUrl || null,
+            previewVersion: Math.max(
+              Number(localSavedEdit?.previewVersion || 0),
+              Number(sessionSavedEdit?.previewVersion || 0)
+            ),
+            updatedAt: Math.max(localUpdatedAt, sessionUpdatedAt),
+          }
+        : null;
+
+      if (mergedSavedEdit) {
+        nextSavedEdits[designId] = mergedSavedEdit;
       }
     });
 
@@ -136,6 +262,7 @@ const ResultsPage = () => {
     const businessName = typeof formData?.name === 'string' && formData.name.trim() ? formData.name.trim() : 'BRAND';
     const slogan = typeof formData?.slogan === 'string' ? formData.slogan.trim() : '';
     const industryLabel = INDUSTRY_LABELS[formData?.industryId] || 'Brand identity';
+    const preferredFontFamily = EDITOR_FONT_FAMILIES[formData?.fontId] || 'Arial';
     const items = Array.isArray(results) ? results : [];
 
     return items.map((item, index) => {
@@ -147,6 +274,7 @@ const ResultsPage = () => {
       const editablePayload = buildEditableLogoPayload(item, {
         businessName,
         slogan,
+        fontFamily: preferredFontFamily,
       });
 
       const iconAsset = getNameIconAsset(item);
@@ -158,8 +286,8 @@ const ResultsPage = () => {
         iconAsset?.url
       );
       const savedEdit = savedEdits[designId] || null;
-      const savedPreviewDataUrl = savedEdit?.previewVersion >= 2 ? savedEdit.previewDataUrl || null : null;
-      const mergedEditablePayload = savedEdit?.editablePayload || editablePayload;
+      const savedPreviewDataUrl = savedEdit?.previewVersion >= 8 ? savedEdit.previewDataUrl || null : null;
+      const mergedEditablePayload = mergeEditablePayload(editablePayload, savedEdit?.editablePayload);
       const previewSvgMarkup = savedPreviewDataUrl ? buildRasterSvgMarkup(savedPreviewDataUrl) : svgMarkup;
 
       return {
@@ -286,6 +414,7 @@ const ResultsPage = () => {
                 {design.svgMarkup ? (
                   <InlineSvgPreview svgMarkup={design.svgMarkup} alt={design.name} />
                 ) : design.fallbackUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={design.fallbackUrl} alt={design.name} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-slate-400 font-semibold">
@@ -296,7 +425,7 @@ const ResultsPage = () => {
                   <div className="flex w-full justify-center gap-2 px-2">
                     <button onClick={() => setSelectedDesign(design)} className="brand-icon-button h-11 w-11 p-0"><Bookmark size={16} /></button>
                     <button onClick={() => handleEditOnCanva(design)} className="brand-icon-button h-11 w-11 p-0"><Edit3 size={16} /></button>
-                    <button onClick={() => setDownloadDesign(design)} className="brand-icon-button h-11 w-11 p-0"><ShoppingCart size={16} /></button>
+                    <button onClick={() => setDownloadDesign(design)} className="brand-icon-button h-11 w-11 p-0"><Download size={16} /></button>
                   </div>
                 </div>
               </div>
@@ -309,7 +438,7 @@ const ResultsPage = () => {
                     <Edit3 size={16} />
                   </button>
                   <button onClick={() => setDownloadDesign(design)} className="brand-icon-button h-11 w-11 p-0">
-                    <ShoppingCart size={16} />
+                    <Download size={16} />
                   </button>
               </div>
             </motion.div>
@@ -344,6 +473,7 @@ const ResultsPage = () => {
                 {selectedDesign.svgMarkup ? (
                   <InlineSvgPreview svgMarkup={selectedDesign.svgMarkup} alt={selectedDesign.name} />
                 ) : selectedDesign.fallbackUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={selectedDesign.fallbackUrl} alt="Preview" className="w-full h-full object-cover" />
                 ) : null}
               </div>
@@ -366,8 +496,8 @@ const ResultsPage = () => {
                   onClick={() => setDownloadDesign(selectedDesign)}
                   className="brand-button-outline flex-1 gap-2 rounded-2xl py-4"
                 >
-                  <ShoppingCart size={18} />
-                  Buy Now
+                  <Download size={18} />
+                  Download Logo
                 </button>
               </div>
             </motion.div>

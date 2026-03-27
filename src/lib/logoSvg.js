@@ -4,6 +4,19 @@ const SVG_CARD_HEIGHT = 250;
 const DEFAULT_TEXT_COLOR = '#111827';
 const DEFAULT_META_COLOR = '#475569';
 
+const buildEditorFontUrl = (value) => {
+  if (typeof value !== 'string' || !value.trim()) {
+    return null;
+  }
+
+  const nextValue = value.trim();
+  if (!/^https?:\/\//i.test(nextValue)) {
+    return nextValue;
+  }
+
+  return `/api/font-proxy?src=${encodeURIComponent(nextValue)}`;
+};
+
 const normalizeStringValue = (value) => {
   if (typeof value !== 'string') return '';
   return value.trim();
@@ -676,6 +689,10 @@ export const buildEditableLogoPayload = (item, options = {}) => {
   const iconParts = extractSvgParts(iconSvgSource, iconAsset?.view_box || '0 0 100 100');
   const displayBusinessName = businessName;
   const sloganDisplayText = getSloganDisplayText(sloganSegment, sloganText);
+  const preferredFontFamily = primaryNameSegment?.name || options.fontFamily || 'Arial';
+  const preferredFontUrl = buildEditorFontUrl(primaryNameSegment?.font_url || null);
+  const sloganFontFamily = sloganSegment?.name || preferredFontFamily;
+  const sloganFontUrl = buildEditorFontUrl(sloganSegment?.font_url || null) || preferredFontUrl;
 
   let iconFrame = null;
   let nameFrame = null;
@@ -833,10 +850,20 @@ export const buildEditableLogoPayload = (item, options = {}) => {
       fontSize: Math.max(18, scaleEditorHeight(nameFrame.fontSize)),
       align: nameFrame.align,
       fill: nameFrame.color,
-      fontFamily: 'Arial',
-      fontStyle: 'bold',
+      fontFamily: preferredFontFamily,
+      fontUrl: preferredFontUrl,
+      fontStyle: primaryNameSegment?.style || 'normal',
       renderMode: nameSvgDataUri ? 'svg' : 'text',
       svgDataUri: nameSvgDataUri,
+      style: {
+        fillColor: nameFrame.color,
+        outlineColor: '#111827',
+        outlineWidth: 0,
+        applyColorOverrides: false,
+        rotateX: 0,
+        rotateY: 0,
+        rotateZ: 0,
+      },
     });
   }
 
@@ -875,8 +902,8 @@ export const buildEditableLogoPayload = (item, options = {}) => {
       strokeWidth: 2,
     });
 
-    textItems.push({
-      id: 'slogan',
+      textItems.push({
+        id: 'slogan',
       type: 'text',
       text: sloganDisplayText,
       x: scaledX,
@@ -884,18 +911,48 @@ export const buildEditableLogoPayload = (item, options = {}) => {
       width: scaledWidth,
       height: Math.max(16, scaledHeight),
       fontSize: Math.max(12, scaledHeight),
-      align: 'center',
-      fill: sloganFrame.color,
-      fontFamily: 'Arial',
-      letterSpacing: 2,
-      renderMode: sloganSvgDataUri ? 'svg' : 'text',
-      svgDataUri: sloganSvgDataUri,
-    });
+        align: 'center',
+        fill: sloganFrame.color,
+        fontFamily: sloganFontFamily,
+        fontUrl: sloganFontUrl,
+        fontStyle: sloganSegment?.style || 'normal',
+        letterSpacing: 2,
+        renderMode: sloganSvgDataUri ? 'svg' : 'text',
+        svgDataUri: sloganSvgDataUri,
+        style: {
+          fillColor: sloganFrame.color,
+          outlineColor: '#111827',
+          outlineWidth: 0,
+          applyColorOverrides: false,
+          rotateX: 0,
+          rotateY: 0,
+          rotateZ: 0,
+        },
+      });
   }
 
   return {
     backgroundColor,
     textColor,
+    fontFamily: preferredFontFamily,
+    textTemplate: {
+      fontSize: textItems[0]?.fontSize || Math.max(18, scaleEditorHeight(nameBaseSize)),
+      align: textItems[0]?.align || 'center',
+      fill: textItems[0]?.fill || textColor,
+      fontFamily: preferredFontFamily,
+      fontUrl: textItems[0]?.fontUrl || preferredFontUrl,
+      fontStyle: textItems[0]?.fontStyle || primaryNameSegment?.style || 'normal',
+      letterSpacing: Number(textItems[0]?.letterSpacing || 0),
+      style: {
+        fillColor: textItems[0]?.style?.fillColor || textColor,
+        outlineColor: textItems[0]?.style?.outlineColor || '#111827',
+        outlineWidth: Number(textItems[0]?.style?.outlineWidth || 0),
+        applyColorOverrides: Boolean(textItems[0]?.style?.applyColorOverrides),
+        rotateX: Number(textItems[0]?.style?.rotateX || 0),
+        rotateY: Number(textItems[0]?.style?.rotateY || 0),
+        rotateZ: Number(textItems[0]?.style?.rotateZ || 0),
+      },
+    },
     svgDataUri: svgToDataUri(buildLogoCardSvg(item, options)),
     logoItems,
     textItems,

@@ -1,13 +1,54 @@
 import { configureStore, combineReducers } from '@reduxjs/toolkit';
 import logoReducer from './slices/logoSlice';
-import { persistStore, persistReducer } from 'redux-persist';
+import { persistStore, persistReducer, createTransform } from 'redux-persist';
 import storage from 'redux-persist/lib/storage';
+
+const logoPersistTransform = createTransform(
+  (inboundState: {
+    formData?: {
+      name?: string;
+      slogan?: string;
+      industryId?: number | null;
+      fontId?: string;
+      colorId?: string;
+    };
+  }) => ({
+    formData: {
+      name: inboundState?.formData?.name || '',
+      slogan: inboundState?.formData?.slogan || '',
+      industryId: inboundState?.formData?.industryId ?? null,
+      fontId: inboundState?.formData?.fontId || '',
+      colorId: inboundState?.formData?.colorId || '',
+    },
+  }),
+  (outboundState: {
+    formData?: {
+      name?: string;
+      slogan?: string;
+      industryId?: number | null;
+      fontId?: string;
+      colorId?: string;
+    };
+  }) => ({
+    formData: {
+      name: outboundState?.formData?.name || '',
+      slogan: outboundState?.formData?.slogan || '',
+      industryId: outboundState?.formData?.industryId ?? null,
+      fontId: outboundState?.formData?.fontId || '',
+      colorId: outboundState?.formData?.colorId || '',
+    },
+    results: [],
+    status: 'idle',
+    error: null,
+  }),
+  { whitelist: ['logo'] }
+);
 
 const persistConfig = {
   key: 'root',
   storage,
-  // Agar aap sirf logo slice ko persist karna chahte hain:
-  whitelist: ['logo'], 
+  whitelist: ['logo'],
+  transforms: [logoPersistTransform],
 };
 
 // Saare reducers ko combine karein

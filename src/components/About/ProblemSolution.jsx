@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import React from 'react';
 import { motion } from 'framer-motion';
 import { UserX, Sparkles } from 'lucide-react';
@@ -70,7 +71,13 @@ const ProblemSolution = () => {
                   className="w-32 h-32 flex items-center justify-center"
                 >
                   
-                  <img src={item.image} alt={item.title} className="w-full h-full object-contain" />
+                  <Image
+                    src={item.image}
+                    alt={item.title}
+                    width={128}
+                    height={128}
+                    className="h-full w-full object-contain"
+                  />
                 </motion.div>
                 
                 {/* Subtle glow behind icon on hover */}

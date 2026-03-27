@@ -1,0 +1,191 @@
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  Diamond,
+  Heart,
+  Hexagon,
+  ImagePlus,
+  Images,
+  Palette,
+  Pentagon,
+  RectangleHorizontal,
+  Shapes,
+  SlidersHorizontal,
+  Sparkles,
+  Square,
+  Star,
+  Triangle,
+  Type,
+  X,
+} from 'lucide-react';
+
+export const EDITOR_FONT_FAMILIES = {
+  "1": "Arial",
+  "2": "Georgia",
+  "3": "Impact",
+  "4": "Courier New",
+  "5": "Helvetica",
+  "6": "Times New Roman",
+};
+
+export const AVAILABLE_EDITOR_FONTS = [
+  'Arial',
+  'Georgia',
+  'Impact',
+  'Courier New',
+  'Helvetica',
+  'Times New Roman',
+  'Verdana',
+  'Tahoma',
+  'Trebuchet MS',
+  'Garamond',
+  'Palatino Linotype',
+];
+
+export const editorTools = [
+  { id: 'background', label: 'Background', icon: ImagePlus },
+  { id: 'art', label: 'Art', icon: Shapes },
+  { id: 'text', label: 'Text', icon: Type },
+  { id: 'effect', label: 'Effect', icon: Sparkles },
+  { id: 'palette', label: 'Palette', icon: Palette },
+  { id: 'images', label: 'Images', icon: Images },
+];
+
+export const mobileControlsTool = { id: 'controls', label: 'Controls', icon: SlidersHorizontal };
+
+export const backgroundOptions = [
+  { id: 'color', label: 'Color', icon: Palette },
+  { id: 'gradient', label: 'Gradient', icon: Sparkles },
+  { id: 'background', label: 'Background', icon: ImagePlus },
+  { id: 'texture', label: 'Texture', icon: Shapes },
+  { id: 'image', label: 'Image', icon: Images },
+];
+
+export const backgroundShapeOptions = [
+  { id: 'none', label: 'Remove', icon: X },
+  { id: 'full', label: 'Square', icon: Square },
+  { id: 'diamond', label: 'Diamond', icon: Diamond },
+  { id: 'rectangle', label: 'Rectangle', icon: RectangleHorizontal },
+  { id: 'triangle', label: 'Triangle', icon: Triangle },
+  { id: 'pentagon', label: 'Pentagon', icon: Pentagon },
+  { id: 'hexagon', label: 'Hexagon', icon: Hexagon },
+  { id: 'heart', label: 'Heart', icon: Heart },
+  { id: 'star', label: 'Star', icon: Star },
+  { id: 'arrow', label: 'Arrow', icon: ArrowRight },
+];
+
+export const gradientDirectionOptions = [
+  { id: 'down', label: 'Down', icon: ArrowDown, cssDirection: 'to bottom' },
+  { id: 'right', label: 'Right', icon: ArrowRight, cssDirection: 'to right' },
+  { id: 'up', label: 'Up', icon: ArrowUp, cssDirection: 'to top' },
+  { id: 'left', label: 'Left', icon: ArrowLeft, cssDirection: 'to left' },
+];
+
+export const colorSwatches = [
+  '#ef4444',
+  '#f97316',
+  '#eab308',
+  '#22c55e',
+  '#14b8a6',
+  '#3b82f6',
+  '#6366f1',
+  '#8b5cf6',
+  '#ec4899',
+  '#111827',
+  '#ffffff',
+  '#94a3b8',
+];
+
+export const backgroundColorSwatches = [...colorSwatches];
+
+export const designPalettes = [
+  { id: '1', name: 'Vibrant Energy', colors: ['#FB923C', '#EC4899', '#FACC15', '#F87171'] },
+  { id: '2', name: 'Warm Sunset', colors: ['#7C2D12', '#EA580C', '#FB923C', '#FED7AA'] },
+  { id: '3', name: 'Natural Green', colors: ['#064E3B', '#059669', '#34D399', '#D1FAE5'] },
+  { id: '4', name: 'Elegant Gold', colors: ['#111827', '#B45309', '#F59E0B', '#FEF3C7'] },
+  { id: '5', name: 'Midnight Bloom', colors: ['#312E81', '#7C3AED', '#C084FC', '#EDE9FE'] },
+  { id: '6', name: 'Coral Punch', colors: ['#9F1239', '#F43F5E', '#FB7185', '#FFE4E6'] },
+  { id: '7', name: 'Forest Mist', colors: ['#14532D', '#22C55E', '#86EFAC', '#F0FDF4'] },
+  { id: '8', name: 'Royal Ink', colors: ['#172554', '#1D4ED8', '#60A5FA', '#DBEAFE'] },
+  { id: '9', name: 'Peach Studio', colors: ['#7C2D12', '#FB923C', '#FDBA74', '#FFEDD5'] },
+  { id: '10', name: 'Berry Luxe', colors: ['#4A044E', '#C026D3', '#E879F9', '#FAE8FF'] },
+  { id: '11', name: 'Earth Clay', colors: ['#78350F', '#A16207', '#EAB308', '#FEF9C3'] },
+  { id: '12', name: 'Arctic Glow', colors: ['#164E63', '#06B6D4', '#67E8F9', '#ECFEFF'] },
+  { id: '13', name: 'Rose Smoke', colors: ['#881337', '#E11D48', '#FDA4AF', '#FFF1F2'] },
+  { id: '14', name: 'Stone Mono', colors: ['#1F2937', '#6B7280', '#D1D5DB', '#F9FAFB'] },
+  { id: '15', name: 'Citrus Pop', colors: ['#365314', '#84CC16', '#FACC15', '#FEF9C3'] },
+];
+
+export const backgroundLibraryImages = [
+  '/assets/bg_images/bg_1.jpg',
+  '/assets/bg_images/bg_2.jpg',
+  '/assets/bg_images/bg_3.jpeg',
+  '/assets/bg_images/bg_4.jpg',
+  '/assets/bg_images/bg_5.jpg',
+  '/assets/bg_images/bg_6.jpg',
+  '/assets/bg_images/bg_7.jpg',
+  '/assets/bg_images/bg_8.jpg',
+  '/assets/bg_images/bg_9.jpg',
+  '/assets/bg_images/bg_10.jpg',
+];
+
+export const textureLibraryImages = [
+  '/assets/texture_images/texture_1.jpg',
+  '/assets/texture_images/texture_2.jpg',
+  '/assets/texture_images/texture_3.jpg',
+  '/assets/texture_images/texture_4.jpg',
+  '/assets/texture_images/texture_5.png',
+  '/assets/texture_images/texture_6.jpg',
+  '/assets/texture_images/texture_7.jpg',
+  '/assets/texture_images/texture_8.jpg',
+  '/assets/texture_images/texture_9.jpg',
+  '/assets/texture_images/texture_10.jpg',
+];
+
+export const effectLibraryImages = [
+  '/assets/effects_images/ef1.jpg',
+  '/assets/effects_images/ef2.jpg',
+  '/assets/effects_images/ef3.jpg',
+  '/assets/effects_images/ef4.jpg',
+  '/assets/effects_images/ef5.jpg',
+  '/assets/effects_images/ef6.jpg',
+  '/assets/effects_images/ef7.jpg',
+  '/assets/effects_images/ef8.jpg',
+  '/assets/effects_images/ef9.jpg',
+  '/assets/effects_images/ef10.jpg',
+];
+
+export const artLibraryImages = [
+  '/assets/logo_images/art1.svg',
+  '/assets/logo_images/art2.svg',
+  '/assets/logo_images/art3.svg',
+  '/assets/logo_images/logo_1.png',
+  '/assets/logo_images/logo_2.png',
+  '/assets/logo_images/logo_3.png',
+  '/assets/logo_images/logo_4.png',
+  '/assets/logo_images/logo_5.png',
+  '/assets/logo_images/logo_6.png',
+  '/assets/logo_images/logo_7.png',
+  '/assets/logo_images/logo_8.png',
+  '/assets/logo_images/logo_9.png',
+  '/assets/logo_images/logo_10.png',
+];
+
+export const CANVAS_WIDTH = 700;
+export const CANVAS_HEIGHT = 500;
+export const CARD_WIDTH = 620;
+export const CARD_HEIGHT = 420;
+export const CARD_X = (CANVAS_WIDTH - CARD_WIDTH) / 2;
+export const CARD_Y = (CANVAS_HEIGHT - CARD_HEIGHT) / 2;
+export const EDITED_LOGO_STORAGE_PREFIX = 'edited-logo:';
+
+export const EMPTY_EDIT_DIALOG = {
+  open: false,
+  type: null,
+  mode: null,
+  id: null,
+  businessValue: '',
+  sloganValue: '',
+};

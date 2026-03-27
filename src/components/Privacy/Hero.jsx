@@ -1,4 +1,5 @@
 'use client';
+import Image from 'next/image';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { HiArrowRight } from "react-icons/hi";
@@ -31,9 +32,11 @@ const Hero = () => {
 
       {/* 1. BACKGROUND IMAGE*/}
       <div className="absolute inset-0 z-0 pointer-events-none select-none overflow-hidden">
-        <img
+        <Image
           src="/logos/logo1.svg"
           alt="background-decoration"
+          width={750}
+          height={750}
           className="absolute 
                /* Position fixing */
                -right-[5%] -bottom-[15%] 
@@ -54,7 +57,6 @@ const Hero = () => {
             maskImage: 'linear-gradient(to bottom, black 70%, transparent 100%)',
             WebkitMaskImage: 'linear-gradient(to bottom, black 70%, transparent 100%)'
           }}
-          onError={() => console.log("Check if /logos/logo1.svg exists")}
         />
       </div>
 
