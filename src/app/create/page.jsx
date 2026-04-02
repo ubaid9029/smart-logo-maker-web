@@ -1,13 +1,15 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import BusinessInfo from "./steps/bussiness-info";
 import Category from "./steps/category";
 import Fonts from "./steps/fonts";
 import ColorPalette from "./steps/color-palette";
-import { resetLogoProcess } from "../../store/slices/logoSlice";
+import { resetLogoProcess, setCreateStep } from "../../store/slices/logoSlice";
+import { clearGeneratedResultsSnapshot } from "../../lib/generatedResultsStorage";
+import { deriveCreateResumeStep, hasCreateDraft } from "../../lib/logoResumeStorage";
 
 const EMPTY_FORM_DATA = {
   businessName: "",
@@ -62,31 +64,69 @@ const buildInitialCreateData = (source) => ({
 
 export default function CreateLogoPage() {
   const dispatch = useDispatch();
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const { formData: savedFormData } = useSelector((state) => state.logo);
-  const shouldPreserveInputs = searchParams.get('preserve') === '1';
-  const initialCreateData = shouldPreserveInputs ? buildInitialCreateData(savedFormData) : EMPTY_FORM_DATA;
+  const { formData: savedFormData, createStep: savedCreateStep } = useSelector((state) => state.logo);
+  const shouldResetDraft = searchParams.get('fresh') === '1';
+  const showMissingResultsNotice = searchParams.get('notice') === 'missing-results';
+  const hasExplicitResumeStep = searchParams.has('step');
+  const requestedResumeStep = Math.max(1, Math.min(4, Number(searchParams.get('step')) || 0));
+  const routeResumeToken = searchParams.toString();
+  const hasSavedDraft = hasCreateDraft(savedFormData);
+  const appliedResumeTokenRef = useRef('');
   const [step, setStep] = useState(1);
   const totalSteps = 4;
-
   const progressPercentage = (step / totalSteps) * 100;
-
-  const [formData, setFormData] = useState(initialCreateData);
+  const [formData, setFormData] = useState(hasSavedDraft ? buildInitialCreateData(savedFormData) : EMPTY_FORM_DATA);
 
   useEffect(() => {
-    if (!shouldPreserveInputs) {
-      dispatch(resetLogoProcess());
+    if (!shouldResetDraft) {
+      return;
     }
-  }, [dispatch, shouldPreserveInputs]);
+
+    appliedResumeTokenRef.current = '';
+    clearGeneratedResultsSnapshot();
+    dispatch(resetLogoProcess());
+    setFormData(EMPTY_FORM_DATA);
+    setStep(1);
+    router.replace('/create');
+  }, [dispatch, router, shouldResetDraft]);
+
+  useEffect(() => {
+    if (shouldResetDraft) {
+      return;
+    }
+
+    if (appliedResumeTokenRef.current === routeResumeToken) {
+      return;
+    }
+
+    appliedResumeTokenRef.current = routeResumeToken;
+
+    if (!hasSavedDraft) {
+      setFormData(EMPTY_FORM_DATA);
+      setStep(hasExplicitResumeStep ? requestedResumeStep : 1);
+      return;
+    }
+
+    setFormData(buildInitialCreateData(savedFormData));
+    setStep(hasExplicitResumeStep ? requestedResumeStep : deriveCreateResumeStep(savedFormData, savedCreateStep));
+  }, [hasExplicitResumeStep, hasSavedDraft, requestedResumeStep, routeResumeToken, savedCreateStep, savedFormData, shouldResetDraft]);
+
+  useEffect(() => {
+    dispatch(setCreateStep(step));
+  }, [dispatch, step]);
 
   const nextStep = () => {
     if (step < totalSteps) {
-      setStep(step + 1);
+      setStep((currentStep) => currentStep + 1);
     }
   };
 
   const prevStep = () => {
-    if (step > 1) setStep(step - 1);
+    if (step > 1) {
+      setStep((currentStep) => currentStep - 1);
+    }
   };
 
   return (
@@ -95,7 +135,17 @@ export default function CreateLogoPage() {
         <div className="mx-auto max-w-4xl">
           <div className="mb-2 flex items-center justify-between px-1">
             <span className="text-sm font-bold text-slate-700">Step {step} of {totalSteps}</span>
-            <span className="text-sm font-bold text-slate-500">{Math.round(progressPercentage)}%</span>
+            <div className="flex items-center gap-3">
+              {hasSavedDraft && (
+                <button
+                  onClick={() => router.push('/create?fresh=1')}
+                  className="text-xs font-black uppercase tracking-[0.16em] text-slate-400 transition hover:text-slate-600"
+                >
+                  Start Over
+                </button>
+              )}
+              <span className="text-sm font-bold text-slate-500">{Math.round(progressPercentage)}%</span>
+            </div>
           </div>
           <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
             <div
@@ -107,7 +157,12 @@ export default function CreateLogoPage() {
       </div>
 
       <div className="mx-auto flex h-full max-w-5xl flex-col px-3 pb-[10px] pt-[6.6rem] md:px-5 md:pt-[8.1rem]">
-        <div className="mt-1 flex-1 min-h-0 overflow-hidden transition-opacity duration-500 md:mt-2">
+        {showMissingResultsNotice && (
+          <div className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 shadow-sm">
+            Previous results were no longer available, so we returned you to Create.
+          </div>
+        )}
+        <div className="mt-1 min-h-0 flex-1 overflow-hidden transition-opacity duration-500 md:mt-2">
           {step === 1 && (
             <BusinessInfo onNext={nextStep} data={formData} setData={setFormData} />
           )}

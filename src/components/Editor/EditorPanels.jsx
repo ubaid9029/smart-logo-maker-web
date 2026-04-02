@@ -333,7 +333,7 @@ export function EditorSidebarContent(props) {
     if (selectedCanvasItem && activeObjectPanel === 'colors' && selectedItemData) {
       if (isMobileViewport) {
         return (
-          <div className="space-y-2">
+          <div className={`space-y-2 ${!isMobileViewport && activeBackgroundOption ? 'block' : 'lg:hidden'}`}> 
             <div className="rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
                 Fill Color
@@ -405,7 +405,7 @@ export function EditorSidebarContent(props) {
     if (selectedCanvasItem && activeObjectPanel === 'fonts' && selectedItemData && canEditText) {
       if (isMobileViewport) {
         return (
-          <div className="space-y-2">
+          <div className={`space-y-2 ${!isMobileViewport && activeBackgroundOption ? 'block' : 'lg:hidden'}`}> 
             <div className="flex items-center gap-2 overflow-x-auto rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
               {AVAILABLE_EDITOR_FONTS.map((fontName) => {
                 const isActiveFont = (selectedItemData.fontFamily || logoConfig.fontFamily || 'Arial') === fontName;
@@ -501,7 +501,7 @@ export function EditorSidebarContent(props) {
     if (selectedCanvasItem && activeObjectPanel === 'outlines' && selectedItemData) {
       if (isMobileViewport) {
         return (
-          <div className="space-y-2">
+          <div className={`space-y-2 ${!isMobileViewport && activeBackgroundOption ? 'block' : 'lg:hidden'}`}> 
             <div className="rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
                 Outline Color
@@ -615,7 +615,7 @@ export function EditorSidebarContent(props) {
 
       if (isMobileViewport) {
         return (
-          <div className="space-y-2">
+          <div className={`space-y-2 ${!isMobileViewport && activeBackgroundOption ? 'block' : 'lg:hidden'}`}> 
             <div className="rounded-[0.95rem] border border-slate-100 bg-white p-1 shadow-sm">
               <div className="space-y-1">
                 {rotateControls.map((control) => (
@@ -675,10 +675,10 @@ export function EditorSidebarContent(props) {
     if (activeTool === 'background') {
       return (
         <div className="space-y-4">
-          <div className="space-y-2 lg:hidden">
+          <div className={`space-y-2 ${!isMobileViewport && activeBackgroundOption ? 'block' : 'lg:hidden'}`}> 
             {(activeBackgroundOption === 'color' || (!isMobileViewport && !activeBackgroundOption)) && (
               isMobileViewport ? (
-                <div className="space-y-2">
+                <div className={`space-y-2 ${!isMobileViewport && activeBackgroundOption ? 'block' : 'lg:hidden'}`}> 
                   <div className="rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
@@ -751,102 +751,61 @@ export function EditorSidebarContent(props) {
 
                 </div>
               ) : (
-                <div className="flex items-stretch gap-2 overflow-x-auto pb-1">
-                  <div className="w-[220px] shrink-0 rounded-[0.95rem] border border-slate-100 bg-white px-2.5 py-2 shadow-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="shrink-0 text-slate-400">
-                        <Palette size={15} />
-                      </span>
-                      <input
-                        type="range"
-                        min="0.05"
-                        max="1"
-                        step="0.05"
-                        value={activeBackgroundOpacity}
-                        onChange={(event) => applyBackgroundOpacity(event.target.value)}
-                        className="w-full accent-orange-500"
-                      />
-                      <span className="min-w-[38px] text-right text-xs font-bold text-slate-600">
-                        {Math.round(activeBackgroundOpacity * 100)}%
-                      </span>
-                    </div>
+                <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                  <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                    Background Color
+                  </p>
+                  <div className="mt-4 flex items-center gap-3">
+                    <ColorPickerField
+                      value={customColorValue}
+                      onChange={(event) => {
+                        const safeColor = normalizeHexColor(event.target.value, '#FFFFFF');
+                        setDialogBaseColor(safeColor);
+                        setDialogSelectedColor(safeColor);
+                        setCustomColorValue(safeColor);
+                        applyBackgroundColor(safeColor);
+                      }}
+                    />
+                    <HexColorInput
+                      value={customColorValue}
+                      onValidColorChange={(nextValue) => {
+                        const safeColor = normalizeHexColor(nextValue, '#FFFFFF');
+                        setDialogBaseColor(safeColor);
+                        setDialogSelectedColor(safeColor);
+                        setCustomColorValue(safeColor);
+                        applyBackgroundColor(safeColor);
+                      }}
+                      placeholder="#FFFFFF"
+                      className="min-w-0 flex-1"
+                    />
                   </div>
-
-                  <div className="w-[420px] shrink-0 rounded-[0.95rem] border border-slate-100 bg-white px-2 py-2 shadow-sm">
-                    <div className="flex items-center gap-1.5 overflow-x-auto">
-                      {backgroundShapeOptions.map((shapeOption) => {
-                        const Icon = shapeOption.icon;
-                        const isActiveShape = activeBackgroundShapeType === shapeOption.id;
-
-                        return (
-                          <button
-                            key={shapeOption.id}
-                            onClick={() => applyBackgroundShape(shapeOption.id)}
-                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-all ${
-                              isActiveShape
-                                ? 'border-black bg-orange-50 text-orange-600 ring-2 ring-orange-200'
-                                : 'border-slate-200 bg-white text-slate-500'
-                            }`}
-                          >
-                            <Icon size={15} />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="w-[330px] shrink-0 rounded-[0.95rem] border border-slate-100 bg-white px-2.5 py-2 shadow-sm">
-                    <div className="flex items-center gap-2">
-                      <ColorPickerField
-                        value={customColorValue}
-                        onChange={(event) => {
-                          const safeColor = normalizeHexColor(event.target.value, '#FFFFFF');
+                  <div className="mt-4 grid grid-cols-5 gap-3">
+                    {backgroundColorSwatches.map((color) => (
+                      <button
+                        key={color}
+                        title={color}
+                        onClick={() => {
+                          const safeColor = normalizeHexColor(color, '#FFFFFF');
                           setDialogBaseColor(safeColor);
                           setDialogSelectedColor(safeColor);
                           setCustomColorValue(safeColor);
                           applyBackgroundColor(safeColor);
                         }}
+                        className={`mx-auto h-10 w-10 rounded-full border-[3px] transition-all ${
+                          dialogSelectedColor === normalizeHexColor(color, '#FFFFFF')
+                            ? 'scale-105 ring-2 ring-orange-300 border-black'
+                            : 'border-black/80'
+                        }`}
+                        style={{ backgroundColor: color }}
                       />
-                      <HexColorInput
-                        value={customColorValue}
-                        onValidColorChange={(nextValue) => {
-                          const safeColor = normalizeHexColor(nextValue, '#FFFFFF');
-                          setDialogBaseColor(safeColor);
-                          setDialogSelectedColor(safeColor);
-                          setCustomColorValue(safeColor);
-                          applyBackgroundColor(safeColor);
-                        }}
-                        placeholder="#FFFFFF"
-                      />
-                    </div>
-                    <div className="mt-2 flex items-center gap-1.5 overflow-x-auto">
-                      {backgroundColorSwatches.map((color) => (
-                        <button
-                          key={color}
-                          title={color}
-                          onClick={() => {
-                            const safeColor = normalizeHexColor(color, '#FFFFFF');
-                            setDialogBaseColor(safeColor);
-                            setDialogSelectedColor(safeColor);
-                            setCustomColorValue(safeColor);
-                            applyBackgroundColor(safeColor);
-                          }}
-                          className={`h-7 w-7 shrink-0 rounded-full border-[3px] transition-all ${
-                            dialogSelectedColor === normalizeHexColor(color, '#FFFFFF')
-                              ? 'scale-105 ring-2 ring-orange-300 border-black'
-                              : 'border-black/80'
-                          }`}
-                          style={{ backgroundColor: color }}
-                        />
-                      ))}
-                    </div>
+                    ))}
                   </div>
                 </div>
               )
             )}
 
             {isMobileViewport && !activeBackgroundOption && (
-              <div className="space-y-2">
+              <div className={`space-y-2 ${!isMobileViewport && activeBackgroundOption ? 'block' : 'lg:hidden'}`}> 
                 <div className="rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
                     Card Shape
@@ -910,7 +869,7 @@ export function EditorSidebarContent(props) {
             )}
 
             {isMobileViewport && activeBackgroundOption === 'gradient' && (
-              <div className="space-y-2">
+              <div className={`space-y-2 ${!isMobileViewport && activeBackgroundOption ? 'block' : 'lg:hidden'}`}> 
                 <div className="rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
                   <div className="grid grid-cols-3 gap-2">
                     <div className="rounded-[0.9rem] border border-slate-200 bg-slate-50 p-2">
@@ -1017,55 +976,77 @@ export function EditorSidebarContent(props) {
             )}
 
             {!isMobileViewport && activeBackgroundOption === 'gradient' && (
-              <div className="space-y-2.5 rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
-                <div className="h-16 rounded-[0.85rem] border border-slate-100" style={gradientPreviewStyle} />
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2.5">
-                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Start</p>
-                    <div className="mt-2 flex items-center gap-3">
-                      <ColorPickerField
-                        value={gradientStartColor}
-                        onChange={(event) => setGradientStartColor(normalizeHexColor(event.target.value, '#000000'))}
-                      />
-                      <HexColorInput
-                        value={gradientStartColor}
-                        onValidColorChange={(nextValue) => setGradientStartColor(normalizeHexColor(nextValue, '#000000'))}
-                        placeholder="#000000"
-                      />
+              <div className="space-y-3">
+                <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                      Gradient
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => setGradientType('linear')}
+                        className={`brand-chip-button px-2.5 py-1.5 text-[10px] ${gradientType === 'linear' ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200' : ''}`}
+                      >
+                        Linear
+                      </button>
+                      <button
+                        onClick={() => setGradientType('radial')}
+                        className={`brand-chip-button px-2.5 py-1.5 text-[10px] ${gradientType === 'radial' ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200' : ''}`}
+                      >
+                        Radial
+                      </button>
                     </div>
                   </div>
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2.5">
-                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">End</p>
-                    <div className="mt-2 flex items-center gap-3">
-                      <ColorPickerField
-                        value={gradientEndColor}
-                        onChange={(event) => setGradientEndColor(normalizeHexColor(event.target.value, '#64748B'))}
-                      />
-                      <HexColorInput
-                        value={gradientEndColor}
-                        onValidColorChange={(nextValue) => setGradientEndColor(normalizeHexColor(nextValue, '#64748B'))}
-                        placeholder="#64748B"
-                      />
+                  <div className="mt-3 h-16 rounded-[1rem] border border-slate-100" style={gradientPreviewStyle} />
+                </div>
+
+                <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
+                  <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                    Colors
+                  </p>
+                  <div className="mt-3 space-y-2.5">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Start</p>
+                      <div className="mt-2 flex min-w-0 items-center gap-2">
+                        <ColorPickerField
+                          value={gradientStartColor}
+                          onChange={(event) => setGradientStartColor(normalizeHexColor(event.target.value, '#000000'))}
+                          className="h-10 w-10"
+                        />
+                        <HexColorInput
+                          value={gradientStartColor}
+                          onValidColorChange={(nextValue) => setGradientStartColor(normalizeHexColor(nextValue, '#000000'))}
+                          placeholder="#000000"
+                          className="h-10 min-w-0 flex-1 px-3 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">End</p>
+                      <div className="mt-2 flex min-w-0 items-center gap-2">
+                        <ColorPickerField
+                          value={gradientEndColor}
+                          onChange={(event) => setGradientEndColor(normalizeHexColor(event.target.value, '#64748B'))}
+                          className="h-10 w-10"
+                        />
+                        <HexColorInput
+                          value={gradientEndColor}
+                          onValidColorChange={(nextValue) => setGradientEndColor(normalizeHexColor(nextValue, '#64748B'))}
+                          placeholder="#64748B"
+                          className="h-10 min-w-0 flex-1 px-3 text-xs"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2.5">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <button
-                      onClick={() => setGradientType('linear')}
-                      className={`brand-chip-button px-3 py-1.5 text-[11px] ${gradientType === 'linear' ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200' : ''}`}
-                    >
-                      Linear
-                    </button>
-                    <button
-                      onClick={() => setGradientType('radial')}
-                      className={`brand-chip-button px-3 py-1.5 text-[11px] ${gradientType === 'radial' ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200' : ''}`}
-                    >
-                      Radial
-                    </button>
-                  </div>
+
+                <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
+                  <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                    Direction
+                  </p>
                   {gradientType === 'linear' ? (
-                    <div className="mt-2.5 flex items-center gap-1.5 overflow-x-auto pb-1">
+                    <div className="mt-3 grid grid-cols-4 gap-2">
                       {gradientDirectionOptions.map((option) => {
                         const Icon = option.icon;
                         const isActive = gradientDirection === option.id;
@@ -1074,22 +1055,19 @@ export function EditorSidebarContent(props) {
                           <button
                             key={option.id}
                             onClick={() => setGradientDirection(option.id)}
-                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-all ${
-                              isActive
-                                ? 'border-black bg-orange-50 text-orange-600 ring-2 ring-orange-200'
-                                : 'border-slate-200 bg-white text-slate-600'
-                            }`}
+                            title={option.label}
+                            className={`flex h-10 w-full items-center justify-center rounded-xl border transition-all ${isActive ? 'border-black bg-orange-50 text-orange-600 ring-2 ring-orange-200' : 'border-slate-200 bg-white text-slate-600'}`}
                           >
-                            <Icon size={15} />
+                            <Icon size={16} />
                           </button>
                         );
                       })}
                     </div>
                   ) : (
-                    <div className="mt-3">
-                      <div className="flex items-center justify-between">
+                    <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                      <div className="flex items-center justify-between gap-3">
                         <span className="text-xs font-bold text-slate-500">Angle</span>
-                        <span className="text-sm font-bold text-slate-700">{gradientRadialAngle}°</span>
+                        <span className="text-sm font-bold text-slate-700">{gradientRadialAngle} deg</span>
                       </div>
                       <input
                         type="range"
@@ -1103,44 +1081,53 @@ export function EditorSidebarContent(props) {
                     </div>
                   )}
                 </div>
+
                 <button
                   onClick={applyGradientToBackground}
-                  className="brand-button-outline w-full px-4 py-2.5 text-sm"
+                  className="brand-button-outline w-full px-4 py-2 text-sm"
                 >
                   Apply Gradient
                 </button>
               </div>
-            )}
-
-            {activeBackgroundOption === 'background' && (
-              <div className="flex items-center gap-1.5 overflow-x-auto rounded-[0.95rem] border border-slate-100 bg-white p-2 shadow-sm">
-                {backgroundLibraryImages.map((imageUrl, index) => (
-                  <button
-                    key={imageUrl}
-                    onClick={() => applyPresetBackgroundImage(imageUrl)}
-                    className="w-[62px] shrink-0 overflow-hidden rounded-[0.8rem] border border-slate-100 bg-white shadow-sm transition-all hover:border-orange-300"
-                  >
-                    <div className="relative aspect-[1/1] bg-slate-100">
-                      <Image src={imageUrl} alt={`Background ${index + 1}`} fill sizes="72px" className="object-cover" />
-                    </div>
-                  </button>
-                ))}
+            )}            {activeBackgroundOption === 'background' && (
+              <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                  Background Library
+                </p>
+                <div className="mt-4 grid grid-cols-2 gap-4">
+                  {backgroundLibraryImages.map((imageUrl, index) => (
+                    <button
+                      key={imageUrl}
+                      onClick={() => applyPresetBackgroundImage(imageUrl)}
+                      className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm transition-all hover:border-orange-300 hover:shadow-md"
+                    >
+                      <div className="relative aspect-[4/3] bg-slate-100">
+                        <Image src={imageUrl} alt={`Background ${index + 1}`} fill sizes="(min-width: 1024px) 18vw, 40vw" className="object-cover" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
             {activeBackgroundOption === 'texture' && (
-              <div className="flex items-center gap-1.5 overflow-x-auto rounded-[0.95rem] border border-slate-100 bg-white p-2 shadow-sm">
-                {textureLibraryImages.map((imageUrl, index) => (
-                  <button
-                    key={imageUrl}
-                    onClick={() => applyPresetBackgroundImage(imageUrl)}
-                    className="w-[62px] shrink-0 overflow-hidden rounded-[0.8rem] border border-slate-100 bg-white shadow-sm transition-all hover:border-orange-300"
-                  >
-                    <div className="relative aspect-[1/1] bg-slate-100">
-                      <Image src={imageUrl} alt={`Texture ${index + 1}`} fill sizes="72px" className="object-cover" />
-                    </div>
-                  </button>
-                ))}
+              <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                  Texture Library
+                </p>
+                <div className="mt-4 grid grid-cols-2 gap-4">
+                  {textureLibraryImages.map((imageUrl, index) => (
+                    <button
+                      key={imageUrl}
+                      onClick={() => applyPresetBackgroundImage(imageUrl)}
+                      className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm transition-all hover:border-orange-300 hover:shadow-md"
+                    >
+                      <div className="relative aspect-[4/3] bg-slate-100">
+                        <Image src={imageUrl} alt={`Texture ${index + 1}`} fill sizes="(min-width: 1024px) 18vw, 40vw" className="object-cover" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -1157,12 +1144,12 @@ export function EditorSidebarContent(props) {
             )}
           </div>
 
-          <div className="hidden space-y-4 lg:block">
+          <div className={`space-y-3 ${!isMobileViewport && !activeBackgroundOption ? 'hidden lg:block' : 'hidden'}`}> 
             <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
               <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
                 Shape Library
               </p>
-              <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="mt-3 grid grid-cols-4 gap-2">
                 {backgroundShapeOptions.map((shapeOption) => {
                   const Icon = shapeOption.icon;
                   const isActiveShape = activeBackgroundShapeType === shapeOption.id;
@@ -1171,14 +1158,14 @@ export function EditorSidebarContent(props) {
                     <button
                       key={shapeOption.id}
                       onClick={() => applyBackgroundShape(shapeOption.id)}
-                      className={`rounded-2xl border px-4 py-4 text-left transition-all ${
+                      className={`rounded-xl border px-2 py-2 text-left transition-all ${
                         isActiveShape
                           ? 'border-black bg-orange-50 text-orange-700 shadow-sm ring-2 ring-orange-200'
                           : 'border-slate-200 bg-white text-slate-700 hover:border-orange-200'
                       }`}
                     >
                       <div className="flex items-center justify-center">
-                        <span className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
+                        <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${
                           isActiveShape ? 'border-2 border-black bg-white text-orange-600' : 'border-2 border-transparent bg-slate-100 text-slate-600'
                         }`}>
                           <Icon size={18} />
@@ -1238,14 +1225,14 @@ export function EditorSidebarContent(props) {
                   placeholder="#FFFFFF"
                 />
               </div>
-              <div className="mt-4 grid grid-cols-4 gap-3">
+              <div className="mt-3 grid grid-cols-5 gap-2">
                 {backgroundColorSwatches.map((color) => (
                   <button
                     key={color}
                     title={color}
                     disabled={!activeBackgroundShape}
                     onClick={() => applyBackgroundShapeColor(color)}
-                    className={`mx-auto h-12 w-12 rounded-full border-[3px] transition-all ${
+                    className={`mx-auto h-9 w-9 rounded-full border-[3px] transition-all ${
                       activeBackgroundShapeColor === normalizeHexColor(color, '#FFFFFF')
                         ? 'scale-105 ring-2 ring-orange-300 border-black'
                         : 'border-black/80'
@@ -1551,3 +1538,13 @@ export function EditorMobileContextBar(props) {
 
   return renderMobileContextBar();
 }
+
+
+
+
+
+
+
+
+
+

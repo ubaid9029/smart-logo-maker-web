@@ -302,6 +302,10 @@ export function useEditorBackgroundControls({
     closeEditorOverlays();
     setActiveBackgroundOption(optionId);
 
+    if (activeTool === 'background') {
+      setSidebarOpen(true);
+    }
+
     if (isMobileViewport && activeTool === 'background') {
       if (optionId === 'color') {
         const currentBackgroundColor = normalizeHexColor(logoConfig.bgColor || '#FFFFFF', '#FFFFFF');
@@ -328,17 +332,11 @@ export function useEditorBackgroundControls({
       setDialogBaseColor(currentBackgroundColor);
       setDialogSelectedColor(currentBackgroundColor);
       setCustomColorValue(currentBackgroundColor);
-      setColorDialogOpen(true);
       return;
     }
 
     if (optionId === 'gradient') {
-      openGradientDialog();
-      return;
-    }
-
-    if (optionId === 'background' || optionId === 'texture') {
-      openAssetPicker(optionId);
+      syncGradientControlsFromConfig();
       return;
     }
 
@@ -350,9 +348,7 @@ export function useEditorBackgroundControls({
     closeEditorOverlays,
     isMobileViewport,
     logoConfig.bgColor,
-    openAssetPicker,
     openBackgroundImageBrowser,
-    openGradientDialog,
     syncGradientControlsFromConfig,
     setSidebarOpen,
   ]);
@@ -430,3 +426,4 @@ export function useEditorBackgroundControls({
     gradientDialogShadeOptions,
   };
 }
+

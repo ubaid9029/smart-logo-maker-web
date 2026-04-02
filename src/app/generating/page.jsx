@@ -1,28 +1,56 @@
 'use client';
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { Zap } from 'lucide-react';
 import { useSelector } from 'react-redux';
+import { loadGeneratedResultsSnapshot } from '../../lib/generatedResultsStorage';
+import { hasCreateDraft } from '../../lib/logoResumeStorage';
 
 const CreatingLogos = () => {
   const router = useRouter();
+  const fallbackTimerRef = useRef(null);
+  const { status, results, error, formData } = useSelector((state) => state.logo);
 
-  // Store se data lein
-  const { status, results, error } = useSelector((state) => state.logo);
-
-  // Agar status succeeded ho gaya, to results page par bhej dein
   useEffect(() => {
+    const persistedResults = loadGeneratedResultsSnapshot();
+
     if (status === 'succeeded' && results.length > 0) {
-      router.push('/results');
+      router.replace('/results');
+      return;
     }
-  }, [status, results, router]);
+
+    if (status === 'idle' && persistedResults.length > 0) {
+      router.replace('/results');
+      return;
+    }
+
+    if (status !== 'loading') {
+      fallbackTimerRef.current = window.setTimeout(() => {
+        const fallbackResults = loadGeneratedResultsSnapshot();
+
+        if (fallbackResults.length > 0) {
+          router.replace('/results');
+          return;
+        }
+
+        router.replace(hasCreateDraft(formData) ? '/create?step=4' : '/create?fresh=1');
+      }, 900);
+    }
+
+    return () => {
+      if (fallbackTimerRef.current) {
+        window.clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
+      }
+    };
+  }, [formData, results, router, status]);
 
   const steps = [
-    { id: 1, text: 'Analyzing your preferences...', icon: '✨', color: 'from-pink-500 to-orange-400' },
-    { id: 2, text: 'Selecting color combinations...', icon: '🎨', color: 'from-pink-500 to-orange-400' },
-    { id: 3, text: 'Generating logo variations...', icon: '✨', color: 'from-pink-500 to-orange-400' },
-    { id: 4, text: 'Finalizing your designs...', icon: '⚡', color: 'from-pink-500 to-orange-400' },
+    { id: 1, text: 'Analyzing your preferences...', icon: '?', color: 'from-pink-500 to-orange-400' },
+    { id: 2, text: 'Selecting color combinations...', icon: '??', color: 'from-pink-500 to-orange-400' },
+    { id: 3, text: 'Generating logo variations...', icon: '?', color: 'from-pink-500 to-orange-400' },
+    { id: 4, text: 'Finalizing your designs...', icon: '?', color: 'from-pink-500 to-orange-400' },
   ];
 
   const containerVariants = {
@@ -37,7 +65,7 @@ const CreatingLogos = () => {
 
   const barVariants = {
     hidden: { x: '-100%' },
-    visible: { x: '0%', transition: { duration: 1.5, ease: "easeInOut" } },
+    visible: { x: '0%', transition: { duration: 1.5, ease: 'easeInOut' } },
   };
 
   if (status === 'failed') {
@@ -45,9 +73,9 @@ const CreatingLogos = () => {
       <div className="mt-20 min-h-screen flex items-center justify-center bg-white px-6">
         <div className="max-w-xl rounded-3xl border border-red-100 bg-red-50 p-8 text-center shadow-sm">
           <h1 className="mb-3 text-3xl font-extrabold text-slate-900">Logo Generation Failed</h1>
-          <p className="mb-6 text-sm font-medium text-red-600">{error || "Something went wrong while generating logos."}</p>
+          <p className="mb-6 text-sm font-medium text-red-600">{error || 'Something went wrong while generating logos.'}</p>
           <button
-            onClick={() => router.push('/create')}
+            onClick={() => router.push('/create?step=4')}
             className="rounded-2xl bg-linear-to-r from-[#ff5c01] via-[#ff007a] to-[#c400ff] px-6 py-3 text-sm font-bold text-white shadow-lg"
           >
             Go Back
@@ -104,11 +132,9 @@ const CreatingLogos = () => {
           <div className="w-3 h-3 rounded-full bg-pink-500 animate-bounce [animation-delay:0.2s]"></div>
           <div className="w-3 h-3 rounded-full bg-pink-500 animate-bounce [animation-delay:0.4s]"></div>
         </div>
-
       </div>
     </div>
   );
 };
 
 export default CreatingLogos;
-

@@ -9,6 +9,14 @@ interface LogoFormData {
   colorId: string;
 }
 
+interface LogoState {
+  formData: LogoFormData;
+  results: unknown[];
+  status: 'idle' | 'loading' | 'succeeded' | 'failed';
+  error: string | null;
+  createStep: number;
+}
+
 const getErrorMessage = (value: unknown): string => {
   if (typeof value === 'string') {
     return value;
@@ -39,7 +47,7 @@ export const generateLogosAction = createAsyncThunk(
     try {
       const payload = {
         name: userData?.name,
-        slogan: userData?.slogan ?? "",
+        slogan: userData?.slogan ?? '',
         industryId: userData?.industryId,
         fontId: userData?.fontId,
         colorId: userData?.colorId,
@@ -53,13 +61,13 @@ export const generateLogosAction = createAsyncThunk(
         !payload.fontId ||
         !payload.colorId
       ) {
-        return rejectWithValue("Missing required logo generation selections.");
+        return rejectWithValue('Missing required logo generation selections.');
       }
 
       const response = await axios.post('/api/generate', {
         ...payload,
       });
-      // API response return karein
+
       return response.data;
     } catch (error: unknown) {
       if (axios.isAxiosError(error)) {
@@ -71,18 +79,12 @@ export const generateLogosAction = createAsyncThunk(
   }
 );
 
-interface LogoState {
-  formData: LogoFormData;
-  results: unknown[];
-  status: 'idle' | 'loading' | 'succeeded' | 'failed';
-  error: string | null;
-}
-
 const initialState: LogoState = {
   formData: { name: '', slogan: '', industryId: null, fontId: '', colorId: '' },
   results: [],
   status: 'idle',
   error: null,
+  createStep: 1,
 };
 
 const logoSlice = createSlice({
@@ -92,11 +94,15 @@ const logoSlice = createSlice({
     updateFormData: (state, action: PayloadAction<Partial<LogoFormData>>) => {
       state.formData = { ...state.formData, ...action.payload };
     },
+    setCreateStep: (state, action: PayloadAction<number>) => {
+      state.createStep = Math.max(1, Math.min(4, Number(action.payload) || 1));
+    },
     resetLogoProcess: (state) => {
       state.formData = { ...initialState.formData };
       state.results = [];
       state.status = 'idle';
       state.error = null;
+      state.createStep = 1;
     },
   },
   extraReducers: (builder) => {
@@ -104,20 +110,23 @@ const logoSlice = createSlice({
       .addCase(generateLogosAction.pending, (state) => {
         state.status = 'loading';
         state.error = null;
+        state.results = [];
+        state.createStep = 4;
       })
       .addCase(generateLogosAction.fulfilled, (state, action) => {
-        console.log("API Success, Payload received:", action.payload);
         state.status = 'succeeded';
-
-        // FIX: API response mein data 'data' field ke andar hai
         state.results = action.payload.data || [];
+        state.error = null;
+        state.createStep = 4;
       })
       .addCase(generateLogosAction.rejected, (state, action) => {
         state.status = 'failed';
         state.error = getErrorMessage(action.payload);
+        state.results = [];
+        state.createStep = 4;
       });
   },
 });
 
-export const { updateFormData, resetLogoProcess } = logoSlice.actions;
+export const { updateFormData, setCreateStep, resetLogoProcess } = logoSlice.actions;
 export default logoSlice.reducer;

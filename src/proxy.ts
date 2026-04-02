@@ -65,13 +65,6 @@ export async function proxy(request: NextRequest) {
         }
     }
 
-    // If the user IS logged in, redirect away from auth pages
-    if (user && isAuthRoute && !isCallback) {
-        const url = request.nextUrl.clone();
-        url.pathname = "/";
-        return NextResponse.redirect(url);
-    }
-
     return supabaseResponse;
 }
 
@@ -80,3 +73,4 @@ export const config = {
         "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
     ],
 };
+

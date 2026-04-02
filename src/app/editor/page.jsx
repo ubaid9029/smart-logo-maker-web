@@ -1,8 +1,9 @@
 "use client";
-import React, { useCallback, useMemo, useRef, useState, Suspense } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import DownloadDialog from '../../components/DownloadDialog';
+import FloatingNotice from '../../components/MainComponents/FloatingNotice';
 import {
   DesktopActionDock,
   DesktopToolRail,
@@ -50,8 +51,10 @@ import {
   Trash2,
   Undo2,
   Redo2,
+  Sparkles,
 } from 'lucide-react';
 import { useSelector } from 'react-redux'; // Redux check ke liye
+import { loadEditorResumeDraft } from '../../lib/logoResumeStorage';
 
 const LogoCanvas = dynamic(() => import('../../components/Editor/Canvas'), {
   ssr: false,
@@ -77,19 +80,49 @@ function EditorUI() {
 
   // --- STEP 5: URL Handover Logic ---
   // Results page se bheja gaya data yahan receive ho raha hai
-  const urlImage = searchParams.get('img');
-  const urlName = searchParams.get('text');
-  const urlSlogan = searchParams.get('slogan');
+  const shouldResumeDraft = searchParams.get('resume') === '1';
+  const resumeDraft = useMemo(() => {
+    if (!shouldResumeDraft) {
+      return null;
+    }
+
+    return loadEditorResumeDraft();
+  }, [shouldResumeDraft]);
+  const urlImage = searchParams.get('img') || resumeDraft?.sourceImageUrl || '';
+  const urlName = searchParams.get('text') || resumeDraft?.initialBusinessValue || '';
+  const urlLogoName = searchParams.get('name') || resumeDraft?.initialLogoName || '';
+  const urlSlogan = searchParams.get('slogan') || resumeDraft?.initialSloganValue || '';
   const urlBgColor = searchParams.get('bgColor');
   const urlTextColor = searchParams.get('textColor');
-  const payloadKey = searchParams.get('payloadKey');
-  const editScopeKey = searchParams.get('editScopeKey') || '';
-  const designId = searchParams.get('designId') || payloadKey?.replace(/^logo-edit-/, '') || null;
+  const payloadKey = searchParams.get('payloadKey') || resumeDraft?.payloadKey || '';
+  const favoriteId = searchParams.get('favoriteId') || resumeDraft?.favoriteId || '';
+  const favoriteRowKey = searchParams.get('favoriteRowKey') || '';
+  const initialIndustryLabel = searchParams.get('industryLabel') || resumeDraft?.initialIndustryLabel || 'Brand identity';
+  const isFavorite = (searchParams.get('isFavorite') === '1') || Boolean(resumeDraft?.isFavorite);
+  const sourceContext = searchParams.get('sourceContext') || resumeDraft?.sourceContext || (searchParams.get('returnTo') === '/favorites' ? 'favorites' : 'results');
+  const returnTo = searchParams.get('returnTo') || resumeDraft?.returnTo || '/results';
+  const returnMode = searchParams.get('returnMode') || resumeDraft?.returnMode || 'push';
+  const editScopeKey = searchParams.get('editScopeKey') || resumeDraft?.editScopeKey || '';
+  const designId = searchParams.get('designId') || resumeDraft?.designId || payloadKey?.replace(/^logo-edit-/, '') || null;
+  const hasDirectEditorSource = Boolean(urlImage || urlName || urlLogoName || payloadKey || designId || favoriteId || favoriteRowKey);
 
   // Redux se fallback data (agar URL mein na ho)
   const { formData } = useSelector((state) => state.logo);
   const initialBusinessValue = (urlName || formData.name || 'BRAND').trim();
   const initialSloganValue = (urlSlogan || formData.slogan || '').trim();
+
+  useEffect(() => {
+    if (!shouldResumeDraft) {
+      return;
+    }
+
+    if (resumeDraft || designId) {
+      return;
+    }
+
+    router.replace(returnTo || '/results');
+  }, [designId, resumeDraft, returnTo, router, shouldResumeDraft]);
+
   const sessionPayload = useMemo(() => {
     if (typeof window === 'undefined') {
       return null;
@@ -136,6 +169,37 @@ function EditorUI() {
   );
 
   const logoConfig = editorState.present;
+
+  if (!hasDirectEditorSource && !shouldResumeDraft) {
+    return (
+      <div className="mt-20 min-h-screen bg-pink-50 px-6 py-14">
+        <div className="mx-auto max-w-2xl rounded-[2rem] border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-pink-50 text-pink-500">
+            <Sparkles size={28} />
+          </div>
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-pink-500">Editor</p>
+          <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-900">Open a logo first to start editing</h1>
+          <p className="mt-3 text-sm font-medium text-slate-500">
+            Go to Results or Favorites, choose a logo, then open it in the editor with its full design data.
+          </p>
+          <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <button
+              onClick={() => router.push('/results')}
+              className="brand-button-outline w-full justify-center px-8 py-3 sm:w-auto"
+            >
+              Go To Results
+            </button>
+            <button
+              onClick={() => router.push('/create?fresh=1')}
+              className="brand-button-primary w-full justify-center px-8 py-3 sm:w-auto"
+            >
+              Go To Create
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const [activeTool, setActiveTool] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -298,6 +362,8 @@ function EditorUI() {
     handleSaveDesign,
     handleOpenDownloadDialog,
     handleEditorDownload,
+    authNotice,
+    setAuthNotice,
     downloadDialogOpen,
     setDownloadDialogOpen,
     downloadingFormat,
@@ -312,10 +378,20 @@ function EditorUI() {
   } = useEditorPreviewPersistence({
     designId,
     editScopeKey,
+    favoriteId,
+    favoriteRowKey,
     initialBusinessValue,
+    initialIndustryLabel,
+    initialLogoName: urlLogoName || initialBusinessValue,
+    initialSloganValue,
+    isFavorite,
+    sourceContext,
     logoConfig,
     payloadKey,
+    returnMode,
+    returnTo,
     router,
+    sourceImageUrl: urlImage || '',
     stageRef,
   });
 
@@ -785,7 +861,15 @@ function EditorUI() {
         }}
         onDownload={handleEditorDownload}
       />
+
+      <FloatingNotice notice={authNotice} onClose={() => setAuthNotice(null)} />
     </div>
   );
 }
+
+
+
+
+
+
 

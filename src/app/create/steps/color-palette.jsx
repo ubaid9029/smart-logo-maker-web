@@ -1,10 +1,9 @@
-'use client';
-import { useCallback, useEffect } from 'react';
+﻿'use client';
+import { useCallback, useEffect, useState } from 'react';
 import { Check, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useDispatch, useSelector } from "react-redux";
 import { updateFormData, generateLogosAction } from "../../../store/slices/logoSlice";
-import { useState } from 'react';
 
 const palettes = [
   { id: "1", name: 'Vibrant Energy', gradient: 'from-orange-400 via-pink-500 to-yellow-400', colors: ['bg-orange-400', 'bg-pink-500', 'bg-yellow-400', 'bg-red-400'] },
@@ -27,7 +26,6 @@ const ColorPalette = ({ onBack, data, setData }) => {
   const handleSelect = (palette) => {
     setData({ ...data, color: palette.name });
     setSubmissionError("");
-    dispatch(updateFormData({ colorId: palette.id }));
   };
 
   const handleGenerate = useCallback(async () => {
@@ -57,6 +55,7 @@ const ColorPalette = ({ onBack, data, setData }) => {
     }
 
     setSubmissionError("");
+    dispatch(updateFormData({ colorId: String(payload.colorId) }));
     router.push('/generating');
     dispatch(generateLogosAction(payload));
   }, [data.color, dispatch, formData, router]);

@@ -13,6 +13,7 @@ type PersistedLogoFormData = {
 
 type PersistedLogoState = {
   formData: PersistedLogoFormData;
+  createStep: number;
 };
 
 type RootLogoState = ReturnType<typeof logoReducer>;
@@ -32,6 +33,7 @@ const logoPersistTransform = createTransform<RootLogoState, PersistedLogoState, 
       fontId: inboundState.formData?.fontId || '',
       colorId: inboundState.formData?.colorId || '',
     },
+    createStep: Math.max(1, Math.min(4, Number(inboundState.createStep) || 1)),
   }),
   (outboundState) => ({
     formData: {
@@ -44,6 +46,7 @@ const logoPersistTransform = createTransform<RootLogoState, PersistedLogoState, 
     results: [],
     status: 'idle',
     error: null,
+    createStep: Math.max(1, Math.min(4, Number(outboundState?.createStep) || 1)),
   }),
   { whitelist: ['logo'] }
 );
@@ -59,7 +62,6 @@ const persistedReducer = persistReducer(persistConfig, rootReducer);
 
 export const store = configureStore({
   reducer: persistedReducer,
-  // Middleware ko ignore karna zaroori hai redux-persist ke liye
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
@@ -68,6 +70,6 @@ export const store = configureStore({
     }),
 });
 
-export const persistor = persistStore(store); // Ye zaroori hai
+export const persistor = persistStore(store);
 
 export type AppDispatch = typeof store.dispatch;

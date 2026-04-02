@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { updateFormData } from "../../../store/slices/logoSlice";
@@ -28,20 +28,28 @@ const Category = ({ onNext, onBack, data, setData }) => {
 
   const handleSelect = (item) => {
     setData({ ...data, category: item.name, industry: item.id });
-    dispatch(updateFormData({ industryId: item.id }));
+  };
+
+  const handleContinue = () => {
+    if (!data?.category || !data?.industry) {
+      return;
+    }
+
+    dispatch(updateFormData({ industryId: data.industry }));
+    onNext();
   };
 
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.key === 'Enter' && data?.category) {
         event.preventDefault();
-        onNext();
+        handleContinue();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [data?.category, onNext]);
+  }, [data?.category, data?.industry]);
 
   return (
     <div className="mx-auto flex h-full w-full max-w-4xl flex-col animate-in fade-in slide-in-from-bottom-6 duration-700 px-2 md:px-3">
@@ -93,7 +101,7 @@ const Category = ({ onNext, onBack, data, setData }) => {
             Go Back
           </button>
           <button
-            onClick={onNext}
+            onClick={handleContinue}
             disabled={!data?.category}
             className={`w-full rounded-2xl py-3 text-base font-black transition-all duration-300 md:w-48 ${
               data?.category
@@ -101,7 +109,7 @@ const Category = ({ onNext, onBack, data, setData }) => {
                 : 'cursor-not-allowed bg-slate-200 opacity-60'
             }`}
           >
-            Continue →
+            Continue -&gt;
           </button>
         </div>
       </div>

@@ -2,9 +2,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, Edit3, Bookmark, Download, Loader2, X } from 'lucide-react';
+import { ChevronLeft, Edit3, Heart, Download, Loader2, Sparkles, X } from 'lucide-react';
 import { useSelector } from "react-redux";
 import DownloadDialog from '../../components/DownloadDialog';
+import FloatingNotice from '../../components/MainComponents/FloatingNotice';
 import { EDITOR_FONT_FAMILIES } from '../../components/Editor/editorConstants';
 import {
   buildPdfBlobFromJpegBytes,
@@ -14,6 +15,11 @@ import {
   triggerBlobDownload,
 } from '../../lib/downloadAssets';
 import { buildEditableLogoPayload, buildLogoCardSvg, svgToDataUri } from '../../lib/logoSvg';
+import { loadGeneratedResultsSnapshot, saveGeneratedResultsSnapshot } from '../../lib/generatedResultsStorage';
+import { isAuthRequiredError, loadFavoriteLogos, saveFavoriteLogo, toggleFavoriteLogo } from '../../lib/favoriteLogosRepository';
+import { getFavoriteLogoKey, subscribeFavoriteLogos } from '../../lib/favoriteLogosStorage';
+import { hasCreateDraft } from '../../lib/logoResumeStorage';
+import { createClient } from '../../lib/supabaseClient';
 
 const INDUSTRY_LABELS = {
   1: 'Technology',
@@ -194,17 +200,68 @@ const ResultsPage = () => {
   const [selectedDesign, setSelectedDesign] = useState(null);
   const [downloadDesign, setDownloadDesign] = useState(null);
   const [downloadingFormat, setDownloadingFormat] = useState(null);
+  const [persistedResults, setPersistedResults] = useState([]);
+  const [favoriteIds, setFavoriteIds] = useState(new Set());
+  const [authUser, setAuthUser] = useState(null);
+  const [favoriteNotice, setFavoriteNotice] = useState(null);
   const [savedEdits, setSavedEdits] = useState({});
+  const [navigationKind, setNavigationKind] = useState(null);
   const { formData, results, status } = useSelector((state) => state.logo);
-  const editScopeKey = useMemo(() => buildResultsEditScope(formData, results), [formData, results]);
+  const hasRecoverableDraft = hasCreateDraft(formData);
+  const activeResults = Array.isArray(results) && results.length > 0 ? results : persistedResults;
+  const editScopeKey = useMemo(() => buildResultsEditScope(formData, activeResults), [activeResults, formData]);
 
+
+  useEffect(() => {
+    const nextPersistedResults = loadGeneratedResultsSnapshot();
+    if (nextPersistedResults.length > 0) {
+      setPersistedResults(nextPersistedResults);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (Array.isArray(results) && results.length > 0) {
+      saveGeneratedResultsSnapshot(results);
+    }
+  }, [results]);
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    const syncUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      setAuthUser(data?.user || null);
+    };
+
+    void syncUser();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthUser(session?.user || null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const syncFavorites = async () => {
+      const logos = await loadFavoriteLogos();
+      setFavoriteIds(new Set((Array.isArray(logos) ? logos : []).map((item) => item.favoriteId)));
+    };
+
+    void syncFavorites();
+    return subscribeFavoriteLogos(() => {
+      void syncFavorites();
+    });
+  }, []);
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;
     }
 
     const nextSavedEdits = {};
-    const items = Array.isArray(results) ? results : [];
+    const items = Array.isArray(activeResults) ? activeResults : [];
 
     items.forEach((item, index) => {
       const designId = String(item?.id || index + 1);
@@ -219,7 +276,6 @@ const ResultsPage = () => {
           localSavedEdit = JSON.parse(rawValue);
         }
       } catch {
-        // Ignore invalid saved edits and keep the original design visible.
       }
 
       try {
@@ -228,7 +284,6 @@ const ResultsPage = () => {
           sessionSavedEdit = JSON.parse(rawSessionValue);
         }
       } catch {
-        // Ignore invalid session snapshots and keep the persistent version.
       }
 
       const localUpdatedAt = Number(localSavedEdit?.updatedAt || 0);
@@ -256,14 +311,14 @@ const ResultsPage = () => {
     });
 
     setSavedEdits(nextSavedEdits);
-  }, [editScopeKey, results]);
+  }, [activeResults, editScopeKey]);
 
   const logos = useMemo(() => {
     const businessName = typeof formData?.name === 'string' && formData.name.trim() ? formData.name.trim() : 'BRAND';
     const slogan = typeof formData?.slogan === 'string' ? formData.slogan.trim() : '';
     const industryLabel = INDUSTRY_LABELS[formData?.industryId] || 'Brand identity';
     const preferredFontFamily = EDITOR_FONT_FAMILIES[formData?.fontId] || 'Arial';
-    const items = Array.isArray(results) ? results : [];
+    const items = Array.isArray(activeResults) ? activeResults : [];
 
     return items.map((item, index) => {
       const designId = String(item?.id || index + 1);
@@ -303,18 +358,68 @@ const ResultsPage = () => {
         editablePayload: mergedEditablePayload,
         previewDataUrl: savedPreviewDataUrl,
         fallbackUrl,
+        favoriteId: getFavoriteLogoKey({ id: item?.id || index + 1, businessName }),
       };
     });
-  }, [formData, results, savedEdits]);
+  }, [activeResults, formData, savedEdits]);
+
 
   if (status === 'loading') {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-pink-50">
-        <Loader2 className="animate-spin text-pink-600 mb-4" size={48} />
+        <Loader2 className="animate-spin text-red-500 mb-4" size={48} />
         <p className="text-slate-600 font-bold">Fetching your brand designs...</p>
       </div>
     );
   }
+
+  if (!logos.length) {
+    if (navigationKind === 'back_forward' && hasRecoverableDraft) {
+      return null;
+    }
+
+    return (
+      <div className="mt-20 min-h-screen bg-pink-50 px-6 py-14">
+        <div className="mx-auto max-w-2xl rounded-[2rem] border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-pink-50 text-pink-500">
+            <Sparkles size={28} />
+          </div>
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-pink-500">Results</p>
+          <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-900">Generate logos first to view results</h1>
+          <p className="mt-3 text-sm font-medium text-slate-500">
+            Start from Create, generate your logo concepts, then you can review, favorite, edit, and download them here.
+          </p>
+          <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <button
+              onClick={() => router.push('/create?fresh=1')}
+              className="brand-button-primary w-full justify-center px-8 py-3 sm:w-auto"
+            >
+              Go To Create
+            </button>
+            <button
+              onClick={() => router.push('/')}
+              className="brand-button-outline w-full justify-center px-8 py-3 sm:w-auto"
+            >
+              Back Home
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const redirectToSignIn = () => {
+    router.push('/auth/signin?next=%2Fresults');
+  };
+
+  const handleFavoriteAuthRequired = () => {
+    setFavoriteNotice({
+      type: 'info',
+      title: 'Sign In Required',
+      message: 'Please sign in to save favorites and downloads to your profile.',
+    });
+    redirectToSignIn();
+  };
 
   const handleEditOnCanva = (design) => {
     const payloadKey = `logo-edit-${editScopeKey}-${design.id}`;
@@ -332,15 +437,48 @@ const ResultsPage = () => {
       bgColor: design.backgroundColor,
       name: design.name,
       designId: String(design.id),
+      favoriteId: design.favoriteId,
+      industryLabel: design.industryLabel || '',
+      isFavorite: favoriteIds.has(design.favoriteId) ? '1' : '0',
+      sourceContext: 'results',
       editScopeKey,
       payloadKey,
+      returnTo: '/results',
+      returnMode: 'push',
     });
     router.push(`/editor?${params.toString()}`);
   };
-
   const handleDownload = async (design, format) => {
     if (!design?.svgMarkup || !format) {
       return;
+    }
+
+    if (!authUser) {
+      handleFavoriteAuthRequired();
+      setDownloadDesign(null);
+      return;
+    }
+
+    const wasFavorite = favoriteIds.has(design.favoriteId);
+
+    try {
+      const nextFavorites = await saveFavoriteLogo(design, { markDownloaded: true });
+      setFavoriteIds(new Set(nextFavorites.map((item) => item.favoriteId)));
+
+      if (!wasFavorite) {
+        setFavoriteNotice({
+          type: 'favorite',
+          title: 'Saved To Favorites',
+          message: `${design.name} was automatically saved when you downloaded it.`,
+        });
+      }
+    } catch (error) {
+      if (isAuthRequiredError(error)) {
+        handleFavoriteAuthRequired();
+        setDownloadDesign(null);
+        return;
+      }
+      throw error;
     }
 
     const safeBaseName = getDownloadBaseName(design.name || design.businessName || 'logo');
@@ -384,6 +522,30 @@ const ResultsPage = () => {
     }
   };
 
+  const handleToggleFavorite = async (design) => {
+    if (!authUser) {
+      handleFavoriteAuthRequired();
+      return;
+    }
+
+    try {
+      const nextState = await toggleFavoriteLogo(design);
+      setFavoriteIds(new Set(nextState.favorites.map((item) => item.favoriteId)));
+      setFavoriteNotice({
+        type: nextState.isFavorite ? 'favorite' : 'info',
+        title: nextState.isFavorite ? 'Added To Favorites' : 'Removed From Favorites',
+        message: nextState.isFavorite
+          ? `${design.name} is now saved in your favorites.`
+          : `${design.name} has been removed from your favorites.`,
+      });
+    } catch (error) {
+      if (isAuthRequiredError(error)) {
+        handleFavoriteAuthRequired();
+        return;
+      }
+      throw error;
+    }
+  };
   return (
     <div className="mt-16 min-h-screen w-full bg-pink-50 pb-14 pt-6 sm:mt-20 sm:pb-20 sm:pt-10">
       <div className="mx-auto flex w-full max-w-7xl flex-col items-center px-4 sm:px-6 lg:px-8">
@@ -397,7 +559,7 @@ const ResultsPage = () => {
             </p>
           </div>
           <button
-            onClick={() => router.push('/create?preserve=1')}
+            onClick={() => router.push('/create?step=1')}
             className="brand-button-outline w-full gap-2 rounded-xl px-5 py-3 text-sm sm:w-auto"
           >
             <ChevronLeft size={18} /> Change Info
@@ -414,7 +576,6 @@ const ResultsPage = () => {
                 {design.svgMarkup ? (
                   <InlineSvgPreview svgMarkup={design.svgMarkup} alt={design.name} />
                 ) : design.fallbackUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={design.fallbackUrl} alt={design.name} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-slate-400 font-semibold">
@@ -423,23 +584,35 @@ const ResultsPage = () => {
                 )}
                 <div className="absolute inset-0 hidden items-end justify-center bg-black/20 pb-4 opacity-0 transition-opacity group-hover:opacity-100 sm:flex sm:pb-6">
                   <div className="flex w-full justify-center gap-2 px-2">
-                    <button onClick={() => setSelectedDesign(design)} className="brand-icon-button h-11 w-11 p-0"><Bookmark size={16} /></button>
+                    <button
+                      onClick={() => void handleToggleFavorite(design)}
+                      className={`brand-icon-button h-11 w-11 p-0 ${favoriteIds.has(design.favoriteId) ? 'border-red-100 bg-white text-red-500 shadow-[0_10px_24px_rgba(239,68,68,0.18)]' : ''}`}
+                    >
+                      <Heart
+                        size={16}
+                        fill={favoriteIds.has(design.favoriteId) ? 'currentColor' : 'none'}
+                        className={favoriteIds.has(design.favoriteId) ? 'text-red-500' : ''}
+                      />
+                    </button>
                     <button onClick={() => handleEditOnCanva(design)} className="brand-icon-button h-11 w-11 p-0"><Edit3 size={16} /></button>
-                    <button onClick={() => setDownloadDesign(design)} className="brand-icon-button h-11 w-11 p-0"><Download size={16} /></button>
+                    <button onClick={() => authUser ? setDownloadDesign(design) : handleFavoriteAuthRequired()} className="brand-icon-button h-11 w-11 p-0"><Download size={16} /></button>
                   </div>
                 </div>
               </div>
 
               <div className="mt-2 flex items-center justify-center gap-2 sm:hidden">
-                  <button onClick={() => setSelectedDesign(design)} className="brand-icon-button h-11 w-11 p-0">
-                    <Bookmark size={16} />
-                  </button>
-                  <button onClick={() => handleEditOnCanva(design)} className="brand-icon-button h-11 w-11 p-0">
-                    <Edit3 size={16} />
-                  </button>
-                  <button onClick={() => setDownloadDesign(design)} className="brand-icon-button h-11 w-11 p-0">
-                    <Download size={16} />
-                  </button>
+                <button
+                  onClick={() => void handleToggleFavorite(design)}
+                  className={`brand-icon-button h-11 w-11 p-0 ${favoriteIds.has(design.favoriteId) ? 'border-red-100 bg-white text-red-500 shadow-[0_10px_24px_rgba(239,68,68,0.18)]' : ''}`}
+                >
+                  <Heart size={16} fill={favoriteIds.has(design.favoriteId) ? 'currentColor' : 'none'} className={favoriteIds.has(design.favoriteId) ? 'text-red-500' : ''} />
+                </button>
+                <button onClick={() => handleEditOnCanva(design)} className="brand-icon-button h-11 w-11 p-0">
+                  <Edit3 size={16} />
+                </button>
+                <button onClick={() => authUser ? setDownloadDesign(design) : handleFavoriteAuthRequired()} className="brand-icon-button h-11 w-11 p-0">
+                  <Download size={16} />
+                </button>
               </div>
             </motion.div>
           ))}
@@ -473,7 +646,6 @@ const ResultsPage = () => {
                 {selectedDesign.svgMarkup ? (
                   <InlineSvgPreview svgMarkup={selectedDesign.svgMarkup} alt={selectedDesign.name} />
                 ) : selectedDesign.fallbackUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={selectedDesign.fallbackUrl} alt="Preview" className="w-full h-full object-cover" />
                 ) : null}
               </div>
@@ -517,8 +689,32 @@ const ResultsPage = () => {
         }}
         onDownload={(format) => handleDownload(downloadDesign, format)}
       />
+
+      <FloatingNotice notice={favoriteNotice} onClose={() => setFavoriteNotice(null)} />
     </div>
   );
 };
 
 export default ResultsPage;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

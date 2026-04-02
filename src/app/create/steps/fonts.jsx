@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import { useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { updateFormData } from "../../../store/slices/logoSlice";
@@ -17,20 +17,29 @@ const Fonts = ({ onNext, onBack, data, setData }) => {
 
   const handleSelect = (fontItem) => {
     setData({ ...data, font: fontItem.name });
-    dispatch(updateFormData({ fontId: fontItem.id }));
+  };
+
+  const handleContinue = () => {
+    const selectedFont = fontStyles.find((font) => font.name === data.font);
+    if (!selectedFont) {
+      return;
+    }
+
+    dispatch(updateFormData({ fontId: selectedFont.id }));
+    onNext();
   };
 
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.key === 'Enter' && data.font) {
         event.preventDefault();
-        onNext();
+        handleContinue();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [data.font, onNext]);
+  }, [data.font]);
 
   return (
     <div className="mx-auto flex h-full w-full max-w-4xl flex-col animate-in fade-in slide-in-from-bottom-6 duration-700 px-2 md:px-3">
@@ -92,7 +101,7 @@ const Fonts = ({ onNext, onBack, data, setData }) => {
           </button>
 
           <button
-            onClick={onNext}
+            onClick={handleContinue}
             disabled={!data.font}
             className={`flex w-full items-center justify-center gap-3 rounded-2xl py-3 text-base font-black transition-all duration-500 md:w-48 ${
               data.font
@@ -100,7 +109,7 @@ const Fonts = ({ onNext, onBack, data, setData }) => {
                 : 'cursor-not-allowed bg-slate-200 text-slate-400 opacity-60 shadow-none'
             }`}
           >
-            Continue <span>→</span>
+            Continue <span>-&gt;</span>
           </button>
         </div>
       </div>

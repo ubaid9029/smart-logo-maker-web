@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useCallback, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { updateFormData } from "../../../store/slices/logoSlice";
@@ -9,19 +9,17 @@ const BusinessInfo = ({ onNext, data, setData }) => {
 
   const handleInputChange = (field, value) => {
     setData({ ...data, [field]: value });
-
-    if (field === 'businessName') {
-      dispatch(updateFormData({ name: value }));
-    } else {
-      dispatch(updateFormData({ [field]: value }));
-    }
   };
 
   const handleContinue = useCallback(() => {
     if (isFormValid) {
+      dispatch(updateFormData({
+        name: data.businessName,
+        slogan: data.slogan,
+      }));
       onNext();
     }
-  }, [isFormValid, onNext]);
+  }, [data.businessName, data.slogan, dispatch, isFormValid, onNext]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -92,7 +90,7 @@ const BusinessInfo = ({ onNext, data, setData }) => {
                 : 'cursor-not-allowed bg-slate-200 text-slate-400 opacity-90'
             }`}
           >
-            Continue <span className="text-xl md:text-2xl">→</span>
+            Continue <span className="text-xl md:text-2xl">-&gt;</span>
           </button>
         </div>
       </div>

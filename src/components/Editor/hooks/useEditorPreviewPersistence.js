@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   buildPdfBlobFromJpegBytes,
   canvasToBlob,
@@ -8,6 +8,9 @@ import {
   renderDataUrlToCanvas,
   triggerBlobDownload,
 } from '../../../lib/downloadAssets';
+import { isAuthRequiredError, saveFavoriteLogo } from '../../../lib/favoriteLogosRepository';
+import { saveEditorResumeDraft } from '../../../lib/logoResumeStorage';
+import { createClient } from '../../../lib/supabaseClient';
 import {
   EDITED_LOGO_STORAGE_PREFIX,
 } from '../editorConstants';
@@ -34,6 +37,32 @@ const isStorageQuotaError = (error) => {
 
   return error?.name === 'QuotaExceededError' || error?.name === 'NS_ERROR_DOM_QUOTA_REACHED';
 };
+
+const buildPreviewSvgMarkup = (imageUrl) => {
+  if (!imageUrl) {
+    return null;
+  }
+
+  return [
+    '<svg xmlns="http://www.w3.org/2000/svg" width="340" height="250" viewBox="40 40 620 420" preserveAspectRatio="xMidYMid meet">',
+    `<image href="${imageUrl}" x="0" y="0" width="700" height="500" preserveAspectRatio="none" />`,
+    '</svg>',
+  ].join('');
+};
+
+const resolvePrimaryTextItem = (logoConfig) => {
+  const textItems = Array.isArray(logoConfig?.textItems) ? logoConfig.textItems : [];
+  return textItems.find((item) => item?.id === 'brand-name') || textItems[0] || null;
+};
+
+const resolveThemeColor = (logoConfig) => {
+  const primaryTextItem = resolvePrimaryTextItem(logoConfig);
+  return primaryTextItem?.style?.fillColor || primaryTextItem?.fill || logoConfig?.textColor || '#111827';
+};
+
+const resolveBackgroundColor = (logoConfig) => (
+  logoConfig?.bgColor || logoConfig?.backgroundColor || '#ffffff'
+);
 
 const compressPreviewDataUrl = async (previewDataUrl, options = {}) => {
   if (!previewDataUrl) {
@@ -97,20 +126,75 @@ const compressPreviewDataUrl = async (previewDataUrl, options = {}) => {
 export function useEditorPreviewPersistence({
   designId,
   editScopeKey,
+  favoriteId,
+  favoriteRowKey,
   initialBusinessValue,
+  initialIndustryLabel,
+  initialLogoName,
+  initialSloganValue,
+  isFavorite,
+  sourceContext,
   logoConfig,
   payloadKey,
+  returnMode,
+  returnTo,
   router,
+  sourceImageUrl,
   stageRef,
 }) {
   const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
   const [downloadingFormat, setDownloadingFormat] = useState(null);
+  const [authNotice, setAuthNotice] = useState(null);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [previewFullscreenOpen, setPreviewFullscreenOpen] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState('');
   const [hideCanvasSelectionUi, setHideCanvasSelectionUi] = useState(false);
   const [clipCanvasToCard, setClipCanvasToCard] = useState(false);
   const [savingChanges, setSavingChanges] = useState(false);
+  const autoSaveTimerRef = useRef(null);
+  const authRedirectTimerRef = useRef(null);
+
+  const redirectToSignIn = useCallback((message = 'Please sign in to download and save edited logos.') => {
+    setAuthNotice({
+      type: 'info',
+      title: 'Sign In Required',
+      message,
+      duration: 900,
+    });
+
+    if (typeof window === 'undefined') {
+      router.push('/auth/signin');
+      return;
+    }
+
+    if (authRedirectTimerRef.current) {
+      window.clearTimeout(authRedirectTimerRef.current);
+    }
+
+    const next = `${window.location.pathname}${window.location.search}`;
+    authRedirectTimerRef.current = window.setTimeout(() => {
+      router.push(`/auth/signin?next=${encodeURIComponent(next)}&message=${encodeURIComponent(message)}`);
+    }, 650);
+  }, [router]);
+
+  useEffect(() => () => {
+    if (authRedirectTimerRef.current) {
+      window.clearTimeout(authRedirectTimerRef.current);
+      authRedirectTimerRef.current = null;
+    }
+  }, []);
+
+  const ensureSignedIn = useCallback(async () => {
+    const supabase = createClient();
+    const { data } = await supabase.auth.getUser();
+
+    if (!data?.user) {
+      redirectToSignIn();
+      return false;
+    }
+
+    return true;
+  }, [redirectToSignIn]);
 
   const captureEditorPreview = useCallback(async (pixelRatio = 2, options = {}) => {
     const stage = stageRef.current;
@@ -157,7 +241,107 @@ export function useEditorPreviewPersistence({
     [logoConfig]
   );
 
-  const persistEditorChanges = useCallback(async ({ previewDataUrl, navigate = false } = {}) => {
+  const syncFavoriteRecord = useCallback(async ({ editablePayload, previewDataUrl, markDownloaded = false } = {}) => {
+    const shouldSyncOnSave = sourceContext === 'favorites';
+
+    if ((!shouldSyncOnSave && !markDownloaded) || !designId) {
+      return null;
+    }
+
+    const nextPreviewDataUrl = previewDataUrl || null;
+    const nextEditablePayload = editablePayload && typeof editablePayload === 'object'
+      ? editablePayload
+      : buildEditableSavePayload();
+
+    return saveFavoriteLogo({
+      favoriteId: favoriteId || undefined,
+      favoriteRowKey: favoriteRowKey || undefined,
+      id: designId,
+      designId,
+      name: initialLogoName || initialBusinessValue || 'Logo Design',
+      businessName: initialBusinessValue || 'Brand',
+      slogan: initialSloganValue || '',
+      industryLabel: initialIndustryLabel || 'Brand identity',
+      themeColor: resolveThemeColor(logoConfig),
+      backgroundColor: resolveBackgroundColor(logoConfig),
+      svgMarkup: buildPreviewSvgMarkup(nextPreviewDataUrl),
+      editablePayload: nextEditablePayload,
+      previewDataUrl: nextPreviewDataUrl,
+      fallbackUrl: sourceImageUrl || null,
+      downloadedAt: markDownloaded ? Date.now() : null,
+    }, { markDownloaded });
+  }, [buildEditableSavePayload, designId, favoriteId, favoriteRowKey, initialBusinessValue, initialIndustryLabel, initialLogoName, initialSloganValue, logoConfig, sourceContext, sourceImageUrl]);
+
+  const persistDraftSnapshot = useCallback(({ editablePayload, previewDataUrl = null } = {}) => {
+    if (!designId || typeof window === 'undefined') {
+      return null;
+    }
+
+    const nextEditablePayload = editablePayload && typeof editablePayload === 'object'
+      ? editablePayload
+      : buildEditableSavePayload();
+    const snapshot = {
+      designId,
+      editScopeKey,
+      previewVersion: 8,
+      previewDataUrl,
+      editablePayload: nextEditablePayload,
+      updatedAt: Date.now(),
+    };
+    const scopedStorageKey = buildScopedStorageKey(editScopeKey, designId);
+    const scopedSessionKey = buildScopedSessionKey(editScopeKey, designId);
+
+    try {
+      window.sessionStorage.setItem(scopedSessionKey, JSON.stringify(snapshot));
+    } catch {
+    }
+
+    try {
+      window.localStorage.setItem(scopedStorageKey, JSON.stringify(snapshot));
+    } catch (error) {
+      if (!isStorageQuotaError(error)) {
+        throw error;
+      }
+
+      try {
+        window.localStorage.setItem(
+          scopedStorageKey,
+          JSON.stringify({
+            ...snapshot,
+            previewDataUrl: null,
+          })
+        );
+      } catch {
+      }
+    }
+
+    if (payloadKey) {
+      try {
+        window.sessionStorage.setItem(payloadKey, JSON.stringify(nextEditablePayload));
+      } catch {
+      }
+    }
+
+    saveEditorResumeDraft({
+      designId,
+      editScopeKey,
+      payloadKey,
+      favoriteId,
+      initialIndustryLabel,
+      initialLogoName,
+      initialBusinessValue,
+      initialSloganValue,
+      returnMode,
+      returnTo,
+      sourceContext,
+      sourceImageUrl: previewDataUrl || sourceImageUrl || '',
+      isFavorite,
+    });
+
+    return snapshot;
+  }, [buildEditableSavePayload, designId, editScopeKey, favoriteId, initialBusinessValue, initialIndustryLabel, initialLogoName, initialSloganValue, isFavorite, payloadKey, returnMode, returnTo, sourceContext, sourceImageUrl]);
+
+  const persistEditorChanges = useCallback(async ({ previewDataUrl, editablePayloadOverride, navigate = false, skipFavoriteSync = false } = {}) => {
     if (!designId || typeof window === 'undefined') {
       return null;
     }
@@ -170,62 +354,71 @@ export function useEditorPreviewPersistence({
     setSavingChanges(true);
 
     try {
-      const editablePayload = buildEditableSavePayload();
+      const editablePayload = editablePayloadOverride || buildEditableSavePayload();
       const storageSourcePreviewDataUrl = await captureEditorPreview(1, {
         hideSelection: true,
         clipToCard: true,
       });
       const storagePreviewDataUrl = await compressPreviewDataUrl(storageSourcePreviewDataUrl || nextPreviewImageUrl);
-      const snapshot = {
-        designId,
-        editScopeKey,
-        previewVersion: 8,
-        previewDataUrl: storagePreviewDataUrl || null,
+      const persistedPreviewDataUrl = storagePreviewDataUrl || nextPreviewImageUrl;
+      persistDraftSnapshot({
         editablePayload,
-        updatedAt: Date.now(),
-      };
-      const scopedStorageKey = buildScopedStorageKey(editScopeKey, designId);
-      const scopedSessionKey = buildScopedSessionKey(editScopeKey, designId);
+        previewDataUrl: storagePreviewDataUrl || null,
+      });
 
-      try {
-        window.sessionStorage.setItem(scopedSessionKey, JSON.stringify(snapshot));
-      } catch {
-        // Session storage is only a best-effort fallback for immediate results-page hydration.
-      }
-
-      try {
-        window.localStorage.setItem(scopedStorageKey, JSON.stringify(snapshot));
-      } catch (error) {
-        if (!isStorageQuotaError(error)) {
-          throw error;
-        }
-
+      if (!skipFavoriteSync && sourceContext === 'favorites') {
         try {
-          window.localStorage.setItem(
-            scopedStorageKey,
-            JSON.stringify({
-              ...snapshot,
-              previewDataUrl: null,
-            })
-          );
-        } catch {
-          // Keep the current session working even if persistent storage is full.
-        }
-      }
+          await syncFavoriteRecord({
+            editablePayload,
+            previewDataUrl: persistedPreviewDataUrl,
+          });
+        } catch (error) {
+          if (isAuthRequiredError(error)) {
+            redirectToSignIn();
+            return nextPreviewImageUrl;
+          }
 
-      if (payloadKey) {
-        window.sessionStorage.setItem(payloadKey, JSON.stringify(editablePayload));
+          console.error('Unable to sync favorite logo edits:', error);
+        }
       }
 
       if (navigate) {
-        router.push('/results');
+        router.replace(returnTo || '/results');
       }
 
       return nextPreviewImageUrl;
     } finally {
       setSavingChanges(false);
     }
-  }, [buildEditableSavePayload, captureEditorPreview, designId, editScopeKey, payloadKey, router]);
+  }, [buildEditableSavePayload, captureEditorPreview, designId, persistDraftSnapshot, redirectToSignIn, returnMode, returnTo, router, sourceContext, syncFavoriteRecord]);
+
+  useEffect(() => {
+    if (!designId || typeof window === 'undefined') {
+      return undefined;
+    }
+
+    if (autoSaveTimerRef.current) {
+      window.clearTimeout(autoSaveTimerRef.current);
+    }
+
+    autoSaveTimerRef.current = window.setTimeout(() => {
+      try {
+        persistDraftSnapshot({
+          editablePayload: buildEditableSavePayload(),
+          previewDataUrl: null,
+        });
+      } catch (error) {
+        console.error('Unable to autosave editor draft:', error);
+      }
+    }, 900);
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        window.clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+    };
+  }, [buildEditableSavePayload, designId, persistDraftSnapshot]);
 
   const handlePreviewOpen = useCallback(async () => {
     const nextPreviewImageUrl = await captureEditorPreview(2, { hideSelection: true });
@@ -243,13 +436,24 @@ export function useEditorPreviewPersistence({
   }, [persistEditorChanges]);
 
   const handleOpenDownloadDialog = useCallback(async () => {
+    const canDownload = await ensureSignedIn();
+    if (!canDownload) {
+      return;
+    }
+
     await persistEditorChanges();
     setDownloadDialogOpen(true);
-  }, [persistEditorChanges]);
+  }, [ensureSignedIn, persistEditorChanges]);
 
   const handleEditorDownload = useCallback(async (format) => {
     const stage = stageRef.current;
     if (!stage || !format) {
+      return;
+    }
+
+    const canDownload = await ensureSignedIn();
+    if (!canDownload) {
+      setDownloadDialogOpen(false);
       return;
     }
 
@@ -262,7 +466,28 @@ export function useEditorPreviewPersistence({
         return;
       }
 
-      await persistEditorChanges({ previewDataUrl: pngDataUrl });
+      const editablePayload = buildEditableSavePayload();
+      await persistEditorChanges({
+        previewDataUrl: pngDataUrl,
+        editablePayloadOverride: editablePayload,
+        skipFavoriteSync: true,
+      });
+
+      try {
+        await syncFavoriteRecord({
+          editablePayload,
+          previewDataUrl: pngDataUrl,
+          markDownloaded: true,
+        });
+      } catch (error) {
+        if (isAuthRequiredError(error)) {
+          redirectToSignIn();
+          setDownloadDialogOpen(false);
+          return;
+        }
+
+        console.error('Unable to sync favorite logo download:', error);
+      }
 
       if (format === 'svg') {
         const svgMarkup = [
@@ -308,7 +533,7 @@ export function useEditorPreviewPersistence({
     } finally {
       setDownloadingFormat(null);
     }
-  }, [captureEditorPreview, initialBusinessValue, logoConfig?.textItems, persistEditorChanges, stageRef]);
+  }, [buildEditableSavePayload, captureEditorPreview, ensureSignedIn, initialBusinessValue, logoConfig?.textItems, persistEditorChanges, redirectToSignIn, stageRef, syncFavoriteRecord]);
 
   return {
     captureEditorPreview,
@@ -317,6 +542,8 @@ export function useEditorPreviewPersistence({
     handleSaveDesign,
     handleOpenDownloadDialog,
     handleEditorDownload,
+    authNotice,
+    setAuthNotice,
     downloadDialogOpen,
     setDownloadDialogOpen,
     downloadingFormat,

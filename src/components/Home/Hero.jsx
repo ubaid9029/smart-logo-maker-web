@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Image from 'next/image';
 import Link from 'next/link';
@@ -18,7 +18,6 @@ const Hero = () => {
       delay: (i % 6) * 0.4,
     }))
   ), []);
-
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-white pt-20">
       <div className="absolute inset-0 z-0 pointer-events-none select-none overflow-hidden">
@@ -120,16 +119,12 @@ const Hero = () => {
           transition={{ delay: 0.6, duration: 0.5 }}
           className="flex flex-col items-center justify-center gap-4 sm:flex-row md:gap-6"
         >
-          <Link href="/create">
-            <button className="brand-button-primary group gap-3 px-8 py-3 text-base md:px-10 md:py-4 md:text-lg">
-              Get Started Free
-              <HiArrowRight className="text-xl transition-transform group-hover:translate-x-1" />
-            </button>
+          <Link href="/create?fresh=1" className="brand-button-primary group inline-flex gap-3 px-8 py-3 text-base md:px-10 md:py-4 md:text-lg">
+            Get Started Free
+            <HiArrowRight className="text-xl transition-transform group-hover:translate-x-1" />
           </Link>
-          <Link href="/how-it-works">
-            <button className="brand-button-outline px-8 py-3 text-base md:px-10 md:py-4 md:text-lg">
-              See How It Works
-            </button>
+          <Link href="/how-it-works" className="brand-button-outline inline-flex px-8 py-3 text-base md:px-10 md:py-4 md:text-lg">
+            See How It Works
           </Link>
         </motion.div>
       </div>
