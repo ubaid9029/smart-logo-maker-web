@@ -64,6 +64,17 @@ select:disabled * {
   cursor: inherit !important;
 }
 
+button:focus-visible,
+a[href]:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+[role="button"]:focus-visible {
+  outline: 3px solid rgba(255, 92, 1, 0.42);
+  outline-offset: 2px;
+}
+
 html.modal-open,
 body.modal-open {
   overflow: hidden;
@@ -216,6 +227,25 @@ iframe {
 }
 
 @layer components {
+  .skip-link:focus {
+    clip: auto;
+    clip-path: none;
+  }
+
+  @media (max-width: 767px) {
+    .brand-button-primary,
+    .brand-button-secondary,
+    .brand-button-outline,
+    .brand-chip-button {
+      min-height: 48px;
+    }
+
+    .brand-icon-button {
+      min-width: 48px;
+      min-height: 48px;
+    }
+  }
+
   .brand-page-shell {
     background: linear-gradient(135deg, var(--brand-shell-start) 0%, var(--brand-shell-mid) 48%, var(--brand-shell-end) 100%);
   }
@@ -247,12 +277,25 @@ iframe {
     transform: translateY(-1px);
   }
 
+  .brand-button-primary:focus-visible {
+    box-shadow:
+      0 0 0 3px rgba(255, 255, 255, 0.95),
+      0 0 0 6px rgba(255, 92, 1, 0.38),
+      0 18px 30px rgba(255, 0, 122, 0.18);
+  }
+
   .brand-button-secondary {
     @apply inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-8 py-3 font-bold text-slate-900 shadow-sm transition-all duration-300 active:scale-95;
   }
 
   .brand-button-secondary:hover {
     border-color: var(--brand-ink);
+  }
+
+  .brand-button-secondary:focus-visible {
+    box-shadow:
+      0 0 0 3px rgba(255, 255, 255, 0.95),
+      0 0 0 6px rgba(15, 23, 42, 0.16);
   }
 
   .brand-button-outline {
@@ -270,6 +313,13 @@ iframe {
     transform: translateY(-1px);
   }
 
+  .brand-button-outline:focus-visible {
+    box-shadow:
+      0 0 0 3px rgba(255, 255, 255, 0.95),
+      0 0 0 6px rgba(255, 92, 1, 0.24),
+      0 12px 28px rgba(15, 23, 42, 0.08);
+  }
+
   .brand-chip-button {
     @apply inline-flex items-center justify-center rounded-full border bg-white font-bold shadow-sm transition-all duration-300 active:scale-95;
     border-color: rgba(255, 92, 1, 0.2);
@@ -280,6 +330,12 @@ iframe {
   .brand-chip-button:hover {
     background: rgba(255, 92, 1, 0.05);
     border-color: rgba(255, 92, 1, 0.36);
+  }
+
+  .brand-chip-button:focus-visible {
+    box-shadow:
+      0 0 0 3px rgba(255, 255, 255, 0.95),
+      0 0 0 6px rgba(255, 92, 1, 0.24);
   }
 
   .brand-icon-button {
@@ -294,6 +350,13 @@ iframe {
     border-color: rgba(255, 92, 1, 0.42);
     color: #ea580c;
     transform: translateY(-1px);
+  }
+
+  .brand-icon-button:focus-visible {
+    box-shadow:
+      0 0 0 3px rgba(255, 255, 255, 0.95),
+      0 0 0 6px rgba(255, 92, 1, 0.24),
+      0 12px 28px rgba(15, 23, 42, 0.1);
   }
 
   .brand-button-outline:disabled,

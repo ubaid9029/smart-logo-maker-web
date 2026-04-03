@@ -18,12 +18,19 @@ export default function ConditionalLayout({ children }) {
 
   return (
     <>
+      <a
+        href="#main-content"
+        className="skip-link sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-full focus:bg-slate-950 focus:px-5 focus:py-3 focus:text-sm focus:font-bold focus:text-white focus:shadow-xl"
+      >
+        Skip to main content
+      </a>
+
       {/* Navbar: Auth aur Editor par hide hoga, baki sab par show hoga */}
       {!isAuthRoute && !isEditorRoute && (
         <Navbar minimal={isCreateRoute || isGeneratingRoute || isResultRoute} />
       )}
 
-      <main>{children}</main>
+      <main id="main-content" tabIndex={-1}>{children}</main>
 
       {/* Footer: Auth, Create, aur Editor par hide hoga */}
       {!isAuthRoute && !isCreateRoute && !hideFooterOnly && !isGeneratingRoute && !isResultRoute && <Footer />}

@@ -1,7 +1,33 @@
 import { configureStore, combineReducers } from '@reduxjs/toolkit';
 import logoReducer from './slices/logoSlice';
 import { persistStore, persistReducer, createTransform, type PersistConfig } from 'redux-persist';
-import storage from 'redux-persist/lib/storage';
+import { generateLogosAction } from './slices/logoSlice';
+
+type PersistStorage = {
+  getItem: (key: string) => Promise<string | null>;
+  setItem: (key: string, value: string) => Promise<string>;
+  removeItem: (key: string) => Promise<void>;
+};
+
+const createNoopStorage = (): PersistStorage => ({
+  getItem: async () => null,
+  setItem: async (_key, value) => value,
+  removeItem: async () => undefined,
+});
+
+const createBrowserStorage = (): PersistStorage => ({
+  getItem: async (key) => window.localStorage.getItem(key),
+  setItem: async (key, value) => {
+    window.localStorage.setItem(key, value);
+    return value;
+  },
+  removeItem: async (key) => {
+    window.localStorage.removeItem(key);
+  },
+});
+
+const storage: PersistStorage =
+  typeof window === 'undefined' ? createNoopStorage() : createBrowserStorage();
 
 type PersistedLogoFormData = {
   name: string;
@@ -65,7 +91,10 @@ export const store = configureStore({
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
-        ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
+        ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE', generateLogosAction.fulfilled.type],
+        ignoredPaths: ['logo.results'],
+        ignoredActionPaths: ['payload', 'meta.arg'],
+        warnAfter: 128,
       },
     }),
 });

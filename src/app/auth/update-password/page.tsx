@@ -141,7 +141,7 @@ export default function UpdatePasswordPage() {
           <button
             type="submit"
             disabled={!isReady || isSubmitting}
-            className="w-full rounded-xl bg-linear-to-r from-orange-500 to-pink-500 py-2.5 text-sm font-semibold text-white shadow-md transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full min-h-12 rounded-xl bg-linear-to-r from-orange-500 to-pink-500 py-2.5 text-sm font-semibold text-white shadow-md transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSubmitting ? "Updating..." : "Update Password"}
           </button>

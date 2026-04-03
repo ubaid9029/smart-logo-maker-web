@@ -50,7 +50,7 @@ export default async function ForgotPassword({ searchParams }: Props) {
 
           <button
             type="submit"
-            className="w-full rounded-xl bg-linear-to-r from-orange-500 to-pink-500 py-2.5 text-sm font-semibold text-white shadow-md transition hover:opacity-90"
+            className="w-full min-h-12 rounded-xl bg-linear-to-r from-orange-500 to-pink-500 py-2.5 text-sm font-semibold text-white shadow-md transition hover:opacity-90"
           >
             Send Reset Link
           </button>

@@ -16,7 +16,7 @@ import {
 } from '../../lib/downloadAssets';
 import { buildEditableLogoPayload, buildLogoCardSvg, svgToDataUri } from '../../lib/logoSvg';
 import { loadGeneratedResultsSnapshot, saveGeneratedResultsSnapshot } from '../../lib/generatedResultsStorage';
-import { isAuthRequiredError, loadFavoriteLogos, saveFavoriteLogo, toggleFavoriteLogo } from '../../lib/favoriteLogosRepository';
+import { isAuthRequiredError, loadFavoriteLogos, peekFavoriteLogosCache, saveFavoriteLogo, toggleFavoriteLogo } from '../../lib/favoriteLogosRepository';
 import { getFavoriteLogoKey, subscribeFavoriteLogos } from '../../lib/favoriteLogosStorage';
 import { hasCreateDraft } from '../../lib/logoResumeStorage';
 import { createClient } from '../../lib/supabaseClient';
@@ -245,16 +245,29 @@ const ResultsPage = () => {
   }, []);
 
   useEffect(() => {
+    if (!authUser?.id) {
+      setFavoriteIds(new Set());
+      return () => {};
+    }
+
     const syncFavorites = async () => {
+      const cachedFavorites = peekFavoriteLogosCache(authUser.id);
+      if (cachedFavorites.length > 0) {
+        setFavoriteIds(new Set(cachedFavorites.map((item) => item.favoriteId)));
+      }
+
       const logos = await loadFavoriteLogos();
       setFavoriteIds(new Set((Array.isArray(logos) ? logos : []).map((item) => item.favoriteId)));
     };
 
+    const syncFavoritesFromCache = () => {
+      const cachedFavorites = peekFavoriteLogosCache(authUser.id);
+      setFavoriteIds(new Set((Array.isArray(cachedFavorites) ? cachedFavorites : []).map((item) => item.favoriteId)));
+    };
+
     void syncFavorites();
-    return subscribeFavoriteLogos(() => {
-      void syncFavorites();
-    });
-  }, []);
+    return subscribeFavoriteLogos(syncFavoritesFromCache);
+  }, [authUser?.id]);
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;
@@ -460,6 +473,9 @@ const ResultsPage = () => {
     }
 
     const wasFavorite = favoriteIds.has(design.favoriteId);
+    const optimisticFavoriteIds = new Set(favoriteIds);
+    optimisticFavoriteIds.add(design.favoriteId);
+    setFavoriteIds(optimisticFavoriteIds);
 
     try {
       const nextFavorites = await saveFavoriteLogo(design, { markDownloaded: true });
@@ -473,6 +489,12 @@ const ResultsPage = () => {
         });
       }
     } catch (error) {
+      if (!wasFavorite) {
+        const rollbackFavoriteIds = new Set(favoriteIds);
+        rollbackFavoriteIds.delete(design.favoriteId);
+        setFavoriteIds(rollbackFavoriteIds);
+      }
+
       if (isAuthRequiredError(error)) {
         handleFavoriteAuthRequired();
         setDownloadDesign(null);
@@ -528,6 +550,17 @@ const ResultsPage = () => {
       return;
     }
 
+    const wasFavorite = favoriteIds.has(design.favoriteId);
+    const optimisticFavoriteIds = new Set(favoriteIds);
+
+    if (wasFavorite) {
+      optimisticFavoriteIds.delete(design.favoriteId);
+    } else {
+      optimisticFavoriteIds.add(design.favoriteId);
+    }
+
+    setFavoriteIds(optimisticFavoriteIds);
+
     try {
       const nextState = await toggleFavoriteLogo(design);
       setFavoriteIds(new Set(nextState.favorites.map((item) => item.favoriteId)));
@@ -539,6 +572,8 @@ const ResultsPage = () => {
           : `${design.name} has been removed from your favorites.`,
       });
     } catch (error) {
+      setFavoriteIds(new Set(favoriteIds));
+
       if (isAuthRequiredError(error)) {
         handleFavoriteAuthRequired();
         return;

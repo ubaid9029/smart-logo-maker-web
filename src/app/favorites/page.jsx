@@ -92,11 +92,6 @@ export default function FavoritesPage() {
   }, []);
 
   useEffect(() => {
-    const syncFavorites = async () => {
-      const nextFavorites = await loadFavoriteLogos();
-      setFavorites(Array.isArray(nextFavorites) ? nextFavorites : []);
-    };
-
     if (!authChecked) {
       return () => {};
     }
@@ -106,12 +101,47 @@ export default function FavoritesPage() {
       return () => {};
     }
 
+    const syncFavorites = async () => {
+      const cachedFavorites = peekFavoriteLogosCache(authUser.id);
+      if (cachedFavorites.length > 0) {
+        setFavorites(cachedFavorites);
+      }
+
+      const nextFavorites = await loadFavoriteLogos();
+      setFavorites(Array.isArray(nextFavorites) ? nextFavorites : []);
+    };
+
+    const syncFavoritesFromCache = () => {
+      const cachedFavorites = peekFavoriteLogosCache(authUser.id);
+      setFavorites(Array.isArray(cachedFavorites) ? cachedFavorites : []);
+    };
+
     void syncFavorites();
 
-    return subscribeFavoriteLogos(() => {
-      void syncFavorites();
-    });
+    return subscribeFavoriteLogos(syncFavoritesFromCache);
   }, [authChecked, authUser?.id]);
+
+  const handleRemoveFavorite = async (design) => {
+    const previousFavorites = favorites;
+    setFavorites(previousFavorites.filter((item) => item.favoriteId !== design.favoriteId));
+
+    try {
+      await removeFavoriteLogo(design.favoriteRowKey || design.favoriteId);
+      setFavoriteNotice({
+        type: 'info',
+        title: 'Removed From Favorites',
+        message: `${design.name} has been removed from your favorites.`,
+      });
+    } catch (error) {
+      setFavorites(previousFavorites);
+      console.error('Unable to remove favorite logo:', error);
+      setFavoriteNotice({
+        type: 'info',
+        title: 'Unable To Update',
+        message: 'We could not update favorites right now. Please try again.',
+      });
+    }
+  };
 
   const handleEdit = (design) => {
     const payloadKey = `favorite-logo-edit-${design.favoriteId}`;
@@ -277,14 +307,7 @@ export default function FavoritesPage() {
                   <div className="absolute inset-0 hidden items-end justify-center bg-black/20 pb-4 opacity-0 transition-opacity group-hover:opacity-100 sm:flex sm:pb-6">
                     <div className="flex w-full justify-center gap-2 px-2">
                       <button
-                        onClick={async () => {
-                          await removeFavoriteLogo(design.favoriteRowKey || design.favoriteId);
-                          setFavoriteNotice({
-                            type: 'info',
-                            title: 'Removed From Favorites',
-                            message: `${design.name} has been removed from your favorites.`,
-                          });
-                        }}
+                        onClick={() => void handleRemoveFavorite(design)}
                         className="brand-icon-button h-11 w-11 p-0 border-red-100 bg-white text-red-500 shadow-[0_10px_24px_rgba(239,68,68,0.18)]"
                       >
                         <Heart size={16} fill="currentColor" className="text-red-500" />
@@ -301,14 +324,7 @@ export default function FavoritesPage() {
 
                 <div className="mt-2 flex items-center justify-center gap-2 sm:hidden">
                   <button
-                    onClick={async () => {
-                      await removeFavoriteLogo(design.favoriteRowKey || design.favoriteId);
-                      setFavoriteNotice({
-                        type: 'info',
-                        title: 'Removed From Favorites',
-                        message: `${design.name} has been removed from your favorites.`,
-                      });
-                    }}
+                    onClick={() => void handleRemoveFavorite(design)}
                     className="brand-icon-button h-11 w-11 p-0 border-red-100 bg-white text-red-500 shadow-[0_10px_24px_rgba(239,68,68,0.18)]"
                   >
                     <Heart size={16} fill="currentColor" className="text-red-500" />

@@ -7,10 +7,10 @@ export default function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-gray-800/50 bg-[#121a31] pb-10 pt-20 text-white">
+    <footer aria-label="Site footer" className="border-t border-gray-800/50 bg-[#121a31] pb-10 pt-20 text-white">
       <div className="mx-auto max-w-7xl px-6 md:px-12">
         <div className="mb-16 grid grid-cols-1 gap-12 md:grid-cols-12">
-          <div className="md:col-span-5">
+          <div className="md:col-span-4">
             <div className="flex items-center gap-2">
               <Image src="/logos/logo2.svg" alt="Smart Logo Maker" width={120} height={120} className="h-30 w-30" />
             </div>
@@ -19,9 +19,9 @@ export default function Footer() {
             </p>
           </div>
 
-          <div className="md:col-span-3 md:ml-auto">
+          <div className="md:col-span-2 md:ml-auto">
             <h4 className="mb-6 text-lg font-bold text-white">Product</h4>
-            <ul className="flex flex-col space-y-4">
+            <ul aria-label="Product links" className="flex flex-col space-y-4">
               {[
                 { name: 'Features', path: '#features' },
                 { name: 'How It Works', path: '#how-it-works' },
@@ -41,12 +41,33 @@ export default function Footer() {
           </div>
 
           <div className="md:col-span-3 md:ml-auto">
+            <h4 className="mb-6 text-lg font-bold text-white">Resources</h4>
+            <ul aria-label="Resource links" className="flex flex-col space-y-4">
+              {[
+                { name: 'Templates', path: '/templates' },
+                { name: 'Guides', path: '/guides' },
+                { name: 'Case Studies', path: '/case-studies' },
+              ].map((item) => (
+                <li key={item.name}>
+                  <Link
+                    href={item.path}
+                    className="text-sm font-medium text-gray-400 transition-colors duration-300 hover:text-white"
+                  >
+                    {item.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="md:col-span-3 md:ml-auto">
             <h4 className="mb-6 text-lg font-bold text-white">Company</h4>
-            <ul className="flex flex-col space-y-4">
+            <ul aria-label="Company links" className="flex flex-col space-y-4">
               {[
                 { name: 'About Us', path: 'about' },
                 { name: 'Contact', path: '/contact' },
                 { name: 'Privacy Policy', path: '/privacy' },
+                { name: 'Security', path: '/privacy#security' },
                 { name: 'Terms of Service', path: '/terms' },
               ].map((item) => (
                 <li key={item.name}>

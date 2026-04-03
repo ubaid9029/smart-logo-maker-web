@@ -1,6 +1,11 @@
 import { NextResponse, NextRequest } from 'next/server';
 
 const SUPPORTED_COLOR_IDS = new Set(['1', '2', '3', '4', '5', '6']);
+const NO_STORE_HEADERS = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  Pragma: 'no-cache',
+  Expires: '0',
+};
 
 const buildGenerationPayload = ({ name, slogan, industryId, fontId, colorId }: { name: string; slogan: string; industryId: number | string; fontId: string | number; colorId: string | number }) => ({
   name,
@@ -45,6 +50,14 @@ const parseRemotePayload = async (response: Response) => {
   }
 };
 
+const jsonNoStore = (body: unknown, init?: ResponseInit) => NextResponse.json(body, {
+  ...init,
+  headers: {
+    ...NO_STORE_HEADERS,
+    ...(init?.headers || {}),
+  },
+});
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -56,27 +69,27 @@ export async function POST(request: NextRequest) {
     const colorId = body.colorId;
 
     if (!name.trim()) {
-      return NextResponse.json({ error: 'Business name is required.' }, { status: 400 });
+      return jsonNoStore({ error: 'Business name is required.' }, { status: 400 });
     }
 
     if (!slogan.trim()) {
-      return NextResponse.json({ error: 'Slogan is required.' }, { status: 400 });
+      return jsonNoStore({ error: 'Slogan is required.' }, { status: 400 });
     }
 
     if (industryId === undefined || industryId === null) {
-      return NextResponse.json({ error: 'Industry selection is required.' }, { status: 400 });
+      return jsonNoStore({ error: 'Industry selection is required.' }, { status: 400 });
     }
 
     if (!fontId) {
-      return NextResponse.json({ error: 'Font selection is required.' }, { status: 400 });
+      return jsonNoStore({ error: 'Font selection is required.' }, { status: 400 });
     }
 
     if (!colorId) {
-      return NextResponse.json({ error: 'Color selection is required.' }, { status: 400 });
+      return jsonNoStore({ error: 'Color selection is required.' }, { status: 400 });
     }
 
     if (!SUPPORTED_COLOR_IDS.has(String(colorId))) {
-      return NextResponse.json({ error: 'Selected color palette is not supported.' }, { status: 400 });
+      return jsonNoStore({ error: 'Selected color palette is not supported.' }, { status: 400 });
     }
 
     const response = await fetch('https://www.logoai.com/api/getAllInfo', {
@@ -100,13 +113,13 @@ export async function POST(request: NextRequest) {
         ? data.message
         : `LogoAI responded with ${response.status}`;
 
-      return NextResponse.json(
+      return jsonNoStore(
         { error: 'API call failed', details: remoteMessage },
         { status: response.status >= 400 && response.status < 600 ? response.status : 502 }
       );
     }
 
-    return NextResponse.json(data);
+    return jsonNoStore(data);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     const normalizedMessage = /fetch failed|network|connect|timeout/i.test(message)
@@ -114,7 +127,7 @@ export async function POST(request: NextRequest) {
       : message;
 
     console.error('Fetch Error:', message);
-    return NextResponse.json({ error: 'API call failed', details: normalizedMessage }, { status: 500 });
+    return jsonNoStore({ error: 'API call failed', details: normalizedMessage }, { status: 500 });
   }
 }
 

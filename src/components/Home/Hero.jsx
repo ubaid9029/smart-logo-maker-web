@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { HiArrowRight } from "react-icons/hi";
+import { HiStar } from "react-icons/hi2";
 import { useMemo } from 'react';
 
 const Hero = () => {
@@ -126,6 +127,32 @@ const Hero = () => {
           <Link href="/how-it-works" className="brand-button-outline inline-flex px-8 py-3 text-base md:px-10 md:py-4 md:text-lg">
             See How It Works
           </Link>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8, duration: 0.5 }}
+          className="mt-8 flex flex-wrap items-center justify-center gap-3 text-sm font-semibold text-slate-600 md:text-base"
+        >
+          <div className="flex items-center gap-2 rounded-full border border-pink-100 bg-white/90 px-4 py-2 shadow-sm">
+            <div className="flex items-center gap-0.5 text-[#FFB800]">
+              <HiStar className="text-base" />
+              <HiStar className="text-base" />
+              <HiStar className="text-base" />
+              <HiStar className="text-base" />
+              <HiStar className="text-base" />
+            </div>
+            <span>4.9/5 average rating</span>
+          </div>
+
+          <div className="rounded-full border border-pink-100 bg-white/90 px-4 py-2 shadow-sm">
+            Trusted by 10,000+ users
+          </div>
+
+          <div className="rounded-full border border-pink-100 bg-white/90 px-4 py-2 shadow-sm">
+            50,000+ logos created
+          </div>
         </motion.div>
       </div>
     </section>

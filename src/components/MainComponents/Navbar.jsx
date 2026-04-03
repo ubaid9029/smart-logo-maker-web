@@ -67,6 +67,8 @@ export default function Navbar({ minimal }) {
   const [authUser, setAuthUser] = useState(null);
   const [favoriteCount, setFavoriteCount] = useState(0);
   const [avatarStatus, setAvatarStatus] = useState('idle');
+  const mobileMenuId = 'primary-mobile-menu';
+  const profileMenuId = 'profile-menu-panel';
 
   const navLinks = [
     { name: 'Features', href: '/#features' },
@@ -189,11 +191,11 @@ export default function Navbar({ minimal }) {
   );
 
   return (
-    <nav className="fixed top-0 z-50 w-full border-b border-gray-100 bg-white/95 backdrop-blur-sm">
+    <nav aria-label="Primary navigation" className="fixed top-0 z-50 w-full border-b border-gray-100 bg-white/95 backdrop-blur-sm">
       <div className="mx-auto max-w-7xl px-6 md:px-12">
         <div className="flex h-20 items-center justify-between">
           <div className="flex items-center">
-            <Link href="/" className="flex h-30 w-30 shrink-0 cursor-pointer items-center justify-center">
+            <Link href="/" aria-label="Smart Logo Maker home" className="flex h-30 w-30 shrink-0 cursor-pointer items-center justify-center">
               <motion.div
                 initial={{ x: -40, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
@@ -211,7 +213,7 @@ export default function Navbar({ minimal }) {
             </Link>
           </div>
 
-          <div className="hidden items-center space-x-12 md:flex">
+          <div aria-label="Desktop navigation links" className="hidden items-center space-x-12 md:flex">
             {!minimal && navLinks.map((link) => (
               <Link
                 key={link.name}
@@ -234,6 +236,10 @@ export default function Navbar({ minimal }) {
               <div className="relative" ref={menuRef}>
                 <button
                   onClick={() => setProfileMenuOpen((current) => !current)}
+                  aria-label="Open profile menu"
+                  aria-expanded={profileMenuOpen}
+                  aria-controls={profileMenuId}
+                  aria-haspopup="menu"
                   className="flex items-center gap-1.5 rounded-full border border-pink-200 bg-white px-1.5 py-1.5 shadow-sm transition hover:border-pink-300 hover:shadow-md"
                 >
                   <ProfileAvatar className="h-9 w-9 text-[11px]" />
@@ -241,7 +247,12 @@ export default function Navbar({ minimal }) {
                 </button>
 
                 {profileMenuOpen && (
-                  <div className="absolute right-0 top-[calc(100%+14px)] w-[23rem] rounded-[2rem] border border-pink-100 bg-white p-4 shadow-[0_20px_60px_rgba(15,23,42,0.14)]">
+                  <div
+                    id={profileMenuId}
+                    role="menu"
+                    aria-label="Profile menu"
+                    className="absolute right-0 top-[calc(100%+14px)] w-[23rem] rounded-[2rem] border border-pink-100 bg-white p-4 shadow-[0_20px_60px_rgba(15,23,42,0.14)]"
+                  >
                     <div className="rounded-[1.6rem] bg-slate-50 p-4">
                       <div className="flex items-center gap-3">
                         <ProfileAvatar />
@@ -307,7 +318,13 @@ export default function Navbar({ minimal }) {
 
           {!minimal && (
             <div className="md:hidden">
-              <button onClick={() => setIsOpen(!isOpen)} className="p-2 text-[#111827]">
+              <button
+                onClick={() => setIsOpen(!isOpen)}
+                aria-label={isOpen ? 'Close mobile navigation menu' : 'Open mobile navigation menu'}
+                aria-expanded={isOpen}
+                aria-controls={mobileMenuId}
+                className="p-2 text-[#111827]"
+              >
                 {isOpen ? (
                   <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
@@ -326,7 +343,11 @@ export default function Navbar({ minimal }) {
       </div>
 
       {!minimal && (
-        <div className={`absolute left-0 top-18 w-full overflow-hidden bg-white transition-all duration-300 md:hidden ${isOpen ? 'max-h-[34rem] opacity-100' : 'max-h-0 opacity-0'}`}>
+        <div
+          id={mobileMenuId}
+          aria-label="Mobile navigation"
+          className={`absolute left-0 top-18 w-full overflow-hidden bg-white transition-all duration-300 md:hidden ${isOpen ? 'max-h-[34rem] opacity-100' : 'max-h-0 opacity-0'}`}
+        >
           <div className="flex flex-col space-y-5 p-6">
             {navLinks.map((link) => (
               <Link key={link.name} href={link.href} onClick={() => setIsOpen(false)} className="text-lg font-bold text-gray-600 hover:text-[#FF007A]">

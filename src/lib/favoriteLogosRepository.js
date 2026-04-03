@@ -87,6 +87,23 @@ const buildCanonicalFavoriteKeyFromRow = (row) => getFavoriteLogoKey({
   favoriteId: row?.favorite_key,
 });
 
+const dedupeFavoriteLogos = (logos) => {
+  const nextLogos = Array.isArray(logos) ? logos : [];
+  const dedupedLogos = [];
+  const seenKeys = new Set();
+
+  nextLogos.forEach((item) => {
+    if (!item?.favoriteId || seenKeys.has(item.favoriteId)) {
+      return;
+    }
+
+    seenKeys.add(item.favoriteId);
+    dedupedLogos.push(item);
+  });
+
+  return dedupedLogos;
+};
+
 const readFavoriteLogosCache = () => {
   if (typeof window === 'undefined') {
     return { userId: null, logos: [] };
@@ -151,6 +168,59 @@ export const peekFavoriteLogosCache = (userId) => {
   }
 
   return [];
+};
+
+const buildOptimisticFavoriteLogo = (userId, design, options = {}) => {
+  const optimisticTimestamp = new Date().toISOString();
+  const optimisticRow = buildFavoriteLogoRow(userId, design, options);
+
+  return mapFavoriteLogoRow({
+    ...optimisticRow,
+    id: design?.designId || design?.id || optimisticRow.favorite_key,
+    created_at: optimisticTimestamp,
+    updated_at: optimisticTimestamp,
+  });
+};
+
+const replaceFavoriteLogoInList = (logos, nextLogo) => {
+  const currentLogos = Array.isArray(logos) ? logos : [];
+  const nextFavoriteId = nextLogo?.favoriteId;
+  const nextFavoriteRowKey = nextLogo?.favoriteRowKey;
+
+  if (!nextFavoriteId) {
+    return dedupeFavoriteLogos(currentLogos);
+  }
+
+  const filteredLogos = currentLogos.filter((item) => {
+    if (!item) {
+      return false;
+    }
+
+    return (
+      item.favoriteId !== nextFavoriteId &&
+      item.favoriteRowKey !== nextFavoriteRowKey
+    );
+  });
+
+  return dedupeFavoriteLogos([nextLogo, ...filteredLogos]);
+};
+
+const updateFavoriteLogosCache = (userId, updater) => {
+  const previousLogos = peekFavoriteLogosCache(userId);
+  const nextLogos = dedupeFavoriteLogos(updater(Array.isArray(previousLogos) ? previousLogos : []));
+
+  writeFavoriteLogosCache(userId, nextLogos);
+  notifyFavoriteLogosChanged();
+
+  return {
+    previousLogos,
+    nextLogos,
+  };
+};
+
+const restoreFavoriteLogosCache = (userId, logos) => {
+  writeFavoriteLogosCache(userId, dedupeFavoriteLogos(logos));
+  notifyFavoriteLogosChanged();
 };
 
 const fetchFavoriteLogoRowsForUser = async (supabase, userId) => {
@@ -278,20 +348,7 @@ const fetchFavoriteLogosForUser = async (supabase, userId) => {
   const didCleanup = await cleanupFavoriteLogoRowsForUser(supabase, userId, rawRows);
   const rows = didCleanup ? await fetchFavoriteLogoRowsForUser(supabase, userId) : rawRows;
 
-  const mappedLogos = rows.map(mapFavoriteLogoRow);
-  const dedupedLogos = [];
-  const seenKeys = new Set();
-
-  mappedLogos.forEach((item) => {
-    if (seenKeys.has(item.favoriteId)) {
-      return;
-    }
-
-    seenKeys.add(item.favoriteId);
-    dedupedLogos.push(item);
-  });
-
-  return writeFavoriteLogosCache(userId, dedupedLogos);
+  return writeFavoriteLogosCache(userId, dedupeFavoriteLogos(rows.map(mapFavoriteLogoRow)));
 };
 
 const resolveSupabaseUser = async () => {
@@ -335,11 +392,18 @@ export const saveFavoriteLogo = async (design, options = {}) => {
   }
 
   const row = buildFavoriteLogoRow(user.id, design, options);
+  const optimisticLogo = buildOptimisticFavoriteLogo(user.id, design, options);
+  const { previousLogos, nextLogos } = updateFavoriteLogosCache(
+    user.id,
+    (currentLogos) => replaceFavoriteLogoInList(currentLogos, optimisticLogo)
+  );
+
   const { error } = await supabase
     .from(FAVORITE_LOGOS_TABLE)
     .upsert(row, { onConflict: 'user_id,favorite_key' });
 
   if (error) {
+    restoreFavoriteLogosCache(user.id, previousLogos);
     throw error;
   }
 
@@ -358,9 +422,6 @@ export const saveFavoriteLogo = async (design, options = {}) => {
       console.error('Unable to cleanup legacy favorite logo row:', cleanupError);
     }
   }
-
-  const nextLogos = await fetchFavoriteLogosForUser(supabase, user.id);
-  notifyFavoriteLogosChanged();
   return nextLogos;
 };
 
@@ -370,6 +431,11 @@ export const removeFavoriteLogo = async (favoriteId) => {
     throw createAuthRequiredError();
   }
 
+  const { previousLogos, nextLogos } = updateFavoriteLogosCache(
+    user.id,
+    (currentLogos) => currentLogos.filter((item) => item?.favoriteId !== favoriteId && item?.favoriteRowKey !== favoriteId)
+  );
+
   const { error } = await supabase
     .from(FAVORITE_LOGOS_TABLE)
     .delete()
@@ -377,33 +443,23 @@ export const removeFavoriteLogo = async (favoriteId) => {
     .eq('favorite_key', favoriteId);
 
   if (error) {
+    restoreFavoriteLogosCache(user.id, previousLogos);
     throw error;
   }
-
-  const nextLogos = await fetchFavoriteLogosForUser(supabase, user.id);
-  notifyFavoriteLogosChanged();
   return nextLogos;
 };
 
 export const toggleFavoriteLogo = async (design) => {
-  const { supabase, user } = await resolveSupabaseUser();
+  const { user } = await resolveSupabaseUser();
   if (!user) {
     throw createAuthRequiredError();
   }
 
   const favoriteId = getFavoriteLogoKey(design);
-  const { data: existingRow, error: selectError } = await supabase
-    .from(FAVORITE_LOGOS_TABLE)
-    .select('id')
-    .eq('user_id', user.id)
-    .eq('favorite_key', favoriteId)
-    .maybeSingle();
+  const cachedFavorites = peekFavoriteLogosCache(user.id);
+  const existingRow = cachedFavorites.find((item) => item?.favoriteId === favoriteId || item?.favoriteRowKey === favoriteId);
 
-  if (selectError) {
-    throw selectError;
-  }
-
-  if (existingRow?.id) {
+  if (existingRow?.favoriteId) {
     const favorites = await removeFavoriteLogo(favoriteId);
     return {
       favorites,
@@ -460,8 +516,30 @@ export const syncFavoriteLogoEdits = async ({ favoriteId, patch = {} }) => {
   }
 
   if (Object.keys(updatePayload).length === 0) {
-    return fetchFavoriteLogosForUser(supabase, user.id);
+    return peekFavoriteLogosCache(user.id);
   }
+
+  const { previousLogos, nextLogos } = updateFavoriteLogosCache(user.id, (currentLogos) => currentLogos.map((item) => {
+    if (item?.favoriteId !== favoriteId && item?.favoriteRowKey !== favoriteId) {
+      return item;
+    }
+
+    return {
+      ...item,
+      svgMarkup: typeof patch.svgMarkup === 'string' ? patch.svgMarkup : item.svgMarkup,
+      previewDataUrl: typeof patch.previewDataUrl === 'string' || patch.previewDataUrl === null
+        ? patch.previewDataUrl
+        : item.previewDataUrl,
+      editablePayload: patch.editablePayload && typeof patch.editablePayload === 'object'
+        ? patch.editablePayload
+        : item.editablePayload,
+      themeColor: typeof patch.themeColor === 'string' ? patch.themeColor : item.themeColor,
+      backgroundColor: typeof patch.backgroundColor === 'string' ? patch.backgroundColor : item.backgroundColor,
+      name: typeof patch.logoName === 'string' ? patch.logoName : item.name,
+      downloadedAt: patch.markDownloaded ? Date.now() : item.downloadedAt,
+      savedAt: Date.now(),
+    };
+  }));
 
   const { error } = await supabase
     .from(FAVORITE_LOGOS_TABLE)
@@ -470,11 +548,9 @@ export const syncFavoriteLogoEdits = async ({ favoriteId, patch = {} }) => {
     .eq('favorite_key', favoriteId);
 
   if (error) {
+    restoreFavoriteLogosCache(user.id, previousLogos);
     throw error;
   }
-
-  const nextLogos = await fetchFavoriteLogosForUser(supabase, user.id);
-  notifyFavoriteLogosChanged();
   return nextLogos;
 };
 

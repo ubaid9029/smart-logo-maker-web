@@ -95,7 +95,7 @@ export default async function Login({ searchParams }: Props) {
 
           <button
             type="submit"
-            className="w-full h-10 rounded-xl text-sm font-semibold text-white bg-linear-to-r from-orange-500 to-pink-500 hover:opacity-90 transition shadow-md"
+            className="w-full h-12 rounded-xl text-sm font-semibold text-white bg-linear-to-r from-orange-500 to-pink-500 hover:opacity-90 transition shadow-md"
           >
             Login
           </button>
@@ -111,7 +111,7 @@ export default async function Login({ searchParams }: Props) {
           <input type="hidden" name="next" value={next} />
           <button
             type="submit"
-            className="w-full h-10 rounded-xl border border-gray-300 flex items-center justify-center gap-2 text-sm text-gray-900 font-medium hover:bg-gray-100 transition"
+            className="w-full h-12 rounded-xl border border-gray-300 flex items-center justify-center gap-2 text-sm text-gray-900 font-medium hover:bg-gray-100 transition"
           >
             <Image src="/assets/icons/google.png" width={16} height={16} className="h-4 w-4" alt="Google" />
             Continue with Google
