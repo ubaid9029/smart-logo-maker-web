@@ -9,7 +9,7 @@ export function DesktopToolRail({
   onToolSelect,
 }) {
   return (
-    <aside className="hidden w-[114px] shrink-0 border-r border-gray-100 bg-white lg:flex lg:flex-col lg:items-start lg:px-3 lg:py-6">
+    <aside className="hidden w-[114px] shrink-0 border-r border-gray-100 bg-white lg:flex lg:flex-col lg:items-start lg:px-2 lg:py-6">
       <div className="flex w-full flex-col items-stretch gap-4">
         {editorTools.map((tool) => {
           const Icon = tool.icon;
@@ -128,9 +128,9 @@ export function MobileBottomPanel({
     <div className="fixed inset-x-0 bottom-0 z-[120] lg:hidden">
       <div className="overflow-hidden border-t border-slate-200 bg-[#0f172a] shadow-[0_-10px_30px_rgba(15,23,42,0.18)]">
         <div
-          className={`overflow-hidden bg-white/98 transition-all duration-300 ${sidebarOpen && shouldShowDesktopSidebar ? 'max-h-[38svh] border-b border-slate-200 opacity-100' : 'max-h-0 opacity-0'}`}
+          className={`overflow-hidden bg-white/98 transition-all duration-300 ${sidebarOpen && shouldShowDesktopSidebar ? 'max-h-[56svh] border-b border-slate-200 opacity-100' : 'max-h-0 opacity-0'}`}
         >
-          <div className="max-h-[38svh] overflow-hidden px-2.5 pb-2 pt-2">
+          <div className="max-h-[56svh] overflow-y-auto overflow-x-hidden px-2.5 pb-2 pt-2">
             {mobileContextBar && (
               <div className="-mx-2.5 mb-1.5 border-b border-slate-100 bg-white/96 px-2.5 pb-1.5">
                 {mobileContextBar}

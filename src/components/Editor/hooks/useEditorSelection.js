@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 
-export function useEditorSelection({ setActiveObjectPanel, setActiveTool, setSidebarOpen }) {
+export function useEditorSelection({ activeTool, isMobileViewport, setActiveObjectPanel, setActiveTool, setSidebarOpen }) {
   const [selectedCanvasItem, setSelectedCanvasItem] = useState(null);
   const [selectedCanvasItems, setSelectedCanvasItems] = useState([]);
   const selectedCanvasItemRef = useRef(null);
@@ -23,9 +23,11 @@ export function useEditorSelection({ setActiveObjectPanel, setActiveTool, setSid
       setSidebarOpen(true);
     } else {
       setActiveObjectPanel(null);
-      setSidebarOpen(false);
+      if (!isMobileViewport || !activeTool) {
+        setSidebarOpen(false);
+      }
     }
-  }, [setActiveObjectPanel, setActiveTool, setSidebarOpen]);
+  }, [activeTool, isMobileViewport, setActiveObjectPanel, setActiveTool, setSidebarOpen]);
 
   const clearCanvasSelection = useCallback(() => {
     selectedCanvasItemRef.current = null;

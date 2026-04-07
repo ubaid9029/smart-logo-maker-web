@@ -277,6 +277,8 @@ function EditorUI() {
     handleCanvasSelectionChange,
     clearCanvasSelection,
   } = useEditorSelection({
+    activeTool,
+    isMobileViewport,
     setActiveObjectPanel,
     setActiveTool,
     setSidebarOpen,
@@ -788,7 +790,10 @@ function EditorUI() {
     gradientType,
     handleAddPresetArt,
     handleAddShapeElement,
+    handleBackgroundOptionSelect,
     handleBringBackgroundShapeToCanvas,
+    handleDeleteSelected,
+    handleDuplicateSelected,
     handleToggleSelectedItemBackground,
     handleAlignSelectedToCanvas,
     handleCenter,
@@ -809,6 +814,8 @@ function EditorUI() {
     handleSelectedTextFontSizeChange,
     handleSelectedTextFontStyleChange,
     isControlsContext,
+    canDuplicate,
+    canSetSelectedShapeAsBackground,
     isSelectedItemBackground,
     isMobileViewport,
     isValidHexColor,
@@ -882,10 +889,20 @@ function EditorUI() {
     nextDisplayOrder.splice(draggedIndex, 1);
     nextDisplayOrder.splice(targetIndex, 0, draggedKey);
 
-    applyLogoConfigChange((prev) => ({
-      ...prev,
-      layerOrder: [...nextDisplayOrder].reverse(),
-    }));
+    applyLogoConfigChange((prev) => {
+      const fullLayerOrder = syncCanvasLayerOrder(prev.layerOrder, prev.logoItems || [], prev.textItems || []);
+      const fullDisplayOrder = [...fullLayerOrder].reverse();
+      const visibleKeySet = new Set(displayOrderKeys);
+      const reorderedVisibleKeys = [...nextDisplayOrder];
+      const nextFullDisplayOrder = fullDisplayOrder.map((key) => (
+        visibleKeySet.has(key) ? reorderedVisibleKeys.shift() : key
+      ));
+
+      return {
+        ...prev,
+        layerOrder: [...nextFullDisplayOrder].reverse(),
+      };
+    });
   }, [applyLogoConfigChange]);
 
   editorSidebarProps.handleSelectLayerFromPanel = handleSelectLayerFromPanel;
@@ -907,18 +924,33 @@ function EditorUI() {
       activeObjectPanel={activeObjectPanel}
       activeTool={activeTool}
       backgroundOptions={backgroundOptions}
+      canEditText={canEditText}
       canDuplicate={canDuplicate}
       canBringForward={canBringForward}
       canSendBackward={canSendBackward}
       canBringToFront={canBringToFront}
       canSendToBack={canSendToBack}
       canSetSelectedShapeAsBackground={canSetSelectedShapeAsBackground}
+      canRoundSelectedShape={canRoundSelectedShape}
       isSelectedItemBackground={isSelectedItemBackground}
+      isStylableLogoSelection={isStylableLogoSelection}
+      isRasterImageSelection={isRasterImageSelection}
       hasActiveBackgroundShape={hasActiveBackgroundShape}
+      selectedItemData={selectedItemData}
+      selectedStyle={selectedStyle}
+      selectedTextFontFamily={selectedTextFontFamily}
+      selectedTextFontSize={selectedTextFontSize}
+      selectedTextColor={selectedTextColor}
+      isBoldActive={isBoldActive}
+      isItalicActive={isItalicActive}
+      selectedTextAlign={selectedTextAlign}
       handleMoveSelectedLayers={handleMoveSelectedLayers}
       handleBackgroundOptionSelect={handleBackgroundOptionSelect}
       handleDeleteSelected={handleDeleteSelected}
       handleDuplicateSelected={handleDuplicateSelected}
+      handleSelectedTextFontSizeChange={handleSelectedTextFontSizeChange}
+      handleToggleSelectedTextFontStyle={handleToggleSelectedTextFontStyle}
+      handleSelectedTextAlignChange={handleSelectedTextAlignChange}
       handleBringBackgroundShapeToCanvas={handleBringBackgroundShapeToCanvas}
       handleToggleSelectedItemBackground={handleToggleSelectedItemBackground}
       handleSetSelectedShapeAsBackground={handleSetSelectedShapeAsBackground}
@@ -1401,7 +1433,9 @@ function EditorUI() {
                     ) : null}
                     {backgroundOptions.map((option, index) => {
                       const Icon = option.icon;
-                      const isActiveOption = activeBackgroundOption === option.id;
+                      const isActiveOption = option.id === 'color'
+                        ? activeBackgroundOption === 'color' || activeBackgroundOption === 'gradient'
+                        : activeBackgroundOption === option.id;
 
                       return (
                         <Fragment key={option.id}>

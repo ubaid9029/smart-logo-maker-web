@@ -427,9 +427,9 @@ export default function Navbar({ minimal }) {
         <div
           id={mobileMenuId}
           aria-label="Mobile navigation"
-          className={`absolute left-0 top-18 w-full overflow-hidden bg-white transition-all duration-300 md:hidden ${isOpen ? 'max-h-[34rem] opacity-100' : 'max-h-0 opacity-0'}`}
+          className={`absolute left-0 top-18 z-40 w-full overflow-hidden bg-white transition-all duration-300 md:hidden ${isOpen ? 'max-h-[calc(100svh-4.5rem)] opacity-100' : 'max-h-0 opacity-0'}`}
         >
-          <div className="flex flex-col space-y-5 p-6">
+          <div className="flex max-h-[calc(100svh-4.5rem)] flex-col space-y-5 overflow-y-auto px-6 pb-[max(1.5rem,calc(env(safe-area-inset-bottom)+1rem))] pt-6">
             {navLinks.map((link) => (
               <Link key={link.name} href={link.href} onClick={() => setIsOpen(false)} className="text-lg font-bold text-gray-600 hover:text-[#FF007A]">
                 {link.name}
@@ -468,7 +468,7 @@ export default function Navbar({ minimal }) {
                   </div>
                 </div>
 
-                <div className="rounded-[1.4rem] border border-slate-200 bg-white p-4">
+                <div className="hidden rounded-[1.4rem] border border-slate-200 bg-white p-4">
                   <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">Profile</p>
                   <p className="mt-2 text-sm font-semibold text-slate-600">Favorites: {libraryCounts.favorites}</p>
                   <p className="mt-1 text-sm font-semibold text-slate-600">Saved: {libraryCounts.saved}</p>

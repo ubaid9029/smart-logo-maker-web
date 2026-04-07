@@ -1,36 +1,130 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Smart Logo Maker Web
 
-## Getting Started
+Smart Logo Maker is a Next.js app where a user can:
 
-First, run the development server:
+- create logo inputs step by step
+- generate logo results from the LogoAI API
+- open any result in a custom editor
+- save, favorite, and download logos
+- authenticate with email/password or Google using Supabase
+
+## Stack
+
+- `Next.js 16` with App Router
+- `React 19`
+- `Redux Toolkit` + `redux-persist`
+- `Supabase` for auth and logo library persistence
+- `Tailwind CSS`
+- `Konva / react-konva` for the editor canvas
+
+## Main User Flow
+
+1. User lands on `/`
+2. User goes to `/create`
+3. Multi-step form stores progress in Redux
+4. Final step calls `/api/generate`
+5. Results open on `/results`
+6. User can favorite, download, or open editor
+7. Editor opens on `/editor`
+8. Edited logos can be saved or downloaded
+9. Saved data is stored in Supabase logo library and cached on client
+
+## Important Routes
+
+- `/`:
+  Landing page
+- `/create`:
+  Multi-step logo input flow
+- `/results`:
+  Generated logo cards
+- `/editor`:
+  Full logo editor
+- `/favorites`, `/saved`, `/downloads`:
+  User logo library pages
+- `/auth/signin`, `/auth/signup`, `/auth/forgot-password`:
+  Auth screens
+
+## Important Folders
+
+- [`src/app`](/d:/feature/smart-logo-maker-web/src/app)
+  App Router pages, API routes, auth routes
+- [`src/components`](/d:/feature/smart-logo-maker-web/src/components)
+  UI sections, editor UI, auth UI, shared UI
+- [`src/lib`](/d:/feature/smart-logo-maker-web/src/lib)
+  business logic, storage helpers, Supabase helpers, SVG and download utilities
+- [`src/store`](/d:/feature/smart-logo-maker-web/src/store)
+  Redux store and logo slice
+- [`supabase`](/d:/feature/smart-logo-maker-web/supabase)
+  SQL setup and upgrade scripts
+
+## Local Setup
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Add environment variables in `.env.local`:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+```
+
+3. Start development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+4. Open:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```text
+http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Supabase Setup
 
-## Learn More
+Run one of these SQL files:
 
-To learn more about Next.js, take a look at the following resources:
+- [`supabase/logo_library_schema.sql`](/d:/feature/smart-logo-maker-web/supabase/logo_library_schema.sql)
+  Fresh database setup
+- [`supabase/logo_library_upgrade.sql`](/d:/feature/smart-logo-maker-web/supabase/logo_library_upgrade.sql)
+  Upgrade existing database for favorites, saved, and downloads support
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Extra note:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- [`supabase/README.md`](/d:/feature/smart-logo-maker-web/supabase/README.md) explains when to use each SQL file.
 
-## Deploy on Vercel
+## Useful Commands
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm run dev
+npx eslint .
+npx tsc --noEmit
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Architecture Notes
+
+- Global form state lives in Redux so create flow survives page movement.
+- Long-term auth and logo library persistence use Supabase.
+- Client-side cache is used for favorites, saved, and downloads to keep UI fast.
+- Editor state is composed from reusable hooks so canvas behavior is split into focused modules.
+
+## Documentation For Developers
+
+For full project explanation in Roman English, read:
+
+- [`PROJECT_FLOW_ROMAN_ENGLISH.md`](/d:/feature/smart-logo-maker-web/PROJECT_FLOW_ROMAN_ENGLISH.md)
+
+That file explains:
+
+- project flow
+- route flow
+- auth flow
+- editor flow
+- library flow
+- important files and why they exist
+- how data moves through the app

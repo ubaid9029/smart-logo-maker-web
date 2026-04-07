@@ -136,7 +136,6 @@ export const mobileControlsTool = { id: 'controls', label: 'Controls', icon: Sli
 
 export const backgroundOptions = [
   { id: 'color', label: 'Color', icon: Palette },
-  { id: 'gradient', label: 'Gradient', icon: Sparkles },
   { id: 'background', label: 'Background', icon: ImagePlus },
   { id: 'texture', label: 'Texture', icon: Shapes },
   { id: 'image', label: 'Image', icon: Images },
