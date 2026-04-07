@@ -1,5 +1,5 @@
 ﻿'use client';
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { updateFormData } from "../../../store/slices/logoSlice";
 
@@ -19,7 +19,7 @@ const Fonts = ({ onNext, onBack, data, setData }) => {
     setData({ ...data, font: fontItem.name });
   };
 
-  const handleContinue = () => {
+  const handleContinue = useCallback(() => {
     const selectedFont = fontStyles.find((font) => font.name === data.font);
     if (!selectedFont) {
       return;
@@ -27,7 +27,7 @@ const Fonts = ({ onNext, onBack, data, setData }) => {
 
     dispatch(updateFormData({ fontId: selectedFont.id }));
     onNext();
-  };
+  }, [data, dispatch, onNext]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -39,7 +39,7 @@ const Fonts = ({ onNext, onBack, data, setData }) => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [data.font]);
+  }, [data.font, handleContinue]);
 
   return (
     <div className="mx-auto flex h-full w-full max-w-4xl flex-col animate-in fade-in slide-in-from-bottom-6 duration-700 px-2 md:px-3">

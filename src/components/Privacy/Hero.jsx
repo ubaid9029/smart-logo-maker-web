@@ -149,7 +149,7 @@ const Hero = () => {
           transition={{ delay: 0.6, duration: 0.5 }}
           className="flex flex-col sm:flex-row items-center justify-center gap-4 md:gap-6"
         >
-            <Link href="/create/bussiness-info">
+            <Link href="/create">
               <button className="brand-button-primary group gap-3 px-8 md:px-10 py-3 md:py-4 text-base md:text-lg">
                 Get Started Free
                 <HiArrowRight className="text-xl group-hover:translate-x-1 transition-transform" />

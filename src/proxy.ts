@@ -1,13 +1,21 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { getSupabaseEnv } from "./lib/supabaseConfig";
+
+const normalizeNextPath = (value: string | null | undefined) => {
+    const nextValue = typeof value === "string" ? value.trim() : "";
+    if (!nextValue.startsWith("/") || nextValue.startsWith("//")) {
+        return null;
+    }
+    return nextValue;
+};
 
 export async function proxy(request: NextRequest) {
     // Forward the pathname so Server Components can read it via headers()
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-pathname", request.nextUrl.pathname);
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const { url: supabaseUrl, anonKey: supabaseAnonKey } = getSupabaseEnv();
 
     // Frontend-only local mode: allow the app to run when Supabase env vars
     // are not available yet. Auth/session behavior stays disabled until env is added.
@@ -50,7 +58,34 @@ export async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
     const isAuthRoute = pathname.startsWith("/auth");
-    const isCallback = pathname.startsWith("/auth/callback");
+    const authReturnTo = normalizeNextPath(request.nextUrl.searchParams.get("next"));
+    const pendingReturnTo = normalizeNextPath(request.cookies.get("auth-return-to")?.value);
+
+    if (isAuthRoute && authReturnTo && authReturnTo !== "/") {
+        supabaseResponse.cookies.set("auth-return-to", authReturnTo, {
+            path: "/",
+            sameSite: "lax",
+        });
+    }
+
+    const hasOAuthParams = (
+        request.nextUrl.searchParams.has("code") ||
+        request.nextUrl.searchParams.has("error") ||
+        request.nextUrl.searchParams.has("error_description")
+    );
+
+    if (
+        pathname === "/" &&
+        hasOAuthParams &&
+        pendingReturnTo &&
+        pendingReturnTo !== "/" &&
+        !pendingReturnTo.startsWith("/auth")
+    ) {
+        const callbackUrl = request.nextUrl.clone();
+        callbackUrl.pathname = "/auth/callback";
+        callbackUrl.searchParams.set("next", pendingReturnTo);
+        return NextResponse.redirect(callbackUrl);
+    }
 
     // --- CHANGE IS HERE ---
     // Humne protectedPrefixes se "/editor" ko hata diya hai
@@ -61,6 +96,8 @@ export async function proxy(request: NextRequest) {
         if (isProtected) {
             const url = request.nextUrl.clone();
             url.pathname = "/auth/signin";
+            const nextPath = `${request.nextUrl.pathname}${request.nextUrl.search}`;
+            url.searchParams.set("next", nextPath || "/");
             return NextResponse.redirect(url);
         }
     }

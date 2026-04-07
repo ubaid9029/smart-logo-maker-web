@@ -12,21 +12,18 @@ export function useEditorSelection({ setActiveObjectPanel, setActiveTool, setSid
   const handleCanvasSelectionChange = useCallback((selectionState) => {
     const nextPrimaryItem = selectionState?.primary || null;
     const nextItems = Array.isArray(selectionState?.items) ? selectionState.items : (nextPrimaryItem ? [nextPrimaryItem] : []);
-    const previousItem = selectedCanvasItemRef.current;
-    const previousKey = previousItem ? `${previousItem.type}:${previousItem.id}` : '';
-    const nextKey = nextPrimaryItem ? `${nextPrimaryItem.type}:${nextPrimaryItem.id}` : '';
-
-    if (nextKey && nextKey !== previousKey) {
-      setActiveObjectPanel('controls');
-    }
 
     selectedCanvasItemRef.current = nextPrimaryItem;
     setSelectedCanvasItem(nextPrimaryItem);
     setSelectedCanvasItems(nextItems);
 
-    if (typeof window !== 'undefined' && window.innerWidth < 1024 && nextPrimaryItem) {
+    if (nextPrimaryItem) {
       setActiveTool(null);
+      setActiveObjectPanel('controls');
       setSidebarOpen(true);
+    } else {
+      setActiveObjectPanel(null);
+      setSidebarOpen(false);
     }
   }, [setActiveObjectPanel, setActiveTool, setSidebarOpen]);
 

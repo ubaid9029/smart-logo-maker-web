@@ -1,5 +1,5 @@
 ﻿'use client';
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { updateFormData } from "../../../store/slices/logoSlice";
 import {
@@ -30,14 +30,14 @@ const Category = ({ onNext, onBack, data, setData }) => {
     setData({ ...data, category: item.name, industry: item.id });
   };
 
-  const handleContinue = () => {
+  const handleContinue = useCallback(() => {
     if (!data?.category || !data?.industry) {
       return;
     }
 
     dispatch(updateFormData({ industryId: data.industry }));
     onNext();
-  };
+  }, [data, dispatch, onNext]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -49,7 +49,7 @@ const Category = ({ onNext, onBack, data, setData }) => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [data?.category, data?.industry]);
+  }, [data?.category, handleContinue]);
 
   return (
     <div className="mx-auto flex h-full w-full max-w-4xl flex-col animate-in fade-in slide-in-from-bottom-6 duration-700 px-2 md:px-3">

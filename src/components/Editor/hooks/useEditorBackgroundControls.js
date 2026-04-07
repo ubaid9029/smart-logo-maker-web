@@ -1,14 +1,34 @@
 "use client";
 
 import { useCallback, useMemo, useState } from 'react';
-import { backgroundLibraryImages, textureLibraryImages } from '../editorConstants';
+import { CARD_HEIGHT, CARD_WIDTH, CARD_X, CARD_Y } from '../editorConstants';
 import {
   applyStyleToTextItem,
+  buildDefaultItemStyle,
+  getCanvasLayerKey,
+  getAssetDisplayLabel,
   buildShadeScale,
   getLinearGradientCss,
   getRadialGradientCss,
   normalizeHexColor,
+  syncCanvasLayerOrder,
 } from '../editorUtils';
+
+const isPaletteStylableLogoItem = (item) => {
+  if (!item || typeof item !== 'object') {
+    return false;
+  }
+
+  if (item.kind === 'line' || item.type === 'line') {
+    return true;
+  }
+
+  if (item.kind === 'shape' || item.type === 'shape') {
+    return true;
+  }
+
+  return typeof item.imageUrl === 'string' && item.imageUrl.startsWith('data:image/svg+xml');
+};
 
 export function useEditorBackgroundControls({
   activeTool,
@@ -16,6 +36,11 @@ export function useEditorBackgroundControls({
   isMobileViewport,
   logoConfig,
   openBackgroundImageBrowser,
+  selectedCanvasItemRef,
+  setActiveObjectPanel,
+  setCanvasSelectionOverride,
+  setSelectedCanvasItem,
+  setSelectedCanvasItems,
   setSidebarOpen,
   urlBgColor,
 }) {
@@ -41,6 +66,10 @@ export function useEditorBackgroundControls({
     title: '',
     items: [],
   });
+  const defaultInsertedAssetWidth = Math.round(CARD_WIDTH * 0.72);
+  const defaultInsertedAssetHeight = Math.round(CARD_HEIGHT * 0.72);
+  const defaultInsertedAssetX = CARD_X + ((CARD_WIDTH - defaultInsertedAssetWidth) / 2);
+  const defaultInsertedAssetY = CARD_Y + ((CARD_HEIGHT - defaultInsertedAssetHeight) / 2);
 
   const closeBackgroundDialogs = useCallback(() => {
     setColorDialogOpen(false);
@@ -77,9 +106,6 @@ export function useEditorBackgroundControls({
       if (!shapeType || shapeType === 'none') {
         return {
           ...prev,
-          bgColor: '#FFFFFF',
-          bgFill: null,
-          bgImageUrl: null,
           backgroundShape: null,
         };
       }
@@ -127,33 +153,52 @@ export function useEditorBackgroundControls({
       return;
     }
 
+    const newId = `logo-${Date.now()}`;
+    const nextSelection = { type: 'logo', id: newId };
+
     applyLogoConfigChange((prev) => ({
       ...prev,
-      bgImageUrl: imageUrl,
-      bgFill: null,
+      logoItems: [
+        ...(prev.logoItems || []),
+        {
+          id: newId,
+          imageUrl,
+          layerLabel: getAssetDisplayLabel(imageUrl, 'Background'),
+          baseWidth: defaultInsertedAssetWidth,
+          baseHeight: defaultInsertedAssetHeight,
+          transform: {
+            x: defaultInsertedAssetX,
+            y: defaultInsertedAssetY,
+            scaleX: 1,
+            scaleY: 1,
+            rotation: 0,
+          },
+          style: buildDefaultItemStyle('#111827'),
+        },
+      ],
+      layerOrder: [
+        ...syncCanvasLayerOrder(prev.layerOrder, prev.logoItems || [], prev.textItems || []),
+        getCanvasLayerKey('logo', newId),
+      ].filter(Boolean),
     }));
-  }, [applyLogoConfigChange]);
 
-  const openAssetPicker = useCallback((type) => {
-    if (type === 'background') {
-      setAssetPickerDialog({
-        open: true,
-        type,
-        title: 'Background Library',
-        items: backgroundLibraryImages,
-      });
-      return;
-    }
-
-    if (type === 'texture') {
-      setAssetPickerDialog({
-        open: true,
-        type,
-        title: 'Texture Library',
-        items: textureLibraryImages,
-      });
-    }
-  }, []);
+    selectedCanvasItemRef.current = nextSelection;
+    setSelectedCanvasItem(nextSelection);
+    setSelectedCanvasItems([nextSelection]);
+    setCanvasSelectionOverride(nextSelection);
+    setActiveObjectPanel('controls');
+  }, [
+    applyLogoConfigChange,
+    selectedCanvasItemRef,
+    setActiveObjectPanel,
+    setCanvasSelectionOverride,
+    setSelectedCanvasItem,
+    setSelectedCanvasItems,
+    defaultInsertedAssetHeight,
+    defaultInsertedAssetWidth,
+    defaultInsertedAssetX,
+    defaultInsertedAssetY,
+  ]);
 
   const handleDialogSelect = useCallback(() => {
     const safeColor = normalizeHexColor(dialogSelectedColor, '#FFFFFF');
@@ -280,15 +325,21 @@ export function useEditorBackgroundControls({
       ...prev,
       textColor: palette.colors[1],
       bgFill: null,
-      logoItems: (prev.logoItems || []).map((item, index) => ({
-        ...item,
-        style: {
-          ...item.style,
-          applyColorOverrides: true,
-          fillColor: palette.colors[index % palette.colors.length],
-          outlineColor: item.style?.outlineWidth > 0 ? palette.colors[(index + 2) % palette.colors.length] : item.style?.outlineColor,
-        },
-      })),
+      logoItems: (prev.logoItems || []).map((item, index) => {
+        if (!isPaletteStylableLogoItem(item)) {
+          return item;
+        }
+
+        return {
+          ...item,
+          style: {
+            ...item.style,
+            applyColorOverrides: true,
+            fillColor: palette.colors[index % palette.colors.length],
+            outlineColor: item.style?.outlineWidth > 0 ? palette.colors[(index + 2) % palette.colors.length] : item.style?.outlineColor,
+          },
+        };
+      }),
       textItems: (prev.textItems || []).map((item, index) => applyStyleToTextItem(item, {
         ...item.style,
         applyColorOverrides: true,

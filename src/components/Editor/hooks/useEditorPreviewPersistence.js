@@ -8,7 +8,14 @@ import {
   renderDataUrlToCanvas,
   triggerBlobDownload,
 } from '../../../lib/downloadAssets';
-import { isAuthRequiredError, saveFavoriteLogo } from '../../../lib/favoriteLogosRepository';
+import { saveTemporaryEditorPayload } from '../../../lib/editorPayloadStorage';
+import {
+  getLogoLibraryUpgradeMessage,
+  isAuthRequiredError,
+  isLogoLibraryUpgradeRequiredError,
+  saveDownloadedLogo,
+  saveSavedLogo,
+} from '../../../lib/favoriteLogosRepository';
 import { saveEditorResumeDraft } from '../../../lib/logoResumeStorage';
 import { createClient } from '../../../lib/supabaseClient';
 import {
@@ -17,6 +24,7 @@ import {
 import { waitForFrames } from '../editorUtils';
 
 const EDITED_LOGO_SESSION_PREFIX = 'edited-logo-session:';
+const EDITOR_DOWNLOAD_PIXEL_RATIO = 5;
 
 const buildScopedStorageKey = (editScopeKey, designId) => (
   editScopeKey
@@ -63,6 +71,35 @@ const resolveThemeColor = (logoConfig) => {
 const resolveBackgroundColor = (logoConfig) => (
   logoConfig?.bgColor || logoConfig?.backgroundColor || '#ffffff'
 );
+
+const readPersistedDraftSnapshot = (editScopeKey, designId) => {
+  if (!designId || typeof window === 'undefined') {
+    return null;
+  }
+
+  const storageKeys = [
+    buildScopedSessionKey(editScopeKey, designId),
+    buildScopedStorageKey(editScopeKey, designId),
+  ];
+
+  for (const storageKey of storageKeys) {
+    try {
+      const isSessionKey = storageKey.startsWith(EDITED_LOGO_SESSION_PREFIX);
+      const storage = isSessionKey ? window.sessionStorage : window.localStorage;
+      const rawValue = storage.getItem(storageKey);
+
+      if (rawValue) {
+        const parsedValue = JSON.parse(rawValue);
+        if (parsedValue && typeof parsedValue === 'object') {
+          return parsedValue;
+        }
+      }
+    } catch {
+    }
+  }
+
+  return null;
+};
 
 const compressPreviewDataUrl = async (previewDataUrl, options = {}) => {
   if (!previewDataUrl) {
@@ -133,6 +170,8 @@ export function useEditorPreviewPersistence({
   initialLogoName,
   initialSloganValue,
   isFavorite,
+  isSaved,
+  isDownloaded,
   sourceContext,
   logoConfig,
   payloadKey,
@@ -151,8 +190,17 @@ export function useEditorPreviewPersistence({
   const [hideCanvasSelectionUi, setHideCanvasSelectionUi] = useState(false);
   const [clipCanvasToCard, setClipCanvasToCard] = useState(false);
   const [savingChanges, setSavingChanges] = useState(false);
+  const isMountedRef = useRef(false);
   const autoSaveTimerRef = useRef(null);
   const authRedirectTimerRef = useRef(null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const redirectToSignIn = useCallback((message = 'Please sign in to download and save edited logos.') => {
     setAuthNotice({
@@ -177,6 +225,31 @@ export function useEditorPreviewPersistence({
     }, 650);
   }, [router]);
 
+  const handleLibrarySyncError = useCallback((error, {
+    authMessage = 'Please sign in to download and save edited logos.',
+    upgradePurpose = 'saved logos can sync',
+  } = {}) => {
+    if (isAuthRequiredError(error)) {
+      if (isMountedRef.current) {
+        redirectToSignIn(authMessage);
+      }
+      return;
+    }
+
+    if (isLogoLibraryUpgradeRequiredError(error)) {
+      if (isMountedRef.current) {
+        setAuthNotice({
+          type: 'info',
+          title: 'Database Upgrade Required',
+          message: getLogoLibraryUpgradeMessage(upgradePurpose),
+        });
+      }
+      return;
+    }
+
+    console.error('Unable to sync logo library record:', error);
+  }, [redirectToSignIn]);
+
   useEffect(() => () => {
     if (authRedirectTimerRef.current) {
       window.clearTimeout(authRedirectTimerRef.current);
@@ -185,10 +258,23 @@ export function useEditorPreviewPersistence({
   }, []);
 
   const ensureSignedIn = useCallback(async () => {
-    const supabase = createClient();
-    const { data } = await supabase.auth.getUser();
+    try {
+      const response = await fetch('/auth/session', {
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      const payload = await response.json();
 
-    if (!data?.user) {
+      if (payload?.user) {
+        return true;
+      }
+    } catch {
+    }
+
+    const supabase = createClient();
+    const { data } = await supabase.auth.getSession();
+
+    if (!data?.session?.user) {
       redirectToSignIn();
       return false;
     }
@@ -241,10 +327,13 @@ export function useEditorPreviewPersistence({
     [logoConfig]
   );
 
-  const syncFavoriteRecord = useCallback(async ({ editablePayload, previewDataUrl, markDownloaded = false } = {}) => {
-    const shouldSyncOnSave = sourceContext === 'favorites';
-
-    if ((!shouldSyncOnSave && !markDownloaded) || !designId) {
+  const syncLibraryRecord = useCallback(async ({
+    editablePayload,
+    previewDataUrl,
+    markSaved = false,
+    markDownloaded = false,
+  } = {}) => {
+    if ((!markSaved && !markDownloaded) || !designId) {
       return null;
     }
 
@@ -253,7 +342,7 @@ export function useEditorPreviewPersistence({
       ? editablePayload
       : buildEditableSavePayload();
 
-    return saveFavoriteLogo({
+    const designRecord = {
       favoriteId: favoriteId || undefined,
       favoriteRowKey: favoriteRowKey || undefined,
       id: designId,
@@ -268,23 +357,40 @@ export function useEditorPreviewPersistence({
       editablePayload: nextEditablePayload,
       previewDataUrl: nextPreviewDataUrl,
       fallbackUrl: sourceImageUrl || null,
+      isFavorite,
+      isSaved,
+      isDownloaded,
       downloadedAt: markDownloaded ? Date.now() : null,
-    }, { markDownloaded });
-  }, [buildEditableSavePayload, designId, favoriteId, favoriteRowKey, initialBusinessValue, initialIndustryLabel, initialLogoName, initialSloganValue, logoConfig, sourceContext, sourceImageUrl]);
+    };
+
+    if (markDownloaded) {
+      return saveDownloadedLogo(designRecord, {
+        isFavorite,
+        isSaved: markSaved || isSaved,
+      });
+    }
+
+    return saveSavedLogo(designRecord, {
+      isFavorite,
+      isDownloaded,
+    });
+  }, [buildEditableSavePayload, designId, favoriteId, favoriteRowKey, initialBusinessValue, initialIndustryLabel, initialLogoName, initialSloganValue, isDownloaded, isFavorite, isSaved, logoConfig, sourceImageUrl]);
 
   const persistDraftSnapshot = useCallback(({ editablePayload, previewDataUrl = null } = {}) => {
     if (!designId || typeof window === 'undefined') {
       return null;
     }
 
+    const existingSnapshot = readPersistedDraftSnapshot(editScopeKey, designId);
     const nextEditablePayload = editablePayload && typeof editablePayload === 'object'
       ? editablePayload
       : buildEditableSavePayload();
+    const resolvedPreviewDataUrl = previewDataUrl || existingSnapshot?.previewDataUrl || null;
     const snapshot = {
       designId,
       editScopeKey,
       previewVersion: 8,
-      previewDataUrl,
+      previewDataUrl: resolvedPreviewDataUrl,
       editablePayload: nextEditablePayload,
       updatedAt: Date.now(),
     };
@@ -317,7 +423,7 @@ export function useEditorPreviewPersistence({
 
     if (payloadKey) {
       try {
-        window.sessionStorage.setItem(payloadKey, JSON.stringify(nextEditablePayload));
+        saveTemporaryEditorPayload(payloadKey, nextEditablePayload);
       } catch {
       }
     }
@@ -336,10 +442,12 @@ export function useEditorPreviewPersistence({
       sourceContext,
       sourceImageUrl: previewDataUrl || sourceImageUrl || '',
       isFavorite,
+      isSaved,
+      isDownloaded,
     });
 
     return snapshot;
-  }, [buildEditableSavePayload, designId, editScopeKey, favoriteId, initialBusinessValue, initialIndustryLabel, initialLogoName, initialSloganValue, isFavorite, payloadKey, returnMode, returnTo, sourceContext, sourceImageUrl]);
+  }, [buildEditableSavePayload, designId, editScopeKey, favoriteId, initialBusinessValue, initialIndustryLabel, initialLogoName, initialSloganValue, isDownloaded, isFavorite, isSaved, payloadKey, returnMode, returnTo, sourceContext, sourceImageUrl]);
 
   const persistEditorChanges = useCallback(async ({ previewDataUrl, editablePayloadOverride, navigate = false, skipFavoriteSync = false } = {}) => {
     if (!designId || typeof window === 'undefined') {
@@ -363,34 +471,45 @@ export function useEditorPreviewPersistence({
       const persistedPreviewDataUrl = storagePreviewDataUrl || nextPreviewImageUrl;
       persistDraftSnapshot({
         editablePayload,
-        previewDataUrl: storagePreviewDataUrl || null,
+        previewDataUrl: persistedPreviewDataUrl,
       });
 
-      if (!skipFavoriteSync && sourceContext === 'favorites') {
-        try {
-          await syncFavoriteRecord({
+      const saveSyncPromise = !skipFavoriteSync
+        ? syncLibraryRecord({
             editablePayload,
             previewDataUrl: persistedPreviewDataUrl,
-          });
-        } catch (error) {
-          if (isAuthRequiredError(error)) {
-            redirectToSignIn();
-            return nextPreviewImageUrl;
-          }
-
-          console.error('Unable to sync favorite logo edits:', error);
-        }
-      }
+            markSaved: true,
+          })
+        : null;
 
       if (navigate) {
-        router.replace(returnTo || '/results');
+        if (saveSyncPromise) {
+          void saveSyncPromise.catch((error) => {
+            handleLibrarySyncError(error, {
+              upgradePurpose: 'saved logos can sync',
+            });
+          });
+        }
+        router.replace('/saved');
+        return nextPreviewImageUrl;
+      }
+
+      if (saveSyncPromise) {
+        try {
+          await saveSyncPromise;
+        } catch (error) {
+          handleLibrarySyncError(error, {
+            upgradePurpose: 'saved logos can sync',
+          });
+          return nextPreviewImageUrl;
+        }
       }
 
       return nextPreviewImageUrl;
     } finally {
       setSavingChanges(false);
     }
-  }, [buildEditableSavePayload, captureEditorPreview, designId, persistDraftSnapshot, redirectToSignIn, returnMode, returnTo, router, sourceContext, syncFavoriteRecord]);
+  }, [buildEditableSavePayload, captureEditorPreview, designId, handleLibrarySyncError, persistDraftSnapshot, router, syncLibraryRecord]);
 
   useEffect(() => {
     if (!designId || typeof window === 'undefined') {
@@ -432,8 +551,13 @@ export function useEditorPreviewPersistence({
   }, [captureEditorPreview, persistEditorChanges]);
 
   const handleSaveDesign = useCallback(async () => {
+    const canSave = await ensureSignedIn();
+    if (!canSave) {
+      return;
+    }
+
     await persistEditorChanges({ navigate: true });
-  }, [persistEditorChanges]);
+  }, [ensureSignedIn, persistEditorChanges]);
 
   const handleOpenDownloadDialog = useCallback(async () => {
     const canDownload = await ensureSignedIn();
@@ -441,9 +565,8 @@ export function useEditorPreviewPersistence({
       return;
     }
 
-    await persistEditorChanges();
     setDownloadDialogOpen(true);
-  }, [ensureSignedIn, persistEditorChanges]);
+  }, [ensureSignedIn]);
 
   const handleEditorDownload = useCallback(async (format) => {
     const stage = stageRef.current;
@@ -461,46 +584,41 @@ export function useEditorPreviewPersistence({
     setDownloadingFormat(format);
 
     try {
-      const pngDataUrl = await captureEditorPreview(4, { hideSelection: true });
+      const pngDataUrl = await captureEditorPreview(EDITOR_DOWNLOAD_PIXEL_RATIO, { hideSelection: true });
       if (!pngDataUrl) {
         return;
       }
 
       const editablePayload = buildEditableSavePayload();
-      await persistEditorChanges({
-        previewDataUrl: pngDataUrl,
-        editablePayloadOverride: editablePayload,
-        skipFavoriteSync: true,
+      const storedPreviewDataUrl = await compressPreviewDataUrl(pngDataUrl);
+      const persistedPreviewDataUrl = storedPreviewDataUrl || pngDataUrl;
+      persistDraftSnapshot({
+        editablePayload,
+        previewDataUrl: persistedPreviewDataUrl,
       });
 
-      try {
-        await syncFavoriteRecord({
-          editablePayload,
-          previewDataUrl: pngDataUrl,
-          markDownloaded: true,
+      void syncLibraryRecord({
+        editablePayload,
+        previewDataUrl: persistedPreviewDataUrl,
+        markDownloaded: true,
+      }).catch((error) => {
+        handleLibrarySyncError(error, {
+          upgradePurpose: 'downloads can sync',
         });
-      } catch (error) {
-        if (isAuthRequiredError(error)) {
-          redirectToSignIn();
-          setDownloadDialogOpen(false);
-          return;
-        }
+      });
 
-        console.error('Unable to sync favorite logo download:', error);
-      }
+      const { canvas } = await renderDataUrlToCanvas(pngDataUrl);
 
       if (format === 'svg') {
         const svgMarkup = [
-          `<svg xmlns="http://www.w3.org/2000/svg" width="700" height="500" viewBox="0 0 700 500" preserveAspectRatio="xMidYMid meet">`,
-          `<image href="${pngDataUrl}" x="0" y="0" width="700" height="500" />`,
+          `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}" preserveAspectRatio="xMidYMid meet">`,
+          `<image href="${pngDataUrl}" x="0" y="0" width="${canvas.width}" height="${canvas.height}" />`,
           '</svg>',
         ].join('');
         triggerBlobDownload(new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' }), `${safeBaseName}.svg`);
         setDownloadDialogOpen(false);
         return;
       }
-
-      const { canvas } = await renderDataUrlToCanvas(pngDataUrl);
 
       if (format === 'png') {
         const blob = await canvasToBlob(canvas, 'image/png');
@@ -533,7 +651,7 @@ export function useEditorPreviewPersistence({
     } finally {
       setDownloadingFormat(null);
     }
-  }, [buildEditableSavePayload, captureEditorPreview, ensureSignedIn, initialBusinessValue, logoConfig?.textItems, persistEditorChanges, redirectToSignIn, stageRef, syncFavoriteRecord]);
+  }, [buildEditableSavePayload, captureEditorPreview, ensureSignedIn, handleLibrarySyncError, initialBusinessValue, logoConfig?.textItems, persistDraftSnapshot, stageRef, syncLibraryRecord]);
 
   return {
     captureEditorPreview,

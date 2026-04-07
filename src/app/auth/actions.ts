@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -9,17 +10,81 @@ import { createClient } from "@/lib/supabaseServer";
 function normalizeNextPath(value: FormDataEntryValue | string | null | undefined) {
     const nextValue = typeof value === "string" ? value.trim() : "";
     if (!nextValue.startsWith("/") || nextValue.startsWith("//")) {
-        return "/";
+        return null;
     }
     return nextValue;
 }
 
+function extractNextFromUrl(urlValue: string | null | undefined) {
+    if (typeof urlValue !== "string" || !urlValue.trim()) {
+        return null;
+    }
+
+    try {
+        const nextUrl = new URL(urlValue);
+        return normalizeNextPath(nextUrl.searchParams.get("next"));
+    } catch {
+        return null;
+    }
+}
+
+async function resolveNextPath(value: FormDataEntryValue | string | null | undefined) {
+    const directNext = normalizeNextPath(value);
+    if (directNext) {
+        return directNext;
+    }
+
+    const headerStore = await headers();
+    const refererNext = extractNextFromUrl(headerStore.get("referer"));
+    if (refererNext) {
+        return refererNext;
+    }
+
+    const cookieStore = await cookies();
+    const cookieNext = normalizeNextPath(cookieStore.get("auth-return-to")?.value);
+    return cookieNext || "/";
+}
+
+function normalizeAuthField(value: FormDataEntryValue | null, mode: "email" | "text" | "password" = "text") {
+    const rawValue = typeof value === "string" ? value : "";
+    if (mode === "password") {
+        return rawValue;
+    }
+
+    const trimmedValue = rawValue.trim();
+    return mode === "email" ? trimmedValue.toLowerCase() : trimmedValue;
+}
+
+async function resolveRequestOrigin() {
+    const headerStore = await headers();
+    const directOrigin = headerStore.get("origin")?.trim();
+
+    if (directOrigin) {
+        return directOrigin;
+    }
+
+    const forwardedProto = headerStore.get("x-forwarded-proto")?.trim() || "http";
+    const forwardedHost = headerStore.get("x-forwarded-host")?.trim();
+    const host = forwardedHost || headerStore.get("host")?.trim();
+
+    if (!host) {
+        return null;
+    }
+
+    return `${forwardedProto}://${host}`;
+}
+
 export async function signIn(formData: FormData) {
     const supabase = await createClient();
+    const cookieStore = await cookies();
 
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
-    const next = normalizeNextPath(formData.get("next"));
+    const email = normalizeAuthField(formData.get("email"), "email");
+    const password = normalizeAuthField(formData.get("password"), "password");
+    const next = await resolveNextPath(formData.get("next"));
+
+    if (!email || !password) {
+        redirect(`/auth/signin?error=${encodeURIComponent("Please enter both email and password.")}&next=${encodeURIComponent(next)}`);
+    }
 
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
@@ -28,32 +93,39 @@ export async function signIn(formData: FormData) {
     }
 
     revalidatePath("/", "layout");
+    cookieStore.set("auth-return-to", "", { path: "/", maxAge: 0 });
+    cookieStore.set("oauth-return-to", "", { path: "/", maxAge: 0 });
     redirect(next);
 }
 
 export async function signUp(formData: FormData) {
     const supabase = await createClient();
-    const origin = (await headers()).get("origin");
+    const origin = await resolveRequestOrigin();
+    const next = await resolveNextPath(formData.get("next"));
 
-    const fullName = formData.get("fullName") as string;
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
+    const fullName = normalizeAuthField(formData.get("fullName"), "text");
+    const email = normalizeAuthField(formData.get("email"), "email");
+    const password = normalizeAuthField(formData.get("password"), "password");
+
+    if (!fullName || !email || !password) {
+        redirect(`/auth/signup?error=${encodeURIComponent("Please fill in all required fields.")}&next=${encodeURIComponent(next)}`);
+    }
 
     const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
             data: { full_name: fullName },
-            emailRedirectTo: origin ? `${origin}/auth/callback` : undefined,
+            emailRedirectTo: origin ? `${origin}/auth/callback?next=${encodeURIComponent(next)}` : undefined,
         },
     });
 
     if (error) {
-        redirect(`/auth/signup?error=${encodeURIComponent(error.message)}`);
+        redirect(`/auth/signup?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`);
     }
 
     revalidatePath("/", "layout");
-    redirect("/auth/signup?message=Check+your+email+to+confirm+your+account.");
+    redirect(`/auth/signup?message=${encodeURIComponent("Check your email to confirm your account before signing in.")}&next=${encodeURIComponent(next)}`);
 }
 
 export async function signOut() {
@@ -65,14 +137,23 @@ export async function signOut() {
 
 export async function signInWithGoogle(formData: FormData) {
     const supabase = await createClient();
-    const origin = (await headers()).get("origin");
-    const next = normalizeNextPath(formData.get("next"));
+    const origin = await resolveRequestOrigin();
+    const next = await resolveNextPath(formData.get("next"));
+    const cookieStore = await cookies();
+
+    if (next === "/") {
+        cookieStore.set("auth-return-to", "", { path: "/", maxAge: 0 });
+        cookieStore.set("oauth-return-to", "", { path: "/", maxAge: 0 });
+    } else {
+        cookieStore.set("auth-return-to", next, { path: "/", sameSite: "lax" });
+        cookieStore.set("oauth-return-to", next, { path: "/", sameSite: "lax", maxAge: 600 });
+    }
 
     try {
         const { data, error } = await supabase.auth.signInWithOAuth({
             provider: "google",
             options: {
-                redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
+                redirectTo: origin ? `${origin}/auth/callback?next=${encodeURIComponent(next)}` : undefined,
             },
         });
 
@@ -105,8 +186,13 @@ export async function signInWithGoogle(formData: FormData) {
 
 export async function requestPasswordReset(formData: FormData) {
     const supabase = await createClient();
-    const email = formData.get("email") as string;
-    const origin = (await headers()).get("origin");
+    const email = normalizeAuthField(formData.get("email"), "email");
+    const origin = await resolveRequestOrigin();
+    const next = await resolveNextPath(formData.get("next"));
+
+    if (!email) {
+        redirect(`/auth/forgot-password?error=${encodeURIComponent("Please enter your email address.")}&next=${encodeURIComponent(next)}`);
+    }
 
     const redirectTo = origin ? `${origin}/auth/update-password` : undefined;
 
@@ -116,8 +202,8 @@ export async function requestPasswordReset(formData: FormData) {
     );
 
     if (error) {
-        redirect(`/auth/forgot-password?error=${encodeURIComponent(error.message)}`);
+        redirect(`/auth/forgot-password?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`);
     }
 
-    redirect("/auth/forgot-password?message=Check+your+email+for+the+password+reset+link.");
+    redirect(`/auth/forgot-password?message=${encodeURIComponent("Check your email for the password reset link.")}&next=${encodeURIComponent(next)}`);
 }

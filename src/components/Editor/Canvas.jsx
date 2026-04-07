@@ -1,8 +1,8 @@
 "use client";
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Group, Image as KonvaImage, Layer, Line, Rect, Shape as KonvaShape, Stage, Text, Transformer } from 'react-konva';
 import useImage from 'use-image';
-import { getTextBlockMetrics } from './editorUtils';
+import { applySvgPresentationToMarkup, clampTransformToCard, getEditorTextValue, getOrderedCanvasItems, getTextBlockMetrics, getTextTypography, isBackgroundCanvasItem, syncCanvasLayerOrder } from './editorUtils';
 
 const CANVAS_WIDTH = 700;
 const CANVAS_HEIGHT = 500;
@@ -82,24 +82,12 @@ const getRadialGradientPoints = (angle, width, height) => {
   };
 };
 
-const getCombinedTextValue = (businessValue, sloganValue) => {
-  const safeBusiness = (businessValue || '').trim();
-  const safeSlogan = (sloganValue || '').trim();
-
-  if (!safeBusiness) {
-    return safeSlogan || 'BRAND';
-  }
-
-  return safeSlogan ? `${safeBusiness} | ${safeSlogan}` : safeBusiness;
-};
-
 const getTextRenderValue = (item = {}) => {
-  const directText = typeof item.text === 'string' ? item.text.trim() : '';
-  if (directText) {
-    return directText;
+  if (typeof item.text === 'string') {
+    return item.text.replace(/\r?\n/g, ' ');
   }
 
-  return getCombinedTextValue(item.businessValue, item.sloganValue);
+  return getEditorTextValue(item);
 };
 
 const getTextNodeMetrics = (item = {}) => {
@@ -128,17 +116,25 @@ const getCanvasItemSize = (item, type) => {
   };
 };
 
+const getScaledCanvasItemSize = (item, type, transformOverride = null) => {
+  const transform = transformOverride || item.transform || {};
+  const { width, height } = getCanvasItemSize(item, type);
+
+  return {
+    width: width * Math.abs(Number(transform.scaleX ?? 1)),
+    height: height * Math.abs(Number(transform.scaleY ?? 1)),
+  };
+};
+
 const getItemBox = (item, type) => {
   const transform = item.transform || {};
-  const { width, height } = getCanvasItemSize(item, type);
-  const scaleX = Math.abs(Number(transform.scaleX ?? 1));
-  const scaleY = Math.abs(Number(transform.scaleY ?? 1));
+  const { width, height } = getScaledCanvasItemSize(item, type, transform);
 
   return {
     x: Number(transform.x ?? 0),
     y: Number(transform.y ?? 0),
-    width: width * scaleX,
-    height: height * scaleY,
+    width,
+    height,
   };
 };
 
@@ -169,16 +165,13 @@ const getCombinedBox = (items) => {
   }
 
   const boxes = items.map(({ item, type, x, y }) => {
-    const transform = item.transform || {};
-    const { width, height } = getCanvasItemSize(item, type);
-    const scaleX = Math.abs(Number(transform.scaleX ?? 1));
-    const scaleY = Math.abs(Number(transform.scaleY ?? 1));
+    const { width, height } = getScaledCanvasItemSize(item, type, item.transform || {});
 
     return {
       x,
       y,
-      width: width * scaleX,
-      height: height * scaleY,
+      width,
+      height,
     };
   });
 
@@ -248,16 +241,88 @@ const getClosestGuide = (lineGuideStops, itemBounds, threshold = 6) => {
 };
 
 const clampCanvasItemPosition = (item, type, position) => {
-  const transform = item.transform || {};
-  const { width, height } = getCanvasItemSize(item, type);
-  const scaleX = Math.abs(Number(transform.scaleX ?? 1));
-  const scaleY = Math.abs(Number(transform.scaleY ?? 1));
-  const maxX = Math.max(0, CANVAS_WIDTH - (width * scaleX));
-  const maxY = Math.max(0, CANVAS_HEIGHT - (height * scaleY));
+  return {
+    x: Number(position?.x ?? 0),
+    y: Number(position?.y ?? 0),
+  };
+};
+
+const parseEditorColor = (value) => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const hexMatch = normalized.match(/^#([\da-f]{3,8})$/i);
+  if (hexMatch) {
+    const rawHex = hexMatch[1];
+    const expandedHex = rawHex.length === 3 || rawHex.length === 4
+      ? rawHex.split('').map((char) => char + char).join('')
+      : rawHex;
+
+    if (expandedHex.length === 6 || expandedHex.length === 8) {
+      return {
+        r: parseInt(expandedHex.slice(0, 2), 16),
+        g: parseInt(expandedHex.slice(2, 4), 16),
+        b: parseInt(expandedHex.slice(4, 6), 16),
+        a: expandedHex.length === 8 ? parseInt(expandedHex.slice(6, 8), 16) / 255 : 1,
+      };
+    }
+  }
+
+  const rgbMatch = normalized.match(/^rgba?\(([^)]+)\)$/i);
+  if (rgbMatch) {
+    const [r = 0, g = 0, b = 0, a = 1] = rgbMatch[1]
+      .split(',')
+      .map((part) => Number(part.trim()));
+
+    return {
+      r: Math.max(0, Math.min(255, r)),
+      g: Math.max(0, Math.min(255, g)),
+      b: Math.max(0, Math.min(255, b)),
+      a: Number.isFinite(a) ? Math.max(0, Math.min(1, a)) : 1,
+    };
+  }
+
+  return null;
+};
+
+const getInlineEditorTheme = (textColor) => {
+  const parsed = parseEditorColor(textColor);
+
+  if (!parsed) {
+    return {
+      backgroundColor: 'rgba(255,255,255,0.96)',
+      borderColor: 'rgba(251,146,60,0.6)',
+      ringColor: 'rgba(254,215,170,0.85)',
+      shadowColor: 'rgba(15,23,42,0.18)',
+      textShadow: 'none',
+    };
+  }
+
+  const brightness = ((parsed.r * 299) + (parsed.g * 587) + (parsed.b * 114)) / 1000;
+  const isLightText = parsed.a < 0.45 || brightness > 205;
+
+  if (isLightText) {
+    return {
+      backgroundColor: 'rgba(15,23,42,0.92)',
+      borderColor: 'rgba(255,255,255,0.22)',
+      ringColor: 'rgba(59,130,246,0.26)',
+      shadowColor: 'rgba(15,23,42,0.42)',
+      textShadow: '0 1px 1px rgba(15,23,42,0.58)',
+    };
+  }
 
   return {
-    x: Math.min(Math.max(position.x, 0), maxX),
-    y: Math.min(Math.max(position.y, 0), maxY),
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    borderColor: 'rgba(251,146,60,0.6)',
+    ringColor: 'rgba(254,215,170,0.85)',
+    shadowColor: 'rgba(15,23,42,0.18)',
+    textShadow: 'none',
   };
 };
 
@@ -339,9 +404,10 @@ const getBackgroundFillProps = (bgColor, bgFill, width, height) => {
   return { fill: bgColor || '#FFFFFF' };
 };
 
-const getBackgroundShapeGeometry = (shapeType, cardX, cardY, cardWidth, cardHeight) => {
+const getBackgroundShapeGeometry = (shapeType, cardX, cardY, cardWidth, cardHeight, options = {}) => {
   const centerX = cardX + (cardWidth / 2);
   const centerY = cardY + (cardHeight / 2);
+  const requestedCornerRadius = Math.max(0, Number(options.cornerRadius ?? 28));
   const createRegularPolygonPoints = (sides, radius, rotationOffset = -Math.PI / 2) => {
     const points = [];
     for (let index = 0; index < sides; index += 1) {
@@ -352,7 +418,14 @@ const getBackgroundShapeGeometry = (shapeType, cardX, cardY, cardWidth, cardHeig
   };
 
   if (shapeType === 'full') {
-    return { kind: 'rect', x: cardX, y: cardY, width: cardWidth, height: cardHeight, cornerRadius: 40 };
+    return {
+      kind: 'rect',
+      x: cardX,
+      y: cardY,
+      width: cardWidth,
+      height: cardHeight,
+      cornerRadius: Math.min(requestedCornerRadius || 40, cardWidth / 2, cardHeight / 2),
+    };
   }
 
   if (shapeType === 'rectangle') {
@@ -364,7 +437,7 @@ const getBackgroundShapeGeometry = (shapeType, cardX, cardY, cardWidth, cardHeig
       y: centerY - (height / 2),
       width,
       height,
-      cornerRadius: 28,
+      cornerRadius: Math.min(requestedCornerRadius, width / 2, height / 2),
     };
   }
 
@@ -495,6 +568,72 @@ const traceBackgroundShapePath = (context, geometry) => {
   }
 };
 
+function ShapeGeometryNode({
+  geometry,
+  fillColor,
+  strokeColor,
+  strokeWidth = 4,
+  opacity = 1,
+  nodeName,
+}) {
+  if (!geometry) {
+    return null;
+  }
+
+  const fillProps = fillColor && fillColor !== 'transparent'
+    ? { fill: fillColor }
+    : { fillEnabled: false };
+
+  if (geometry.kind === 'rect') {
+    return (
+      <Rect
+        x={geometry.x}
+        y={geometry.y}
+        width={geometry.width}
+        height={geometry.height}
+        cornerRadius={geometry.cornerRadius}
+        {...fillProps}
+        stroke={strokeColor}
+        strokeWidth={strokeWidth}
+        opacity={opacity}
+        name={nodeName}
+      />
+    );
+  }
+
+  if (geometry.kind === 'line') {
+    return (
+      <Line
+        points={geometry.points}
+        closed
+        {...fillProps}
+        stroke={strokeColor}
+        strokeWidth={strokeWidth}
+        opacity={opacity}
+        name={nodeName}
+      />
+    );
+  }
+
+  if (geometry.kind === 'heart') {
+    return (
+      <KonvaShape
+        {...fillProps}
+        stroke={strokeColor}
+        strokeWidth={strokeWidth}
+        opacity={opacity}
+        name={nodeName}
+        sceneFunc={(context, currentShape) => {
+          traceBackgroundShapePath(context, geometry);
+          context.fillStrokeShape(currentShape);
+        }}
+      />
+    );
+  }
+
+  return null;
+}
+
 function BackgroundDecoration({
   shape,
   cardX,
@@ -511,121 +650,47 @@ function BackgroundDecoration({
     ? shape.fillColor
     : undefined;
   const stroke = shape.strokeColor || fillColor || '#111111';
-  const strokeWidth = 4;
-  const opacity = Math.max(0.05, Math.min(1, Number(backgroundOpacity ?? 1)));
+  const strokeWidth = Math.max(1, Number(shape.strokeWidth || 4));
+  const opacity = Math.max(
+    0.05,
+    Math.min(1, Number(shape.opacity ?? 1) * Number(backgroundOpacity ?? 1))
+  );
+
+  if (shape.transform && (shape.baseWidth || shape.baseHeight)) {
+    const width = Number(shape.baseWidth || 220) * Math.abs(Number(shape.transform.scaleX ?? 1));
+    const height = Number(shape.baseHeight || 160) * Math.abs(Number(shape.transform.scaleY ?? 1));
+    const geometry = getBackgroundShapeGeometry(shape.type, 0, 0, width, height);
+
+    return (
+      <Group
+        x={Number(shape.transform.x ?? cardX)}
+        y={Number(shape.transform.y ?? cardY)}
+        rotation={Number(shape.transform.rotation ?? 0)}
+      >
+        <ShapeGeometryNode
+          geometry={geometry}
+          fillColor={fillColor}
+          strokeColor={stroke}
+          strokeWidth={strokeWidth}
+          opacity={opacity}
+          nodeName="card-background"
+        />
+      </Group>
+    );
+  }
+
   const geometry = getBackgroundShapeGeometry(shape.type, cardX, cardY, cardWidth, cardHeight);
-  const fillProps = fillColor ? { fill: fillColor } : { fillEnabled: false };
-
-  if (!geometry) {
-    return null;
-  }
-
-  const renderShapeNode = (extraProps = {}, fillOverrides = fillProps) => {
-    if (geometry.kind === 'rect') {
-      return (
-        <Rect
-          x={geometry.x}
-          y={geometry.y}
-          width={geometry.width}
-          height={geometry.height}
-          cornerRadius={geometry.cornerRadius}
-          {...fillOverrides}
-          stroke={stroke}
-          strokeWidth={strokeWidth}
-          opacity={opacity}
-          name="card-background"
-          {...extraProps}
-        />
-      );
-    }
-
-    if (geometry.kind === 'line') {
-      return (
-        <Line
-          points={geometry.points}
-          closed
-          {...fillOverrides}
-          stroke={stroke}
-          strokeWidth={strokeWidth}
-          opacity={opacity}
-          name="card-background"
-          {...extraProps}
-        />
-      );
-    }
-
-    if (geometry.kind === 'heart') {
-      return (
-        <KonvaShape
-          {...fillOverrides}
-          stroke={stroke}
-          strokeWidth={strokeWidth}
-          opacity={opacity}
-          name="card-background"
-          {...extraProps}
-          sceneFunc={(context, currentShape) => {
-            traceBackgroundShapePath(context, geometry);
-            context.fillStrokeShape(currentShape);
-          }}
-        />
-      );
-    }
-
-    return null;
-  };
-
-  return renderShapeNode();
+  return (
+    <ShapeGeometryNode
+      geometry={geometry}
+      fillColor={fillColor}
+      strokeColor={stroke}
+      strokeWidth={strokeWidth}
+      opacity={opacity}
+      nodeName="card-background"
+    />
+  );
 }
-
-const restyleSvgMarkup = (svgMarkup, style = {}) => {
-  if (!svgMarkup) {
-    return null;
-  }
-
-  const targetColor = style.targetColor || style.fillColor || style.outlineColor || '#111827';
-  const shapePattern = /<(path|circle|ellipse|polygon|polyline|rect|line)\b([^>]*)>/g;
-  const nextSvgMarkup = svgMarkup.replace(shapePattern, (match, tagName, attrs) => {
-    let nextAttrs = attrs;
-    const hasVisibleFill = /fill="(?!none)[^"]*"/.test(nextAttrs);
-    const hasFillNone = /fill="none"/.test(nextAttrs);
-    const hasVisibleStroke = /stroke="(?!none)[^"]*"/.test(nextAttrs);
-    const hasStrokeNone = /stroke="none"/.test(nextAttrs);
-    const hasStrokeWidth = /stroke-width="[^"]*"/.test(nextAttrs);
-
-    if (hasVisibleFill) {
-      nextAttrs = nextAttrs.replace(/fill="(?!none)[^"]*"/g, `fill="${targetColor}"`);
-    } else if (!hasFillNone && tagName !== 'line' && tagName !== 'polyline') {
-      nextAttrs += ` fill="${targetColor}"`;
-    }
-
-    // Stroke-only icons disappear if we remove or nullify their strokes.
-    if (hasVisibleStroke || hasFillNone || hasStrokeNone || tagName === 'line' || tagName === 'polyline') {
-      if (/stroke="[^"]*"/.test(nextAttrs)) {
-        nextAttrs = nextAttrs.replace(/stroke="[^"]*"/g, `stroke="${targetColor}"`);
-      } else {
-        nextAttrs += ` stroke="${targetColor}"`;
-      }
-
-      if (!hasStrokeWidth) {
-        nextAttrs += ' stroke-width="1.5"';
-      }
-    }
-
-    return `<${tagName}${nextAttrs}>`;
-  });
-
-  return nextSvgMarkup.replace(/<svg\b([^>]*)>/, (match, attrs) => {
-    let nextAttrs = attrs;
-
-    if (/overflow="[^"]*"/.test(nextAttrs)) {
-      nextAttrs = nextAttrs.replace(/overflow="[^"]*"/, 'overflow="visible"');
-    } else {
-      nextAttrs += ' overflow="visible"';
-    }
-
-    return `<svg${nextAttrs}>`;
-  });
-};
 
 function LogoNode({
   item,
@@ -648,28 +713,31 @@ function LogoNode({
     rotation: Number(item.rotation || 0),
   };
   const isLineNode = item.kind === 'line' || item.type === 'line';
+  const isShapeNode = item.kind === 'shape' || item.type === 'shape';
   const outlineWidth = Math.max(0, Number(item.style?.outlineWidth || 0));
+  const decodedSvgMarkup = useMemo(
+    () => decodeSvgDataUri(item.imageUrl || ""),
+    [item.imageUrl]
+  );
   const styledImageUrl = useMemo(() => {
-    if (isLineNode) {
+    if (isLineNode || isShapeNode) {
       return "";
     }
 
-    if (!item.style?.applyColorOverrides || !item.style?.fillColor) {
+    if (!item.style?.applyColorOverrides || !decodedSvgMarkup) {
       return item.imageUrl || "";
     }
 
-    const svgMarkup = decodeSvgDataUri(item.imageUrl || "");
-    if (!svgMarkup) {
-      return item.imageUrl || "";
-    }
-
-    const nextSvgMarkup = restyleSvgMarkup(svgMarkup, {
-      targetColor: item.style?.fillColor || '#111827',
+    const nextSvgMarkup = applySvgPresentationToMarkup(decodedSvgMarkup, {
+      ...item.style,
+      fillColor: item.style?.fillColor || undefined,
+      outlineColor: item.style?.outlineColor || undefined,
+      outlineWidth,
     });
     return nextSvgMarkup ? encodeSvgDataUri(nextSvgMarkup) : item.imageUrl || "";
-  }, [isLineNode, item.imageUrl, item.style]);
+  }, [decodedSvgMarkup, isLineNode, isShapeNode, item.imageUrl, item.style, outlineWidth]);
   const outlineImageUrl = useMemo(() => {
-    if (isLineNode || !outlineWidth || !item.style?.applyColorOverrides || !item.style?.outlineColor) {
+    if (decodedSvgMarkup || isLineNode || isShapeNode || !outlineWidth || !item.style?.applyColorOverrides || !item.style?.outlineColor) {
       return "";
     }
 
@@ -682,7 +750,7 @@ function LogoNode({
       targetColor: item.style?.outlineColor || '#111827',
     });
     return nextSvgMarkup ? encodeSvgDataUri(nextSvgMarkup) : "";
-  }, [isLineNode, item.imageUrl, item.style, outlineWidth]);
+  }, [decodedSvgMarkup, isLineNode, isShapeNode, item.imageUrl, item.style, outlineWidth]);
   const [img] = useImage(styledImageUrl || "");
   const [outlineImg] = useImage(outlineImageUrl || "");
   const transform3d = get3dTransforms(item.style);
@@ -690,7 +758,7 @@ function LogoNode({
   let imageWidth = Number(item.baseWidth || item.width || 220);
   let imageHeight = Number(item.baseHeight || item.height || 160);
 
-  if (!isLineNode && !(item.baseWidth || item.width) && img?.width && img?.height) {
+  if (!isLineNode && !isShapeNode && !(item.baseWidth || item.width) && img?.width && img?.height) {
     const maxLogoWidth = 280;
     const maxLogoHeight = 200;
     const logoScale = Math.min(maxLogoWidth / img.width, maxLogoHeight / img.height);
@@ -699,12 +767,10 @@ function LogoNode({
   }
   const actualScaleX = transform.scaleX || 1;
   const actualScaleY = transform.scaleY || 1;
-  const maxX = Math.max(0, CANVAS_WIDTH - (imageWidth * Math.abs(actualScaleX)));
-  const maxY = Math.max(0, CANVAS_HEIGHT - (imageHeight * Math.abs(actualScaleY)));
 
-  const getBoundedPosition = (position) => ({
-    x: Math.min(Math.max(position.x, 0), maxX),
-    y: Math.min(Math.max(position.y, 0), maxY),
+  const getFreePosition = (position) => ({
+    x: Number(position?.x ?? 0),
+    y: Number(position?.y ?? 0),
   });
 
   const getTransformPayload = (event) => ({
@@ -732,14 +798,14 @@ function LogoNode({
         onNodeDragStart?.(event, item, 'logo');
       }}
       onDragMove={(event) => {
-        event.target.position(getBoundedPosition({
+        event.target.position(getFreePosition({
           x: event.target.x(),
           y: event.target.y(),
         }));
         onNodeDragMove?.(event, item, 'logo');
       }}
       onDragEnd={(event) => {
-        event.target.position(getBoundedPosition({
+        event.target.position(getFreePosition({
           x: event.target.x(),
           y: event.target.y(),
         }));
@@ -803,6 +869,35 @@ function LogoNode({
               lineCap="round"
             />
           </>
+        ) : isShapeNode ? (
+          <>
+            {selected && (
+              <Rect
+                x={-10}
+                y={-10}
+                width={imageWidth + 20}
+                height={imageHeight + 20}
+                stroke="#2563EB"
+                strokeWidth={2}
+                dash={[8, 5]}
+                cornerRadius={14}
+              />
+            )}
+            <ShapeGeometryNode
+              geometry={getBackgroundShapeGeometry(
+                item.shapeType || 'rectangle',
+                0,
+                0,
+                imageWidth,
+                imageHeight,
+                { cornerRadius: item.style?.cornerRadius }
+              )}
+              fillColor={item.style?.fillColor || '#F8FAFC'}
+              strokeColor={item.style?.outlineColor || '#111827'}
+              strokeWidth={Math.max(1, Number(item.style?.outlineWidth || 4))}
+              opacity={nodeOpacity}
+            />
+          </>
         ) : (
           <>
             {selected && (
@@ -854,7 +949,9 @@ function TextNode({
   fontFamily,
   textColor,
   selected,
+  isInlineEditing,
   onSelect,
+  onStartInlineEdit,
   onTransformChange,
   onTransformPreview,
   onTransformFinish,
@@ -877,12 +974,10 @@ function TextNode({
   const [svgTextImage] = useImage(shouldRenderSvgText ? item.svgDataUri : '');
   const transform3d = get3dTransforms(item.style);
   const nodeOpacity = Math.max(0.05, Math.min(1, Number(item.opacity ?? 1)));
-  const resolvedFontFamily = item.fontFamily || fontFamily || 'Arial';
+  const typography = getTextTypography(item, { fontFamily, fontSize });
+  const resolvedFontFamily = typography.fontFamily;
   const actualScaleX = transform.scaleX || 1;
   const actualScaleY = transform.scaleY || 1;
-  const maxX = Math.max(0, CANVAS_WIDTH - (blockWidth * Math.abs(actualScaleX)));
-  const maxY = Math.max(0, CANVAS_HEIGHT - (blockHeight * Math.abs(actualScaleY)));
-
   useEffect(() => {
     if (
       typeof window === 'undefined' ||
@@ -923,8 +1018,8 @@ function TextNode({
   }, [item.fontUrl, resolvedFontFamily]);
 
   const getBoundedPosition = (position) => ({
-    x: Math.min(Math.max(position.x, 0), maxX),
-    y: Math.min(Math.max(position.y, 0), maxY),
+    x: Number(position?.x ?? 0),
+    y: Number(position?.y ?? 0),
   });
 
   const getTransformPayload = (event) => ({
@@ -943,9 +1038,17 @@ function TextNode({
       scaleX={actualScaleX}
       scaleY={actualScaleY}
       rotation={transform.rotation || 0}
-      draggable
+      draggable={!isInlineEditing}
       onClick={(event) => onSelect(event)}
       onTap={(event) => onSelect(event)}
+      onDblClick={(event) => {
+        onSelect(event);
+        onStartInlineEdit?.(item.id);
+      }}
+      onDblTap={(event) => {
+        onSelect(event);
+        onStartInlineEdit?.(item.id);
+      }}
       onDragStart={(event) => {
         onSelect(event);
         setCursor('grabbing');
@@ -993,7 +1096,7 @@ function TextNode({
         scaleY={transform3d.scaleYMultiplier}
         rotation={transform3d.rotateZ}
       >
-        {selected && (
+        {selected && !isInlineEditing && (
           <Rect
             x={-10}
             y={-10}
@@ -1006,7 +1109,7 @@ function TextNode({
           />
         )}
         {shouldRenderSvgText && svgTextImage ? (
-          <KonvaImage image={svgTextImage} width={blockWidth} height={blockHeight} opacity={nodeOpacity} />
+          <KonvaImage image={svgTextImage} width={blockWidth} height={blockHeight} opacity={isInlineEditing ? 0 : nodeOpacity} />
         ) : (
           <Text
             key={`${item.id}-${fontRenderVersion}`}
@@ -1015,14 +1118,15 @@ function TextNode({
             height={blockHeight}
             fontSize={fontSize}
             fontFamily={resolvedFontFamily}
-            fontStyle={item.fontStyle || "normal"}
+            fontStyle={typography.konvaFontStyle}
+            lineHeight={typography.lineHeight || undefined}
             fill={item.style?.fillColor || item.fill || textColor || '#1F2937'}
             stroke={Number(item.style?.outlineWidth || 0) > 0 ? item.style?.outlineColor || '#111827' : undefined}
             strokeWidth={Number(item.style?.outlineWidth || 0)}
             align={item.align || "center"}
             verticalAlign="middle"
             letterSpacing={Number(item.letterSpacing || 0)}
-            opacity={nodeOpacity}
+            opacity={isInlineEditing ? 0 : nodeOpacity}
           />
         )}
       </Group>
@@ -1034,6 +1138,8 @@ export default function Canvas({
   config = {},
   onConfigChange,
   onSelectionChange,
+  onTextEditCommit,
+  inlineTextEditRequest = null,
   selectionOverride,
   clearSelectionToken = 0,
   stageRef: externalStageRef = null,
@@ -1045,11 +1151,16 @@ export default function Canvas({
   const transformerRef = useRef(null);
   const nodeMapRef = useRef({});
   const dragSelectionRef = useRef(null);
+  const inlineEditorInputRef = useRef(null);
+  const inlineEditBlurModeRef = useRef(null);
+  const handledInlineRequestRef = useRef(null);
   const [dimensions, setDimensions] = useState({ width: 700, height: 500, scale: 1 });
   const [selectedItem, setSelectedItem] = useState(null);
   const [selectedItems, setSelectedItems] = useState([]);
   const [guideLines, setGuideLines] = useState({ vertical: [], horizontal: [] });
   const [rotationInfo, setRotationInfo] = useState(null);
+  const [inlineEditor, setInlineEditor] = useState(null);
+  const [inlineEditorLayout, setInlineEditorLayout] = useState(null);
   const [backgroundImage] = useImage(config.bgImageUrl || '');
 
   const canvasWidth = CANVAS_WIDTH;
@@ -1061,6 +1172,22 @@ export default function Canvas({
 
   const logoItems = useMemo(() => config.logoItems || [], [config.logoItems]);
   const textItems = useMemo(() => config.textItems || [], [config.textItems]);
+  const layerOrder = useMemo(
+    () => syncCanvasLayerOrder(config.layerOrder, logoItems, textItems),
+    [config.layerOrder, logoItems, textItems]
+  );
+  const orderedCanvasItems = useMemo(
+    () => getOrderedCanvasItems(logoItems, textItems, layerOrder),
+    [layerOrder, logoItems, textItems]
+  );
+  const orderedBackgroundCanvasItems = useMemo(
+    () => orderedCanvasItems.filter(({ type, item }) => type === 'logo' && isBackgroundCanvasItem(item)),
+    [orderedCanvasItems]
+  );
+  const orderedForegroundCanvasItems = useMemo(
+    () => orderedCanvasItems.filter(({ type, item }) => !(type === 'logo' && isBackgroundCanvasItem(item))),
+    [orderedCanvasItems]
+  );
   const backgroundShape = useMemo(() => config.backgroundShape || null, [config.backgroundShape]);
   const backgroundOpacity = useMemo(() => Math.max(0.05, Math.min(1, Number(config.bgOpacity ?? 1))), [config.bgOpacity]);
   const backgroundImageCrop = useMemo(() => {
@@ -1077,6 +1204,14 @@ export default function Canvas({
   const viewportHeight = cardHeight * dimensions.scale * zoom;
   const viewportOffsetX = cardX * dimensions.scale * zoom;
   const viewportOffsetY = cardY * dimensions.scale * zoom;
+  const inlineEditingItem = inlineEditor?.id
+    ? textItems.find((item) => item.id === inlineEditor.id) || null
+    : null;
+  const selectionUiHidden = hideSelectionUi || Boolean(inlineEditor);
+  const inlineEditorTheme = useMemo(
+    () => getInlineEditorTheme(inlineEditorLayout?.color),
+    [inlineEditorLayout?.color]
+  );
 
   const setCursor = (value) => {
     if (containerRef.current) {
@@ -1097,12 +1232,59 @@ export default function Canvas({
     setRotationInfo(null);
   };
 
+  const closeInlineEditor = useCallback(() => {
+    inlineEditBlurModeRef.current = null;
+    setInlineEditor(null);
+  }, []);
+
+  const commitInlineEditor = useCallback(() => {
+    if (!inlineEditor?.id) {
+      closeInlineEditor();
+      return;
+    }
+
+    const nextValue = typeof inlineEditor.value === 'string' ? inlineEditor.value.trim() : '';
+    if (nextValue) {
+      onTextEditCommit?.(inlineEditor.id, nextValue);
+    }
+
+    if (inlineEditor.clearSelectionOnCommit) {
+      setSelectedItem(null);
+      setSelectedItems([]);
+    }
+
+    closeInlineEditor();
+  }, [closeInlineEditor, inlineEditor, onTextEditCommit]);
+
+  const startInlineEditor = useCallback((itemId) => {
+    const targetItem = textItems.find((item) => item.id === itemId);
+    if (!targetItem) {
+      return;
+    }
+
+    const currentValue = getTextRenderValue(targetItem);
+    setInlineEditor((previousValue) => {
+      if (previousValue?.id && previousValue.id !== itemId) {
+        const safePrevious = typeof previousValue.value === 'string' ? previousValue.value.trim() : '';
+        if (safePrevious) {
+          onTextEditCommit?.(previousValue.id, safePrevious);
+        }
+      }
+
+      return {
+        id: itemId,
+        value: currentValue,
+        clearSelectionOnCommit: Boolean(inlineTextEditRequest?.clearSelectionOnCommit && inlineTextEditRequest?.id === itemId),
+      };
+    });
+  }, [inlineTextEditRequest?.clearSelectionOnCommit, inlineTextEditRequest?.id, onTextEditCommit, textItems]);
+
   useEffect(() => {
     if (!transformerRef.current) {
       return;
     }
 
-    if (hideSelectionUi) {
+    if (selectionUiHidden) {
       transformerRef.current.nodes([]);
       transformerRef.current.getLayer()?.batchDraw();
       return;
@@ -1112,7 +1294,7 @@ export default function Canvas({
     const node = key ? nodeMapRef.current[key] : null;
     transformerRef.current.nodes(node ? [node] : []);
     transformerRef.current.getLayer()?.batchDraw();
-  }, [hideSelectionUi, selectedItems, logoItems, textItems]);
+  }, [selectionUiHidden, selectedItems, logoItems, textItems]);
 
   useEffect(() => {
     if (typeof onSelectionChange === 'function') {
@@ -1149,6 +1331,63 @@ export default function Canvas({
 
     return () => window.cancelAnimationFrame(frame);
   }, [clearSelectionToken]);
+
+  useEffect(() => {
+    if (!inlineEditor?.id || !inlineEditorLayout || !inlineEditorInputRef.current) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      const inputNode = inlineEditorInputRef.current;
+      if (!inputNode) {
+        return;
+      }
+
+      inputNode.focus();
+      const textLength = inputNode.value.length;
+      inputNode.setSelectionRange(textLength, textLength);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [inlineEditor?.id, inlineEditorLayout]);
+
+  useEffect(() => {
+    if (!inlineEditor?.id) {
+      return;
+    }
+
+    const stillExists = textItems.some((item) => item.id === inlineEditor.id);
+    if (!stillExists) {
+      const frame = window.requestAnimationFrame(() => {
+        closeInlineEditor();
+      });
+
+      return () => window.cancelAnimationFrame(frame);
+    }
+  }, [closeInlineEditor, inlineEditor?.id, textItems]);
+
+  useEffect(() => {
+    if (!inlineTextEditRequest?.id) {
+      return;
+    }
+
+    const requestKey = `${inlineTextEditRequest.id}:${inlineTextEditRequest.nonce || 0}`;
+    if (handledInlineRequestRef.current === requestKey) {
+      return;
+    }
+
+    const targetExists = textItems.some((item) => item.id === inlineTextEditRequest.id);
+    if (!targetExists) {
+      return;
+    }
+
+    handledInlineRequestRef.current = requestKey;
+    const frame = window.requestAnimationFrame(() => {
+      startInlineEditor(inlineTextEditRequest.id);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [inlineTextEditRequest?.id, inlineTextEditRequest?.nonce, startInlineEditor, textItems]);
 
   useEffect(() => {
     const handleSelectAll = (event) => {
@@ -1210,10 +1449,14 @@ export default function Canvas({
       return;
     }
 
+    const itemType = collectionName === 'textItems' ? 'text' : 'logo';
     onConfigChange({
       [collectionName]: (config[collectionName] || []).map((item) =>
         item.id === itemId
-          ? { ...item, transform: nextTransform }
+          ? {
+              ...item,
+              transform: clampTransformToCard(itemType, item, nextTransform),
+            }
           : item
       ),
     });
@@ -1247,6 +1490,94 @@ export default function Canvas({
     });
   };
 
+  useEffect(() => {
+    let frame = null;
+
+    if (!inlineEditingItem) {
+      frame = window.requestAnimationFrame(() => {
+        setInlineEditorLayout(null);
+      });
+
+      return () => window.cancelAnimationFrame(frame);
+    }
+
+    frame = window.requestAnimationFrame(() => {
+      const containerNode = containerRef.current;
+      const stage = externalStageRef?.current;
+      const stageContainer = stage?.container?.();
+
+      if (!containerNode || !stage || !stageContainer) {
+        setInlineEditorLayout(null);
+        return;
+      }
+
+      const stageRect = stageContainer.getBoundingClientRect();
+      const containerRect = containerNode.getBoundingClientRect();
+      const transform = inlineEditingItem.transform || {};
+      const canvasRight = CANVAS_WIDTH;
+      const canvasBottom = CANVAS_HEIGHT;
+      const safeX = Math.min(
+        Math.max(Number(transform.x ?? 0), 0),
+        canvasRight - 48
+      );
+      const safeY = Math.min(
+        Math.max(Number(transform.y ?? 0), 0),
+        canvasBottom - 36
+      );
+      const availableWidth = Math.max(48, canvasRight - safeX);
+      const availableHeight = Math.max(36, canvasBottom - safeY);
+      const previewMetrics = getTextBlockMetrics({
+        ...inlineEditingItem,
+        text: inlineEditor?.value ?? getTextRenderValue(inlineEditingItem),
+        width: 0,
+        height: 0,
+        maxWidth: availableWidth,
+      });
+      const fontSize = previewMetrics.fontSize;
+      const blockWidth = previewMetrics.width;
+      const blockHeight = previewMetrics.height;
+      const itemScaleX = Math.abs(Number(transform.scaleX ?? 1));
+      const itemScaleY = Math.abs(Number(transform.scaleY ?? 1));
+      const stageScaleX = Number(stage.scaleX() || 1);
+      const stageScaleY = Number(stage.scaleY() || 1);
+      const typography = getTextTypography(inlineEditingItem, {
+        fontFamily: config.fontFamily || 'Arial',
+        fontSize,
+      });
+      const maxEditorWidth = Math.max(48, availableWidth * itemScaleX * stageScaleX);
+      const maxEditorHeight = Math.max(36, availableHeight * itemScaleY * stageScaleY);
+
+      setInlineEditorLayout({
+        left: (stageRect.left - containerRect.left) + (safeX * stageScaleX),
+        top: (stageRect.top - containerRect.top) + (safeY * stageScaleY),
+        width: Math.min(maxEditorWidth, Math.max(48, blockWidth * itemScaleX * stageScaleX)),
+        height: Math.min(maxEditorHeight, Math.max(36, blockHeight * itemScaleY * stageScaleY)),
+        transform: `rotate(${Number(transform.rotation || 0)}deg)`,
+        fontSize: Math.max(12, fontSize * itemScaleY * stageScaleY),
+        fontFamily: typography.fontFamily,
+        fontStyle: typography.cssFontStyle,
+        fontWeight: typography.cssFontWeight,
+        lineHeight: typography.lineHeight || 1.1,
+        letterSpacing: Number(inlineEditingItem.letterSpacing || 0) * itemScaleX * stageScaleX,
+        color: inlineEditingItem.style?.fillColor || inlineEditingItem.fill || config.textColor || '#1F2937',
+        textAlign: inlineEditingItem.align || 'center',
+        padding: `${Math.max(6, Math.round(10 * itemScaleY * stageScaleY))}px ${Math.max(8, Math.round(16 * itemScaleX * stageScaleX))}px`,
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [
+    config.fontFamily,
+    config.textColor,
+    dimensions.height,
+    dimensions.scale,
+    dimensions.width,
+    externalStageRef,
+    inlineEditingItem,
+    inlineEditor?.value,
+    zoom,
+  ]);
+
   const commitSelectionTransforms = (updates) => {
     if (typeof onConfigChange !== 'function' || !updates.size) {
       return;
@@ -1255,11 +1586,15 @@ export default function Canvas({
     onConfigChange({
       logoItems: logoItems.map((item) => {
         const nextTransform = updates.get(`logo:${item.id}`);
-        return nextTransform ? { ...item, transform: nextTransform } : item;
+        return nextTransform
+          ? { ...item, transform: clampTransformToCard('logo', item, nextTransform) }
+          : item;
       }),
       textItems: textItems.map((item) => {
         const nextTransform = updates.get(`text:${item.id}`);
-        return nextTransform ? { ...item, transform: nextTransform } : item;
+        return nextTransform
+          ? { ...item, transform: clampTransformToCard('text', item, nextTransform) }
+          : item;
       }),
     });
   };
@@ -1425,7 +1760,7 @@ export default function Canvas({
   };
 
   return (
-    <div ref={containerRef} className="flex h-full w-full items-center justify-center overflow-hidden">
+    <div ref={containerRef} className="relative flex h-full w-full items-center justify-center overflow-hidden">
       <div
         className="overflow-hidden rounded-[2.5rem] border border-gray-50 bg-white shadow-2xl"
         style={{ width: viewportWidth, height: viewportHeight }}
@@ -1505,17 +1840,15 @@ export default function Canvas({
               />
 
               <Group
-                clipFunc={clipContentToCard
-                  ? (context) => {
-                      drawRoundedRectPath(context, cardX, cardY, cardWidth, cardHeight, 40);
-                    }
-                  : undefined}
+                clipFunc={(context) => {
+                  drawRoundedRectPath(context, cardX, cardY, cardWidth, cardHeight, 40);
+                }}
               >
-                {logoItems.map((item) => (
+                {orderedBackgroundCanvasItems.map(({ item }) => (
                   <LogoNode
-                    key={item.id}
+                    key={`logo:${item.id}`}
                     item={item}
-                    selected={!hideSelectionUi && selectedItems.some((entry) => entry.type === 'logo' && entry.id === item.id)}
+                    selected={!selectionUiHidden && selectedItems.some((entry) => entry.type === 'logo' && entry.id === item.id)}
                     onSelect={(event) => handleItemSelect({ type: 'logo', id: item.id }, event)}
                     onTransformChange={(transform) => updateItemTransform('logoItems', item.id, transform)}
                     onTransformPreview={handleTransformPreview}
@@ -1527,28 +1860,55 @@ export default function Canvas({
                     registerNode={registerNode}
                   />
                 ))}
+              </Group>
 
-                {textItems.map((item) => (
-                  <TextNode
-                    key={item.id}
-                    item={item}
-                    fontFamily={config.fontFamily}
-                    textColor={config.textColor}
-                    selected={!hideSelectionUi && selectedItems.some((entry) => entry.type === 'text' && entry.id === item.id)}
-                    onSelect={(event) => handleItemSelect({ type: 'text', id: item.id }, event)}
-                    onTransformChange={(transform) => updateItemTransform('textItems', item.id, transform)}
-                    onTransformPreview={handleTransformPreview}
-                    onTransformFinish={clearHelpers}
-                    onNodeDragStart={handleNodeDragStart}
-                    onNodeDragMove={handleNodeDragMove}
-                    onNodeDragEnd={handleNodeDragEnd}
-                    setCursor={setCursor}
-                    registerNode={registerNode}
-                  />
+              <Group
+                clipFunc={clipContentToCard
+                  ? (context) => {
+                      drawRoundedRectPath(context, cardX, cardY, cardWidth, cardHeight, 40);
+                    }
+                  : undefined}
+              >
+                {orderedForegroundCanvasItems.map(({ type, item }) => (
+                  type === 'logo' ? (
+                    <LogoNode
+                      key={`logo:${item.id}`}
+                      item={item}
+                      selected={!selectionUiHidden && selectedItems.some((entry) => entry.type === 'logo' && entry.id === item.id)}
+                      onSelect={(event) => handleItemSelect({ type: 'logo', id: item.id }, event)}
+                      onTransformChange={(transform) => updateItemTransform('logoItems', item.id, transform)}
+                      onTransformPreview={handleTransformPreview}
+                      onTransformFinish={clearHelpers}
+                      onNodeDragStart={handleNodeDragStart}
+                      onNodeDragMove={handleNodeDragMove}
+                      onNodeDragEnd={handleNodeDragEnd}
+                      setCursor={setCursor}
+                      registerNode={registerNode}
+                    />
+                  ) : (
+                    <TextNode
+                      key={`text:${item.id}`}
+                      item={item}
+                      fontFamily={config.fontFamily}
+                      textColor={config.textColor}
+                      selected={!selectionUiHidden && selectedItems.some((entry) => entry.type === 'text' && entry.id === item.id)}
+                      isInlineEditing={inlineEditor?.id === item.id}
+                      onSelect={(event) => handleItemSelect({ type: 'text', id: item.id }, event)}
+                      onStartInlineEdit={startInlineEditor}
+                      onTransformChange={(transform) => updateItemTransform('textItems', item.id, transform)}
+                      onTransformPreview={handleTransformPreview}
+                      onTransformFinish={clearHelpers}
+                      onNodeDragStart={handleNodeDragStart}
+                      onNodeDragMove={handleNodeDragMove}
+                      onNodeDragEnd={handleNodeDragEnd}
+                      setCursor={setCursor}
+                      registerNode={registerNode}
+                    />
+                  )
                 ))}
               </Group>
 
-              {!hideSelectionUi && guideLines.vertical.map((guideX) => (
+              {!selectionUiHidden && guideLines.vertical.map((guideX) => (
                 <Line
                   key={`guide-v-${guideX}`}
                   points={[guideX, 0, guideX, CANVAS_HEIGHT]}
@@ -1559,7 +1919,7 @@ export default function Canvas({
                 />
               ))}
 
-              {!hideSelectionUi && guideLines.horizontal.map((guideY) => (
+              {!selectionUiHidden && guideLines.horizontal.map((guideY) => (
                 <Line
                   key={`guide-h-${guideY}`}
                   points={[0, guideY, CANVAS_WIDTH, guideY]}
@@ -1570,7 +1930,7 @@ export default function Canvas({
                 />
               ))}
 
-              {!hideSelectionUi && rotationInfo ? (
+              {!selectionUiHidden && rotationInfo ? (
                 <Group x={rotationInfo.x} y={rotationInfo.y} listening={false}>
                   <Rect
                     x={-28}
@@ -1597,7 +1957,7 @@ export default function Canvas({
                 </Group>
               ) : null}
 
-              {!hideSelectionUi && (
+              {!selectionUiHidden && (
                 <Transformer
                   ref={transformerRef}
                   rotateEnabled
@@ -1615,10 +1975,6 @@ export default function Canvas({
                       return oldBox;
                     }
 
-                    if (newBox.width > CANVAS_WIDTH || newBox.height > CANVAS_HEIGHT) {
-                      return oldBox;
-                    }
-
                     return newBox;
                   }}
                 />
@@ -1627,6 +1983,72 @@ export default function Canvas({
           </Stage>
         </div>
       </div>
+      {inlineEditor && inlineEditorLayout ? (
+        <input
+          ref={inlineEditorInputRef}
+          type="text"
+          value={inlineEditor.value}
+          onChange={(event) => {
+            setInlineEditor((previousValue) => (
+              previousValue
+                ? {
+                    ...previousValue,
+                    value: event.target.value,
+                  }
+                : previousValue
+            ));
+          }}
+          onBlur={() => {
+            if (inlineEditBlurModeRef.current === 'cancel') {
+              closeInlineEditor();
+              return;
+            }
+
+            commitInlineEditor();
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              event.preventDefault();
+              inlineEditBlurModeRef.current = 'cancel';
+              event.currentTarget.blur();
+              return;
+            }
+
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              inlineEditBlurModeRef.current = 'save';
+              event.currentTarget.blur();
+            }
+          }}
+          spellCheck={false}
+          autoComplete="off"
+          className="absolute z-[130] overflow-hidden rounded-xl border outline-none backdrop-blur-sm"
+          style={{
+            left: inlineEditorLayout.left,
+            top: inlineEditorLayout.top,
+            width: inlineEditorLayout.width,
+            height: inlineEditorLayout.height,
+            transform: inlineEditorLayout.transform,
+            transformOrigin: 'top left',
+            fontSize: inlineEditorLayout.fontSize,
+            fontFamily: inlineEditorLayout.fontFamily,
+            fontStyle: inlineEditorLayout.fontStyle,
+            fontWeight: inlineEditorLayout.fontWeight,
+            letterSpacing: inlineEditorLayout.letterSpacing,
+            color: inlineEditorLayout.color,
+            textAlign: inlineEditorLayout.textAlign,
+            padding: inlineEditorLayout.padding,
+            lineHeight: inlineEditorLayout.lineHeight,
+            boxSizing: 'border-box',
+            whiteSpace: 'nowrap',
+            backgroundColor: inlineEditorTheme.backgroundColor,
+            borderColor: inlineEditorTheme.borderColor,
+            boxShadow: `0 18px 40px ${inlineEditorTheme.shadowColor}, 0 0 0 2px ${inlineEditorTheme.ringColor}`,
+            caretColor: inlineEditorLayout.color,
+            textShadow: inlineEditorTheme.textShadow,
+          }}
+        />
+      ) : null}
     </div>
   );
 }

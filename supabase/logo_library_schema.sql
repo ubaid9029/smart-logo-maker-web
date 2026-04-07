@@ -15,6 +15,10 @@ create table if not exists public.favorite_logos (
   fallback_url text,
   editable_payload jsonb,
   preview_data_url text,
+  is_favorite boolean not null default true,
+  favorited_at timestamptz,
+  is_saved boolean not null default false,
+  saved_at timestamptz,
   is_downloaded boolean not null default false,
   downloaded_at timestamptz,
   created_at timestamptz not null default timezone('utc', now()),
@@ -27,6 +31,15 @@ create index if not exists favorite_logos_user_id_idx
 
 create index if not exists favorite_logos_user_updated_at_idx
   on public.favorite_logos (user_id, updated_at desc);
+
+create index if not exists favorite_logos_user_is_favorite_idx
+  on public.favorite_logos (user_id, is_favorite, updated_at desc);
+
+create index if not exists favorite_logos_user_is_saved_idx
+  on public.favorite_logos (user_id, is_saved, updated_at desc);
+
+create index if not exists favorite_logos_user_is_downloaded_idx
+  on public.favorite_logos (user_id, is_downloaded, updated_at desc);
 
 create or replace function public.set_favorite_logos_updated_at()
 returns trigger

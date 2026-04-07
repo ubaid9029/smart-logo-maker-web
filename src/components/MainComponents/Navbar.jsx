@@ -4,10 +4,17 @@ import Image from 'next/image';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ChevronDown, Heart, LogOut, UserRound } from 'lucide-react';
+import { ChevronDown, Download, Heart, LogOut, Save, UserRound } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
-import { clearFavoriteLogosRepositoryCache, loadFavoriteLogos } from '../../lib/favoriteLogosRepository';
+import {
+  clearFavoriteLogosRepositoryCache,
+  getLogoLibraryCounts,
+  isLogoLibraryUpgradeRequiredError,
+  isSupabaseAuthSessionMissingError,
+  loadLogoLibrary,
+  peekLogoLibraryCache,
+} from '../../lib/favoriteLogosRepository';
 import { createClient } from '../../lib/supabaseClient';
 import { subscribeFavoriteLogos } from '../../lib/favoriteLogosStorage';
 
@@ -43,11 +50,6 @@ const getUserInitials = (label) => {
   return `${parts[0][0] || ''}${parts[1][0] || ''}`.toUpperCase();
 };
 
-const isMissingAuthSessionError = (error) => {
-  const message = String(error?.message || '').toLowerCase();
-  return error?.name === 'AuthSessionMissingError' || message.includes('auth session missing');
-};
-
 const isRenderableAvatarUrl = (value) => {
   if (typeof value !== 'string') {
     return false;
@@ -65,10 +67,15 @@ export default function Navbar({ minimal }) {
   const [isOpen, setIsOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [authUser, setAuthUser] = useState(null);
-  const [favoriteCount, setFavoriteCount] = useState(0);
-  const [avatarStatus, setAvatarStatus] = useState('idle');
+  const [libraryCounts, setLibraryCounts] = useState({ favorites: 0, saved: 0, downloads: 0 });
+  const [brokenAvatarUrl, setBrokenAvatarUrl] = useState(null);
   const mobileMenuId = 'primary-mobile-menu';
   const profileMenuId = 'profile-menu-panel';
+  const currentLocation = useMemo(() => {
+    const query = currentSearchParams?.toString();
+    return `${pathname || '/'}${query ? `?${query}` : ''}`;
+  }, [currentSearchParams, pathname]);
+  const signInHref = useMemo(() => `/auth/signin?next=${encodeURIComponent(currentLocation)}`, [currentLocation]);
 
   const navLinks = [
     { name: 'Features', href: '/#features' },
@@ -77,14 +84,46 @@ export default function Navbar({ minimal }) {
   ];
 
   useEffect(() => {
+    let isActive = true;
     const supabase = createClient();
 
-    const syncUser = async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (error && !isMissingAuthSessionError(error)) {
+    const syncUserFromServer = async () => {
+      try {
+        const response = await fetch('/auth/session', {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+        const payload = await response.json();
+        const nextUser = payload?.user || null;
+
+        if (isActive) {
+          setAuthUser(nextUser);
+        }
+        return nextUser;
+      } catch {
+        return null;
+      }
+    };
+
+    const syncUserFromClient = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      if (error && !isSupabaseAuthSessionMissingError(error)) {
         console.error('Unable to read auth user:', error);
       }
-      setAuthUser(data?.user || null);
+
+      if (isActive) {
+        setAuthUser(data?.session?.user || null);
+      }
+    };
+
+    const syncUser = async () => {
+      const serverUser = await syncUserFromServer();
+
+      if (!isActive || serverUser) {
+        return;
+      }
+
+      await syncUserFromClient();
     };
 
     void syncUser();
@@ -93,23 +132,47 @@ export default function Navbar({ minimal }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setAuthUser(session?.user || null);
+      void syncUserFromServer();
     });
 
-    return () => {
-      subscription.unsubscribe();
+    const handleWindowFocus = () => {
+      void syncUser();
     };
-  }, []);
+
+    window.addEventListener('focus', handleWindowFocus);
+    document.addEventListener('visibilitychange', handleWindowFocus);
+
+    return () => {
+      isActive = false;
+      subscription.unsubscribe();
+      window.removeEventListener('focus', handleWindowFocus);
+      document.removeEventListener('visibilitychange', handleWindowFocus);
+    };
+  }, [currentLocation, pathname]);
 
   useEffect(() => {
-    const syncFavoriteCount = async () => {
-      const favorites = await loadFavoriteLogos();
-      setFavoriteCount(Array.isArray(favorites) ? favorites.length : 0);
+    const syncLibraryCountsFromCache = () => {
+      const cachedLogos = peekLogoLibraryCache(authUser?.id || null);
+      setLibraryCounts(getLogoLibraryCounts(cachedLogos));
     };
 
-    void syncFavoriteCount();
+    const syncLibraryCounts = async () => {
+      try {
+        const libraryLogos = await loadLogoLibrary();
+        setLibraryCounts(getLogoLibraryCounts(libraryLogos));
+      } catch (error) {
+        if (!isLogoLibraryUpgradeRequiredError(error)) {
+          console.error('Unable to load logo library counts:', error);
+        }
+        setLibraryCounts({ favorites: 0, saved: 0, downloads: 0 });
+      }
+    };
+
+    syncLibraryCountsFromCache();
+    void syncLibraryCounts();
 
     return subscribeFavoriteLogos(() => {
-      void syncFavoriteCount();
+      syncLibraryCountsFromCache();
     });
   }, [authUser?.id]);
 
@@ -129,66 +192,27 @@ export default function Navbar({ minimal }) {
   const profileName = useMemo(() => getUserDisplayName(authUser), [authUser]);
   const profileEmail = typeof authUser?.email === 'string' ? authUser.email : 'Signed in user';
   const profileAvatar = getUserAvatar(authUser);
+  const canRenderProfileAvatar = Boolean(
+    profileAvatar &&
+    isRenderableAvatarUrl(profileAvatar) &&
+    profileAvatar !== brokenAvatarUrl
+  );
   const profileInitials = getUserInitials(profileName);
-  const currentLocation = useMemo(() => {
-    const query = currentSearchParams?.toString();
-    return `${pathname || '/'}${query ? `?${query}` : ''}`;
-  }, [currentSearchParams, pathname]);
-  const signInHref = useMemo(() => `/auth/signin?next=${encodeURIComponent(currentLocation)}`, [currentLocation]);
-
-  useEffect(() => {
-    if (!profileAvatar || !isRenderableAvatarUrl(profileAvatar)) {
-      setAvatarStatus('failed');
-      return undefined;
-    }
-
-    let isActive = true;
-    const previewImage = new window.Image();
-
-    setAvatarStatus('loading');
-    previewImage.onload = () => {
-      if (isActive) {
-        setAvatarStatus('loaded');
-      }
-    };
-    previewImage.onerror = () => {
-      if (isActive) {
-        setAvatarStatus('failed');
-      }
-    };
-    previewImage.src = profileAvatar;
-
-    return () => {
-      isActive = false;
-      previewImage.onload = null;
-      previewImage.onerror = null;
-    };
-  }, [profileAvatar]);
 
   const handleSignOut = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
+    document.cookie = 'auth-return-to=; path=/; max-age=0; samesite=lax';
+    document.cookie = 'oauth-return-to=; path=/; max-age=0; samesite=lax';
     clearFavoriteLogosRepositoryCache();
-    setFavoriteCount(0);
+    setAuthUser(null);
+    setLibraryCounts({ favorites: 0, saved: 0, downloads: 0 });
+    setBrokenAvatarUrl(null);
     setProfileMenuOpen(false);
     setIsOpen(false);
-    router.push('/');
+    router.replace(currentLocation);
     router.refresh();
   };
-
-  const ProfileAvatar = ({ className = '' }) => (
-    avatarStatus === 'loaded' ? (
-      <img
-        src={profileAvatar}
-        alt={profileName}
-        className={`h-12 w-12 rounded-full object-cover ${className}`.trim()}
-      />
-    ) : (
-      <div className={`flex h-12 w-12 items-center justify-center rounded-full bg-linear-to-br from-[#FF5C00] via-[#FF007A] to-[#C400FF] text-sm font-black text-white ${className}`.trim()}>
-        {profileInitials}
-      </div>
-    )
-  );
 
   return (
     <nav aria-label="Primary navigation" className="fixed top-0 z-50 w-full border-b border-gray-100 bg-white/95 backdrop-blur-sm">
@@ -242,7 +266,21 @@ export default function Navbar({ minimal }) {
                   aria-haspopup="menu"
                   className="flex items-center gap-1.5 rounded-full border border-pink-200 bg-white px-1.5 py-1.5 shadow-sm transition hover:border-pink-300 hover:shadow-md"
                 >
-                  <ProfileAvatar className="h-9 w-9 text-[11px]" />
+                  {canRenderProfileAvatar ? (
+                    <Image
+                      src={profileAvatar}
+                      alt={profileName}
+                      width={36}
+                      height={36}
+                      unoptimized
+                      className="h-9 w-9 rounded-full object-cover text-[11px]"
+                      onError={() => setBrokenAvatarUrl(profileAvatar)}
+                    />
+                  ) : (
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-linear-to-br from-[#FF5C00] via-[#FF007A] to-[#C400FF] text-[11px] font-black text-white">
+                      {profileInitials}
+                    </div>
+                  )}
                   <ChevronDown size={14} className={`text-slate-500 transition-transform ${profileMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
 
@@ -251,60 +289,103 @@ export default function Navbar({ minimal }) {
                     id={profileMenuId}
                     role="menu"
                     aria-label="Profile menu"
-                    className="absolute right-0 top-[calc(100%+14px)] w-[23rem] rounded-[2rem] border border-pink-100 bg-white p-4 shadow-[0_20px_60px_rgba(15,23,42,0.14)]"
+                    className="absolute right-0 top-[calc(100%+12px)] max-h-[calc(100vh-6rem)] w-[21.5rem] overflow-y-auto rounded-[1.6rem] border border-pink-100 bg-white p-3 shadow-[0_20px_60px_rgba(15,23,42,0.14)]"
                   >
-                    <div className="rounded-[1.6rem] bg-slate-50 p-4">
-                      <div className="flex items-center gap-3">
-                        <ProfileAvatar />
+                    <div className="rounded-[1.35rem] bg-slate-50 p-3">
+                      <div className="flex items-center gap-2.5">
+                        {canRenderProfileAvatar ? (
+                          <Image
+                            src={profileAvatar}
+                            alt={profileName}
+                            width={42}
+                            height={42}
+                            unoptimized
+                            className="h-10.5 w-10.5 rounded-full object-cover"
+                            onError={() => setBrokenAvatarUrl(profileAvatar)}
+                          />
+                        ) : (
+                          <div className="flex h-10.5 w-10.5 items-center justify-center rounded-full bg-linear-to-br from-[#FF5C00] via-[#FF007A] to-[#C400FF] text-sm font-black text-white">
+                            {profileInitials}
+                          </div>
+                        )}
                         <div className="min-w-0">
-                          <p className="truncate text-[1.45rem] font-black leading-none text-slate-900">{profileName}</p>
-                          <p className="mt-2 truncate text-sm font-semibold text-slate-500">{profileEmail}</p>
+                          <p className="truncate text-[1.2rem] font-black leading-none text-slate-900">{profileName}</p>
+                          <p className="mt-1.5 truncate text-[13px] font-semibold text-slate-500">{profileEmail}</p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="mt-4 rounded-[1.6rem] border border-slate-200 p-4">
+                    <div className="mt-3 rounded-[1.35rem] border border-slate-200 p-3">
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-xs font-black uppercase tracking-[0.26em] text-slate-400">Profile</p>
-                          <p className="mt-2 text-sm font-semibold text-slate-600">Your logo workspace shortcuts</p>
+                          <p className="mt-1.5 text-[13px] font-semibold text-slate-600">Your logo workspace shortcuts</p>
                         </div>
-                        <div className="flex h-14 w-14 items-center justify-center rounded-[1.35rem] bg-pink-50 text-pink-600">
-                          <UserRound size={22} />
+                        <div className="flex h-12 w-12 items-center justify-center rounded-[1.15rem] bg-pink-50 text-pink-600">
+                          <UserRound size={20} />
                         </div>
                       </div>
 
-                      <div className="mt-4 rounded-[1.5rem] border border-pink-200 px-4 py-3">
+                      <div className="mt-3 rounded-[1.25rem] border border-pink-200 px-3 py-2.5">
                         <Link
                           href="/favorites"
                           onClick={() => setProfileMenuOpen(false)}
                           className="flex items-center justify-between"
                         >
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-14 w-14 items-center justify-center rounded-[1.2rem] bg-slate-100 text-slate-700">
-                              <Heart size={18} />
+                          <div className="flex items-center gap-2.5">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-[1rem] bg-slate-100 text-slate-700">
+                              <Heart size={17} />
                             </div>
                             <div>
-                              <p className="text-sm font-black text-slate-900">Favorite Logos</p>
-                              <p className="text-xs font-medium text-slate-500">Saved designs for quick access</p>
+                              <p className="text-sm font-black text-slate-900">Favorites</p>
+                              <p className="text-[12px] leading-5 font-medium text-slate-500">Logos you marked for quick access</p>
                             </div>
                           </div>
-                          <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-black text-white">{favoriteCount}</span>
+                          <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-black text-white">{libraryCounts.favorites}</span>
                         </Link>
                       </div>
 
-                      <div className="mt-4 rounded-[1.5rem] border border-slate-200 bg-slate-50 px-4 py-3">
-                        <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">Profile Details</p>
-                        <div className="mt-3 space-y-2 text-sm">
-                          <p className="font-bold text-slate-900">{profileName}</p>
-                          <p className="truncate font-medium text-slate-500">{profileEmail}</p>
-                          <p className="font-semibold text-slate-600">Favorites: {favoriteCount}</p>
-                        </div>
+                      <div className="mt-2.5 rounded-[1.25rem] border border-pink-100 px-3 py-2.5">
+                        <Link
+                          href="/saved"
+                          onClick={() => setProfileMenuOpen(false)}
+                          className="flex items-center justify-between"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-[1rem] bg-slate-100 text-slate-700">
+                              <Save size={17} />
+                            </div>
+                            <div>
+                              <p className="text-sm font-black text-slate-900">Saved</p>
+                              <p className="text-[12px] leading-5 font-medium text-slate-500">Edited logos you intentionally saved</p>
+                            </div>
+                          </div>
+                          <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-black text-white">{libraryCounts.saved}</span>
+                        </Link>
+                      </div>
+
+                      <div className="mt-2.5 rounded-[1.25rem] border border-pink-100 px-3 py-2.5">
+                        <Link
+                          href="/downloads"
+                          onClick={() => setProfileMenuOpen(false)}
+                          className="flex items-center justify-between"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-[1rem] bg-slate-100 text-slate-700">
+                              <Download size={17} />
+                            </div>
+                            <div>
+                              <p className="text-sm font-black text-slate-900">Downloads</p>
+                              <p className="text-[12px] leading-5 font-medium text-slate-500">All logos you exported from the app</p>
+                            </div>
+                          </div>
+                          <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-black text-white">{libraryCounts.downloads}</span>
+                        </Link>
                       </div>
 
                       <button
                         onClick={handleSignOut}
-                        className="mt-4 flex w-full items-center justify-center gap-2 rounded-[1.5rem] bg-linear-to-r from-[#FF5C00] via-[#FF007A] to-[#C400FF] px-4 py-3.5 text-sm font-bold text-white shadow-[0_12px_30px_rgba(255,0,122,0.24)] transition hover:opacity-95"
+                        className="mt-3 flex w-full items-center justify-center gap-2 rounded-[1.25rem] bg-linear-to-r from-[#FF5C00] via-[#FF007A] to-[#C400FF] px-4 py-3 text-sm font-bold text-white shadow-[0_12px_30px_rgba(255,0,122,0.24)] transition hover:opacity-95"
                       >
                         <LogOut size={16} />
                         Sign Out
@@ -366,7 +447,21 @@ export default function Navbar({ minimal }) {
             ) : (
               <div className="space-y-4 rounded-[2rem] border border-slate-200 bg-slate-50 p-4">
                 <div className="flex items-center gap-3">
-                  <ProfileAvatar />
+                  {canRenderProfileAvatar ? (
+                    <Image
+                      src={profileAvatar}
+                      alt={profileName}
+                      width={48}
+                      height={48}
+                      unoptimized
+                      className="h-12 w-12 rounded-full object-cover"
+                      onError={() => setBrokenAvatarUrl(profileAvatar)}
+                    />
+                  ) : (
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-linear-to-br from-[#FF5C00] via-[#FF007A] to-[#C400FF] text-sm font-black text-white">
+                      {profileInitials}
+                    </div>
+                  )}
                   <div className="min-w-0">
                     <p className="truncate text-base font-black text-slate-900">{profileName}</p>
                     <p className="truncate text-sm font-medium text-slate-500">{profileEmail}</p>
@@ -375,7 +470,9 @@ export default function Navbar({ minimal }) {
 
                 <div className="rounded-[1.4rem] border border-slate-200 bg-white p-4">
                   <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">Profile</p>
-                  <p className="mt-2 text-sm font-semibold text-slate-600">Favorites: {favoriteCount}</p>
+                  <p className="mt-2 text-sm font-semibold text-slate-600">Favorites: {libraryCounts.favorites}</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-600">Saved: {libraryCounts.saved}</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-600">Downloads: {libraryCounts.downloads}</p>
                 </div>
 
                 <Link
@@ -384,9 +481,31 @@ export default function Navbar({ minimal }) {
                   className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3"
                 >
                   <span className="flex items-center gap-2 text-sm font-bold text-slate-900">
-                    <Heart size={16} /> Favorite Logos
+                    <Heart size={16} /> Favorites
                   </span>
-                  <span className="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-bold text-white">{favoriteCount}</span>
+                  <span className="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-bold text-white">{libraryCounts.favorites}</span>
+                </Link>
+
+                <Link
+                  href="/saved"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3"
+                >
+                  <span className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                    <Save size={16} /> Saved
+                  </span>
+                  <span className="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-bold text-white">{libraryCounts.saved}</span>
+                </Link>
+
+                <Link
+                  href="/downloads"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3"
+                >
+                  <span className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                    <Download size={16} /> Downloads
+                  </span>
+                  <span className="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-bold text-white">{libraryCounts.downloads}</span>
                 </Link>
 
                 <button

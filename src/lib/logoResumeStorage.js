@@ -79,6 +79,8 @@ export const saveEditorResumeDraft = (draft) => {
     returnTo: draft.returnTo || '/results',
     sourceImageUrl: draft.sourceImageUrl || '',
     isFavorite: Boolean(draft.isFavorite),
+    isSaved: Boolean(draft.isSaved),
+    isDownloaded: Boolean(draft.isDownloaded),
     updatedAt: Date.now(),
   };
 

@@ -1,6 +1,9 @@
-﻿import Image from "next/image";
+import Image from "next/image";
 import Link from "next/link";
-import { signIn, signInWithGoogle } from "@/app/auth/actions";
+import { signIn } from "@/app/auth/actions";
+import AuthShell from "@/components/auth/AuthShell";
+import AuthNextField from "@/components/auth/AuthNextField";
+import GoogleAuthButton from "@/components/auth/GoogleAuthButton";
 
 interface Props {
   searchParams: Promise<{ error?: string; message?: string; next?: string }>;
@@ -27,39 +30,44 @@ export default async function Login({ searchParams }: Props) {
   const isInfoMessage = Boolean(message) && !error;
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row items-center justify-center bg-linear-to-br from-[#fdfbfb] via-[#f6f7fb] to-[#eef2ff] px-4 md:px-12 overflow-hidden">
-      <div className="w-full max-w-md bg-white/90 backdrop-blur-xl rounded-3xl shadow-lg px-8 py-8 md:mr-8 z-10">
-        <div className="flex justify-center mb-5">
+    <AuthShell alignment="left" imagePosition="right">
+      <div className="z-10 w-full max-w-md rounded-3xl bg-white/90 px-8 py-8 shadow-lg backdrop-blur-xl md:ml-12 lg:ml-30">
+        <div className="mb-5 flex justify-center">
           <Image src="/logos/logo3.svg" alt="Logo" width={80} height={80} priority />
         </div>
 
-        <div className="text-center mb-4">
-          <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+        <div className="mb-4 text-center">
+          <h2 className="text-2xl font-extrabold text-gray-900 md:text-3xl">
             Welcome Back
           </h2>
-          <p className="text-sm md:text-base text-gray-600 mt-1 font-medium">
+          <p className="mt-1 text-sm font-medium text-gray-600 md:text-base">
             Login to continue
+          </p>
+          <p className="mt-1 text-[11px] font-medium text-gray-500">
+            Use the same email and password you used during sign up.
           </p>
         </div>
 
         {error && (
-          <div className="mb-3 px-4 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-[12px] font-medium">
+          <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-[12px] font-medium text-red-600">
             {decodeURIComponent(error)}
           </div>
         )}
 
         {message && (
-          <div className={`mb-3 px-4 py-2.5 rounded-xl text-[12px] font-medium ${
-            isInfoMessage
-              ? 'border border-amber-200 bg-amber-50 text-amber-700'
-              : 'border border-green-200 bg-green-50 text-green-600'
-          }`}>
+          <div
+            className={`mb-3 rounded-xl px-4 py-2.5 text-[12px] font-medium ${
+              isInfoMessage
+                ? "border border-amber-200 bg-amber-50 text-amber-700"
+                : "border border-green-200 bg-green-50 text-green-600"
+            }`}
+          >
             {decodeURIComponent(message)}
           </div>
         )}
 
         <form action={signIn} className="space-y-3">
-          <input type="hidden" name="next" value={next} />
+          <AuthNextField fallbackNext={next} />
 
           <div>
             <label className="text-[11.5px] font-semibold text-gray-700">Email Address</label>
@@ -68,7 +76,7 @@ export default async function Login({ searchParams }: Props) {
               type="email"
               placeholder="you@example.com"
               required
-              className="mt-1 w-full h-9 px-3.5 rounded-xl border border-gray-300 text-sm text-gray-900 placeholder-gray-400 transition-colors duration-200 hover:border-pink-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-pink-500"
+              className="mt-1 h-9 w-full rounded-xl border border-gray-300 px-3.5 text-sm text-gray-900 placeholder-gray-400 transition-colors duration-200 hover:border-pink-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-pink-500"
             />
           </div>
 
@@ -79,7 +87,7 @@ export default async function Login({ searchParams }: Props) {
               type="password"
               placeholder="********"
               required
-              className="mt-1 w-full h-9 px-3.5 rounded-xl border border-gray-300 text-sm text-gray-900 placeholder-gray-400 transition-colors duration-200 hover:border-pink-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-pink-500"
+              className="mt-1 h-9 w-full rounded-xl border border-gray-300 px-3.5 text-sm text-gray-900 placeholder-gray-400 transition-colors duration-200 hover:border-pink-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-pink-500"
             />
           </div>
 
@@ -88,61 +96,37 @@ export default async function Login({ searchParams }: Props) {
               <input type="checkbox" className="accent-pink-500" />
               Remember me
             </label>
-            <Link href="/auth/forgot-password" className="text-pink-600 font-semibold cursor-pointer hover:underline">
+            <Link
+              href={`/auth/forgot-password?next=${encodeURIComponent(next)}`}
+              className="cursor-pointer font-semibold text-pink-600 hover:underline"
+            >
               Forgot?
             </Link>
           </div>
 
           <button
             type="submit"
-            className="w-full h-12 rounded-xl text-sm font-semibold text-white bg-linear-to-r from-orange-500 to-pink-500 hover:opacity-90 transition shadow-md"
+            className="h-12 w-full rounded-xl bg-linear-to-r from-orange-500 to-pink-500 text-sm font-semibold text-white shadow-md transition hover:opacity-90"
           >
             Login
           </button>
         </form>
 
-        <div className="flex items-center gap-3 my-4">
-          <div className="flex-1 h-px bg-gray-300" />
-          <span className="text-[11px] text-gray-900 font-medium">OR</span>
-          <div className="flex-1 h-px bg-gray-300" />
+        <div className="my-4 flex items-center gap-3">
+          <div className="h-px flex-1 bg-gray-300" />
+          <span className="text-[11px] font-medium text-gray-900">OR</span>
+          <div className="h-px flex-1 bg-gray-300" />
         </div>
 
-        <form action={signInWithGoogle}>
-          <input type="hidden" name="next" value={next} />
-          <button
-            type="submit"
-            className="w-full h-12 rounded-xl border border-gray-300 flex items-center justify-center gap-2 text-sm text-gray-900 font-medium hover:bg-gray-100 transition"
-          >
-            <Image src="/assets/icons/google.png" width={16} height={16} className="h-4 w-4" alt="Google" />
-            Continue with Google
-          </button>
-        </form>
+        <GoogleAuthButton fallbackNext={next} returnToAuthPath="/auth/signin" />
 
-        <p className="mt-4 text-[12px] text-center text-gray-900">
+        <p className="mt-4 text-center text-[12px] text-gray-900">
           Don&apos;t have an account?{" "}
-          <Link href="/auth/signup" className="text-pink-600 font-semibold hover:underline">
+          <Link href={`/auth/signup?next=${encodeURIComponent(next)}`} className="font-semibold text-pink-600 hover:underline">
             Sign up
           </Link>
         </p>
       </div>
-
-      <div className="hidden md:flex flex-1 relative justify-center items-center w-full h-125 md:h-150">
-        <div className="absolute w-96 h-96 bg-purple-400/50 rounded-full blur-3xl -top-16 -right-16 animate-pulse" />
-        <div className="absolute w-72 h-72 bg-pink-400/40 rounded-full blur-2xl -bottom-16 -left-12 animate-pulse" />
-        <div className="absolute w-80 h-80 bg-blue-400/30 rounded-full blur-2xl -bottom-10 right-10 animate-pulse" />
-
-        <div className="absolute top-0 left-30 w-195 h-195 pointer-events-none">
-          <Image
-            src="/images/light.svg"
-            alt="light"
-            fill
-            className="object-contain"
-            priority
-          />
-        </div>
-
-        <div className="absolute w-72 h-72 bg-blue-400/20 rounded-full blur-3xl z-0" />
-      </div>
-    </div>
+    </AuthShell>
   );
 }

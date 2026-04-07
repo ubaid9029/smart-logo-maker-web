@@ -1,19 +1,35 @@
 import Image from "next/image";
 import Link from "next/link";
 import { requestPasswordReset } from "@/app/auth/actions";
+import AuthShell from "@/components/auth/AuthShell";
+import AuthNextField from "@/components/auth/AuthNextField";
 
 interface Props {
-  searchParams: Promise<{ error?: string; message?: string }>;
+  searchParams: Promise<{ error?: string; message?: string; next?: string }>;
+}
+
+function normalizeNextPath(value?: string) {
+  if (typeof value !== "string") {
+    return "/";
+  }
+
+  const nextValue = value.trim();
+  if (!nextValue.startsWith("/") || nextValue.startsWith("//")) {
+    return "/";
+  }
+
+  return nextValue;
 }
 
 export default async function ForgotPassword({ searchParams }: Props) {
   const params = await searchParams;
   const error = params?.error;
   const message = params?.message;
+  const next = normalizeNextPath(params?.next);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-[#fdfbfb] via-[#f6f7fb] to-[#eef2ff] px-4">
-      <div className="w-full max-w-md rounded-3xl bg-white/90 p-8 shadow-lg backdrop-blur-xl">
+    <AuthShell alignment="right" imagePosition="left">
+      <div className="w-full max-w-md rounded-3xl bg-white/90 p-8 shadow-lg backdrop-blur-xl md:mr-10 lg:mr-30">
         <div className="mb-5 flex justify-center">
           <Image src="/logos/logo3.svg" alt="Logo" width={72} height={72} priority />
         </div>
@@ -37,6 +53,8 @@ export default async function ForgotPassword({ searchParams }: Props) {
         )}
 
         <form action={requestPasswordReset} className="space-y-4">
+          <AuthNextField fallbackNext={next} />
+
           <div>
             <label className="text-[11.5px] font-semibold text-gray-700">Email Address</label>
             <input
@@ -50,7 +68,7 @@ export default async function ForgotPassword({ searchParams }: Props) {
 
           <button
             type="submit"
-            className="w-full min-h-12 rounded-xl bg-linear-to-r from-orange-500 to-pink-500 py-2.5 text-sm font-semibold text-white shadow-md transition hover:opacity-90"
+            className="min-h-12 w-full rounded-xl bg-linear-to-r from-orange-500 to-pink-500 py-2.5 text-sm font-semibold text-white shadow-md transition hover:opacity-90"
           >
             Send Reset Link
           </button>
@@ -58,11 +76,11 @@ export default async function ForgotPassword({ searchParams }: Props) {
 
         <p className="mt-5 text-center text-[12px] text-gray-900">
           Remember your password?{" "}
-          <Link href="/auth/signin" className="font-semibold text-pink-600 hover:underline">
+          <Link href={`/auth/signin?next=${encodeURIComponent(next)}`} className="font-semibold text-pink-600 hover:underline">
             Back to sign in
           </Link>
         </p>
       </div>
-    </div>
+    </AuthShell>
   );
 }

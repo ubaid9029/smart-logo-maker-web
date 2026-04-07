@@ -2,6 +2,31 @@
 
 import { useEffect, useEffectEvent } from 'react';
 
+function isTextEntryTarget(target) {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  if (target.tagName === 'TEXTAREA' || target.isContentEditable) {
+    return true;
+  }
+
+  if (target.tagName !== 'INPUT') {
+    return false;
+  }
+
+  const inputType = (target.getAttribute('type') || 'text').toLowerCase();
+  return [
+    'text',
+    'search',
+    'email',
+    'password',
+    'url',
+    'tel',
+    'number',
+  ].includes(inputType);
+}
+
 export function useEditorKeyboardShortcuts({
   assetPickerDialogOpen,
   closeAssetPickerDialog,
@@ -12,6 +37,7 @@ export function useEditorKeyboardShortcuts({
   editDialogOpen,
   gradientColorDialogOpen,
   gradientDialogOpen,
+  handleAddTextLayer,
   handleCopySelected,
   handleDeleteSelected,
   handleDuplicateSelected,
@@ -121,13 +147,18 @@ export function useEditorKeyboardShortcuts({
       }
 
       const target = event.target;
-      const isTypingTarget = target instanceof HTMLElement && (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable
-      );
+      const isTypingTarget = isTextEntryTarget(target);
 
       if (isTypingTarget) {
+        return;
+      }
+
+      if (!modifierPressed && (event.key === 't' || event.key === 'T')) {
+        event.preventDefault();
+        handleAddTextLayer({
+          startInlineEdit: true,
+          closeSidebar: true,
+        });
         return;
       }
 
@@ -224,6 +255,7 @@ export function useEditorKeyboardShortcuts({
     return () => window.removeEventListener('keydown', handleEditorKeyDown);
   }, [
     handleCopySelected,
+    handleAddTextLayer,
     handleDeleteSelected,
     handleDuplicateSelected,
     handleNudge,

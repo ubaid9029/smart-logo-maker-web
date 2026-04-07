@@ -2,8 +2,6 @@ import {
   CARD_HEIGHT,
   CARD_X,
   CARD_Y,
-  CANVAS_HEIGHT,
-  CANVAS_WIDTH,
   EDITOR_FONT_FAMILIES,
   gradientDirectionOptions,
 } from './editorConstants';
@@ -27,6 +25,233 @@ export const getCollectionNameByType = (type) => {
   if (type === 'logo') return 'logoItems';
   if (type === 'text') return 'textItems';
   return null;
+};
+
+export const getCanvasLayerKey = (type, id) => {
+  if (!type || !id) {
+    return null;
+  }
+
+  return `${type}:${id}`;
+};
+
+export const isBackgroundCanvasItem = (item) => Boolean(item?.isBackground);
+
+const toTitleCase = (value = '') => value
+  .split(/\s+/)
+  .filter(Boolean)
+  .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+  .join(' ');
+
+const ASSET_LABEL_PATTERNS = [
+  { pattern: /^bg[_-]?(\d+)$/i, label: 'Background' },
+  { pattern: /^texture[_-]?(\d+)$/i, label: 'Texture' },
+  { pattern: /^ef(\d+)$/i, label: 'Effect' },
+  { pattern: /^art(\d+)$/i, label: 'Art' },
+  { pattern: /^logo[_-]?(\d+)$/i, label: 'Logo' },
+];
+
+export const getAssetDisplayLabel = (assetPath = '', fallback = 'Image') => {
+  if (typeof assetPath !== 'string' || !assetPath.trim()) {
+    return fallback;
+  }
+
+  if (assetPath.startsWith('data:')) {
+    return fallback;
+  }
+
+  const rawFileName = assetPath.split('/').pop() || '';
+  const baseName = rawFileName.replace(/\.[a-z0-9]+$/i, '');
+
+  if (!baseName) {
+    return fallback;
+  }
+
+  for (const entry of ASSET_LABEL_PATTERNS) {
+    const match = baseName.match(entry.pattern);
+    if (match?.[1]) {
+      return `${entry.label} ${match[1]}`;
+    }
+  }
+
+  const normalized = baseName
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return toTitleCase(normalized || fallback);
+};
+
+export const getCanvasItemDisplayLabel = (type, item) => {
+  if (!item || typeof item !== 'object') {
+    return 'Layer';
+  }
+
+  if (type === 'text') {
+    return String(item.text || item.businessValue || 'Text').trim() || 'Text';
+  }
+
+  if (item.kind === 'shape' || item.type === 'shape') {
+    return `${item.shapeType || 'shape'} shape`;
+  }
+
+  if (item.kind === 'line') {
+    return 'Line';
+  }
+
+  if (typeof item.layerLabel === 'string' && item.layerLabel.trim()) {
+    return item.layerLabel.trim();
+  }
+
+  return getAssetDisplayLabel(item.imageUrl, item.imageUrl?.startsWith('data:') ? 'Uploaded image' : 'Image');
+};
+
+export const syncCanvasLayerOrder = (layerOrder = [], logoItems = [], textItems = []) => {
+  const logoKeys = (Array.isArray(logoItems) ? logoItems : [])
+    .map((item) => getCanvasLayerKey('logo', item?.id))
+    .filter(Boolean);
+  const textKeys = (Array.isArray(textItems) ? textItems : [])
+    .map((item) => getCanvasLayerKey('text', item?.id))
+    .filter(Boolean);
+  const knownKeys = new Set([...logoKeys, ...textKeys]);
+  const nextOrder = [];
+  const seenKeys = new Set();
+
+  (Array.isArray(layerOrder) ? layerOrder : []).forEach((key) => {
+    if (!knownKeys.has(key) || seenKeys.has(key)) {
+      return;
+    }
+
+    seenKeys.add(key);
+    nextOrder.push(key);
+  });
+
+  [...logoKeys, ...textKeys].forEach((key) => {
+    if (!key || seenKeys.has(key)) {
+      return;
+    }
+
+    seenKeys.add(key);
+    nextOrder.push(key);
+  });
+
+  return nextOrder;
+};
+
+export const getOrderedCanvasItems = (logoItems = [], textItems = [], layerOrder = []) => {
+  const logoMap = new Map((Array.isArray(logoItems) ? logoItems : []).map((item) => [getCanvasLayerKey('logo', item?.id), item]));
+  const textMap = new Map((Array.isArray(textItems) ? textItems : []).map((item) => [getCanvasLayerKey('text', item?.id), item]));
+
+  return syncCanvasLayerOrder(layerOrder, logoItems, textItems)
+    .map((key) => {
+      if (logoMap.has(key)) {
+        return { type: 'logo', item: logoMap.get(key) };
+      }
+
+      if (textMap.has(key)) {
+        return { type: 'text', item: textMap.get(key) };
+      }
+
+      return null;
+    })
+    .filter(Boolean);
+};
+
+export const canMoveCanvasLayers = (layerOrder = [], selectedKeysInput = [], direction = 'forward') => {
+  const selectedKeys = selectedKeysInput instanceof Set
+    ? selectedKeysInput
+    : new Set(Array.isArray(selectedKeysInput) ? selectedKeysInput : [selectedKeysInput].filter(Boolean));
+  const order = Array.isArray(layerOrder) ? layerOrder : [];
+
+  if (!selectedKeys.size || !order.length) {
+    return false;
+  }
+
+  if (direction === 'front') {
+    return order.slice(-selectedKeys.size).some((key) => !selectedKeys.has(key));
+  }
+
+  if (direction === 'back') {
+    return order.slice(0, selectedKeys.size).some((key) => !selectedKeys.has(key));
+  }
+
+  if (direction === 'forward') {
+    return order.some((key, index) => (
+      selectedKeys.has(key) &&
+      index < order.length - 1 &&
+      !selectedKeys.has(order[index + 1])
+    ));
+  }
+
+  if (direction === 'backward') {
+    return order.some((key, index) => (
+      selectedKeys.has(key) &&
+      index > 0 &&
+      !selectedKeys.has(order[index - 1])
+    ));
+  }
+
+  return false;
+};
+
+export const moveCanvasLayers = (layerOrder = [], selectedKeysInput = [], direction = 'forward') => {
+  const selectedKeys = selectedKeysInput instanceof Set
+    ? selectedKeysInput
+    : new Set(Array.isArray(selectedKeysInput) ? selectedKeysInput : [selectedKeysInput].filter(Boolean));
+  const order = [...(Array.isArray(layerOrder) ? layerOrder : [])];
+
+  if (!selectedKeys.size || !order.length || !canMoveCanvasLayers(order, selectedKeys, direction)) {
+    return order;
+  }
+
+  if (direction === 'front') {
+    return [
+      ...order.filter((key) => !selectedKeys.has(key)),
+      ...order.filter((key) => selectedKeys.has(key)),
+    ];
+  }
+
+  if (direction === 'back') {
+    return [
+      ...order.filter((key) => selectedKeys.has(key)),
+      ...order.filter((key) => !selectedKeys.has(key)),
+    ];
+  }
+
+  if (direction === 'forward') {
+    for (let index = order.length - 2; index >= 0; index -= 1) {
+      if (selectedKeys.has(order[index]) && !selectedKeys.has(order[index + 1])) {
+        [order[index], order[index + 1]] = [order[index + 1], order[index]];
+      }
+    }
+
+    return order;
+  }
+
+  if (direction === 'backward') {
+    for (let index = 1; index < order.length; index += 1) {
+      if (selectedKeys.has(order[index]) && !selectedKeys.has(order[index - 1])) {
+        [order[index], order[index - 1]] = [order[index - 1], order[index]];
+      }
+    }
+  }
+
+  return order;
+};
+
+export const reorderCanvasLayerOrder = (layerOrder = [], draggedKey, targetKey) => {
+  const order = [...(Array.isArray(layerOrder) ? layerOrder : [])];
+  const draggedIndex = order.indexOf(draggedKey);
+  const targetIndex = order.indexOf(targetKey);
+
+  if (draggedIndex === -1 || targetIndex === -1 || draggedIndex === targetIndex) {
+    return order;
+  }
+
+  const [draggedItem] = order.splice(draggedIndex, 1);
+  const nextTargetIndex = order.indexOf(targetKey);
+  order.splice(nextTargetIndex, 0, draggedItem);
+  return order;
 };
 
 export const isValidHexColor = (value) => /^#([0-9A-F]{6})$/i.test(value || '');
@@ -108,12 +333,132 @@ export const getCombinedTextValue = (businessValue, sloganValue) => {
 };
 
 export const getEditorTextValue = (item = {}) => {
-  const directText = typeof item.text === 'string' ? item.text.trim() : '';
-  if (directText) {
-    return directText;
+  if (typeof item.text === 'string') {
+    return item.text.replace(/\r?\n/g, ' ');
   }
 
   return getCombinedTextValue(item.businessValue, item.sloganValue);
+};
+
+export const normalizeTextFontStyleValue = (fontStyleValue) => {
+  const tokens = new Set(
+    String(fontStyleValue || 'normal')
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean)
+  );
+  const orderedTokens = ['bold', 'italic'].filter((token) => tokens.has(token));
+
+  return orderedTokens.length ? orderedTokens.join(' ') : 'normal';
+};
+
+export const normalizeTextFontWeight = (fontWeightValue, fallback = null) => {
+  if (fontWeightValue === null || fontWeightValue === undefined || fontWeightValue === '') {
+    return fallback;
+  }
+
+  if (typeof fontWeightValue === 'string') {
+    const normalized = fontWeightValue.trim().toLowerCase();
+
+    if (!normalized) {
+      return fallback;
+    }
+
+    if (normalized === 'normal') {
+      return 400;
+    }
+
+    if (normalized === 'bold') {
+      return 700;
+    }
+
+    const parsedValue = Number(normalized);
+    if (!Number.isFinite(parsedValue)) {
+      return fallback;
+    }
+
+    return Math.max(100, Math.min(900, parsedValue));
+  }
+
+  const parsedValue = Number(fontWeightValue);
+  if (!Number.isFinite(parsedValue)) {
+    return fallback;
+  }
+
+  return Math.max(100, Math.min(900, parsedValue));
+};
+
+export const normalizeTextLineHeight = (lineHeightValue, fontSizeValue, fallback = null) => {
+  if (lineHeightValue === null || lineHeightValue === undefined || lineHeightValue === '') {
+    return fallback;
+  }
+
+  const safeFontSize = Number(fontSizeValue || 0);
+  const normalizeRatio = (value) => {
+    if (!Number.isFinite(value) || value <= 0) {
+      return fallback;
+    }
+
+    const ratioValue = value > 4 && safeFontSize > 0 ? value / safeFontSize : value;
+    if (!Number.isFinite(ratioValue) || ratioValue <= 0) {
+      return fallback;
+    }
+
+    return Number(ratioValue.toFixed(4));
+  };
+
+  if (typeof lineHeightValue === 'string') {
+    const normalized = lineHeightValue.trim().toLowerCase();
+
+    if (!normalized) {
+      return fallback;
+    }
+
+    if (normalized === 'normal') {
+      return fallback;
+    }
+
+    if (normalized.endsWith('%')) {
+      const parsedPercent = Number(normalized.slice(0, -1));
+      return normalizeRatio(parsedPercent / 100);
+    }
+
+    if (normalized.endsWith('px')) {
+      const parsedPixels = Number(normalized.slice(0, -2));
+      return normalizeRatio(parsedPixels);
+    }
+
+    return normalizeRatio(Number(normalized));
+  }
+
+  return normalizeRatio(Number(lineHeightValue));
+};
+
+export const getTextTypography = (item = {}, fallback = {}) => {
+  const normalizedFontStyle = normalizeTextFontStyleValue(item.fontStyle || fallback.fontStyle || 'normal');
+  const fallbackFontWeight = normalizedFontStyle.includes('bold') ? 700 : 400;
+  const fontWeight = normalizeTextFontWeight(
+    item.fontWeight ?? fallback.fontWeight,
+    fallbackFontWeight
+  );
+  const lineHeight = normalizeTextLineHeight(
+    item.lineHeight ?? fallback.lineHeight,
+    item.fontSize ?? fallback.fontSize,
+    null
+  );
+
+  return {
+    fontFamily: item.fontFamily || fallback.fontFamily || 'Arial',
+    fontStyle: normalizedFontStyle,
+    fontWeight,
+    lineHeight,
+    cssFontStyle: normalizedFontStyle.includes('italic') ? 'italic' : 'normal',
+    cssFontWeight: fontWeight ?? fallbackFontWeight,
+    konvaFontStyle: [
+      (fontWeight ?? fallbackFontWeight) >= 600 || normalizedFontStyle.includes('bold') ? 'bold' : null,
+      normalizedFontStyle.includes('italic') ? 'italic' : null,
+    ].filter(Boolean).join(' ') || 'normal',
+  };
 };
 
 export const getFontWidthFactor = (fontFamily = '') => {
@@ -150,6 +495,8 @@ const measureTextBounds = ({
   fontFamily,
   fontSize,
   fontStyle,
+  fontWeight,
+  lineHeight,
   letterSpacing,
 }) => {
   const context = getTextMeasurementContext();
@@ -157,37 +504,93 @@ const measureTextBounds = ({
     return null;
   }
 
-  const normalizedStyle = fontStyle && fontStyle !== 'normal' ? `${fontStyle} ` : '';
-  context.font = `${normalizedStyle}${fontSize}px ${fontFamily || 'Arial'}`;
+  const typography = getTextTypography({
+    fontFamily,
+    fontSize,
+    fontStyle,
+    fontWeight,
+    lineHeight,
+  });
+  const fontTokens = [
+    typography.cssFontStyle !== 'normal' ? typography.cssFontStyle : null,
+    typography.cssFontWeight ? String(typography.cssFontWeight) : null,
+    `${fontSize}px`,
+    typography.fontFamily || 'Arial',
+  ].filter(Boolean);
+  context.font = fontTokens.join(' ');
 
-  const metrics = context.measureText(value || ' ');
-  const trackingWidth = Number(letterSpacing || 0) * Math.max(0, String(value || '').length - 1);
+  const normalizedValue = String(value || ' ').replace(/\r?\n/g, ' ');
+  const trackingValue = Number(letterSpacing || 0);
+  const metrics = context.measureText(normalizedValue || ' ');
+  const widestLine = metrics.width + (trackingValue * Math.max(0, normalizedValue.length - 1));
+  const baseHeightMetrics = context.measureText('Mg');
+  const measuredLineHeight = Math.max(
+    fontSize + 18,
+    (baseHeightMetrics.actualBoundingBoxAscent || fontSize * 0.82) + (baseHeightMetrics.actualBoundingBoxDescent || fontSize * 0.28)
+  );
+  const resolvedLineHeight = typography.lineHeight
+    ? Math.max(measuredLineHeight, fontSize * typography.lineHeight)
+    : measuredLineHeight;
 
   return {
-    width: metrics.width + trackingWidth,
-    height: (metrics.actualBoundingBoxAscent || fontSize * 0.82) + (metrics.actualBoundingBoxDescent || fontSize * 0.28),
+    width: widestLine,
+    height: resolvedLineHeight,
   };
 };
 
 export const getTextBlockMetrics = (item = {}) => {
-  const safeValue = getEditorTextValue(item) || 'BRAND';
+  const hasDirectText = typeof item.text === 'string';
+  const safeValue = (getEditorTextValue(item) || (hasDirectText ? ' ' : 'BRAND')).replace(/\r?\n/g, ' ');
   const explicitFontSize = Number(item.fontSize || 0);
-  const fontSize = explicitFontSize > 0
+  const baseFontSize = explicitFontSize > 0
     ? explicitFontSize
     : safeValue.length > 28 ? 24 : safeValue.length > 20 ? 30 : safeValue.length > 12 ? 38 : 46;
   const explicitWidth = Number(item.width || 0);
+  let fontSize = baseFontSize;
   const explicitHeight = Number(item.height || 0);
   const fontWidthFactor = getFontWidthFactor(item.fontFamily);
-  const measuredBounds = measureTextBounds({
+  const maxBlockWidth = Math.max(48, Math.min(620, Number(item.maxWidth || 620)));
+  const maxTextWidth = Math.max(16, maxBlockWidth - 32);
+  let measuredBounds = measureTextBounds({
     value: safeValue,
     fontFamily: item.fontFamily,
     fontSize,
     fontStyle: item.fontStyle,
+    fontWeight: item.fontWeight,
+    lineHeight: item.lineHeight,
     letterSpacing: item.letterSpacing,
   });
+
+  if (measuredBounds?.width && measuredBounds.width > maxTextWidth) {
+    const scaledFontSize = Math.max(12, Math.floor(fontSize * (maxTextWidth / measuredBounds.width)));
+    fontSize = scaledFontSize;
+    measuredBounds = measureTextBounds({
+      value: safeValue,
+      fontFamily: item.fontFamily,
+      fontSize,
+      fontStyle: item.fontStyle,
+      fontWeight: item.fontWeight,
+      lineHeight: item.lineHeight,
+      letterSpacing: item.letterSpacing,
+    });
+
+    while (fontSize > 12 && measuredBounds?.width > maxTextWidth) {
+      fontSize -= 1;
+      measuredBounds = measureTextBounds({
+        value: safeValue,
+        fontFamily: item.fontFamily,
+        fontSize,
+        fontStyle: item.fontStyle,
+        fontWeight: item.fontWeight,
+        lineHeight: item.lineHeight,
+        letterSpacing: item.letterSpacing,
+      });
+    }
+  }
+
   const measuredWidth = Math.min(
-    620,
-    Math.max(160, Math.ceil((measuredBounds?.width || (safeValue.length * (fontSize * fontWidthFactor))) + 32))
+    maxBlockWidth,
+    Math.max(Math.min(160, maxBlockWidth), Math.ceil((measuredBounds?.width || (safeValue.length * (fontSize * fontWidthFactor))) + 32))
   );
   const measuredHeight = Math.max(
     fontSize + 18,
@@ -195,10 +598,10 @@ export const getTextBlockMetrics = (item = {}) => {
   );
   const blockWidth = item.renderMode === 'svg'
     ? (explicitWidth > 0 ? explicitWidth : measuredWidth)
-    : Math.max(explicitWidth, measuredWidth);
+    : measuredWidth;
   const blockHeight = item.renderMode === 'svg'
     ? (explicitHeight > 0 ? explicitHeight : measuredHeight)
-    : Math.max(explicitHeight, measuredHeight);
+    : measuredHeight;
 
   return {
     value: safeValue,
@@ -254,7 +657,16 @@ export const extractTextTemplate = (item = {}, fallback = {}) => ({
   fill: resolveTemplateFillColor(item, fallback),
   fontFamily: item.fontFamily || fallback.fontFamily || 'Arial',
   fontUrl: item.fontUrl || fallback.fontUrl || null,
-  fontStyle: item.fontStyle || fallback.fontStyle || 'normal',
+  fontStyle: normalizeTextFontStyleValue(item.fontStyle || fallback.fontStyle || 'normal'),
+  fontWeight: normalizeTextFontWeight(
+    item.fontWeight ?? fallback.fontWeight,
+    null
+  ),
+  lineHeight: normalizeTextLineHeight(
+    item.lineHeight ?? fallback.lineHeight,
+    Number(item.fontSize || fallback.fontSize || 46),
+    null
+  ),
   letterSpacing: Number(item.letterSpacing || fallback.letterSpacing || 0),
   style: {
     ...buildDefaultItemStyle(resolveTemplateFillColor(item, fallback)),
@@ -306,7 +718,7 @@ const encodeSvgDataUri = (markup) => (
     : null
 );
 
-const applySvgPresentationToMarkup = (svgMarkup, style = {}) => {
+export const applySvgPresentationToMarkup = (svgMarkup, style = {}) => {
   if (typeof svgMarkup !== 'string' || !svgMarkup.trim()) {
     return null;
   }
@@ -348,7 +760,9 @@ export const buildTextItemFromTemplate = ({
   fill: template.fill || '#1A1A1A',
   fontFamily: template.fontFamily || 'Arial',
   fontUrl: template.fontUrl || null,
-  fontStyle: template.fontStyle || 'normal',
+  fontStyle: normalizeTextFontStyleValue(template.fontStyle || 'normal'),
+  fontWeight: normalizeTextFontWeight(template.fontWeight, null),
+  lineHeight: normalizeTextLineHeight(template.lineHeight, Number(template.fontSize || 46), null),
   letterSpacing: Number(template.letterSpacing || 0),
   renderMode: 'text',
   svgDataUri: null,
@@ -398,29 +812,13 @@ export const applyStyleToTextItem = (item, styleUpdate = {}) => {
 };
 
 export const clampTransformToCard = (type, item, transform) => {
-  const scaleX = transform.scaleX ?? 1;
-  const scaleY = transform.scaleY ?? 1;
-  let width = 0;
-  let height = 0;
-
-  if (type === 'logo') {
-    width = Number(item.baseWidth || item.width || 280) * Math.abs(scaleX);
-    height = Number(item.baseHeight || item.height || 200) * Math.abs(scaleY);
-  } else {
-    const metrics = getTextMetrics(item);
-    width = metrics.width * Math.abs(scaleX);
-    height = metrics.height * Math.abs(scaleY);
-  }
-
-  const minX = 0;
-  const maxX = Math.max(minX, CANVAS_WIDTH - width);
-  const minY = 0;
-  const maxY = Math.max(minY, CANVAS_HEIGHT - height);
-
   return {
     ...transform,
-    x: Math.min(Math.max(transform.x, minX), maxX),
-    y: Math.min(Math.max(transform.y, minY), maxY),
+    x: Number(transform?.x ?? 0),
+    y: Number(transform?.y ?? 0),
+    scaleX: Number(transform?.scaleX ?? 1),
+    scaleY: Number(transform?.scaleY ?? 1),
+    rotation: Number(transform?.rotation ?? 0),
   };
 };
 
@@ -434,9 +832,150 @@ export const buildDefaultItemStyle = (fillColor = '#111827') => ({
   rotateZ: 0,
 });
 
+export const getDefaultShapeDimensions = (shapeType = 'rectangle') => {
+  switch (shapeType) {
+    case 'triangle':
+      return { width: 190, height: 170 };
+    case 'diamond':
+      return { width: 180, height: 180 };
+    case 'pentagon':
+      return { width: 180, height: 180 };
+    case 'hexagon':
+      return { width: 200, height: 170 };
+    case 'heart':
+      return { width: 190, height: 165 };
+    case 'star':
+      return { width: 190, height: 190 };
+    case 'arrow':
+      return { width: 220, height: 120 };
+    case 'full':
+    case 'rectangle':
+    default:
+      return { width: 220, height: 160 };
+  }
+};
+
+export const buildShapeItemFromType = ({
+  id,
+  shapeType = 'rectangle',
+  transform,
+} = {}) => {
+  const dimensions = getDefaultShapeDimensions(shapeType);
+
+  return {
+    id: id || `shape-${Date.now()}`,
+    kind: 'shape',
+    type: 'shape',
+    shapeType,
+    baseWidth: dimensions.width,
+    baseHeight: dimensions.height,
+    opacity: 1,
+    transform: {
+      x: Number(transform?.x ?? CARD_X + 170),
+      y: Number(transform?.y ?? CARD_Y + 90),
+      scaleX: Number(transform?.scaleX ?? 1),
+      scaleY: Number(transform?.scaleY ?? 1),
+      rotation: Number(transform?.rotation ?? 0),
+    },
+    style: {
+      ...buildDefaultItemStyle('#F8FAFC'),
+      fillColor: '#F8FAFC',
+      outlineColor: '#111827',
+      outlineWidth: 4,
+      applyColorOverrides: true,
+    },
+  };
+};
+
+export const buildShapeItemFromBackgroundShape = (backgroundShape = {}, options = {}) => {
+  const safeShapeType = backgroundShape.type || backgroundShape.shapeType || 'rectangle';
+  const dimensions = getDefaultShapeDimensions(safeShapeType);
+  const fillColor = backgroundShape.fillColor || '#F8FAFC';
+
+  return {
+    id: options.id || `shape-${Date.now()}`,
+    kind: 'shape',
+    type: 'shape',
+    shapeType: safeShapeType,
+    baseWidth: Number(backgroundShape.baseWidth || dimensions.width),
+    baseHeight: Number(backgroundShape.baseHeight || dimensions.height),
+    opacity: Math.max(0.05, Math.min(1, Number(backgroundShape.opacity ?? 1))),
+    transform: {
+      x: Number(backgroundShape.transform?.x ?? CARD_X + 170),
+      y: Number(backgroundShape.transform?.y ?? CARD_Y + 90),
+      scaleX: Number(backgroundShape.transform?.scaleX ?? 1),
+      scaleY: Number(backgroundShape.transform?.scaleY ?? 1),
+      rotation: Number(backgroundShape.transform?.rotation ?? 0),
+    },
+    style: {
+      ...buildDefaultItemStyle(fillColor),
+      fillColor,
+      outlineColor: backgroundShape.strokeColor || '#111827',
+      outlineWidth: Math.max(1, Number(backgroundShape.strokeWidth || 4)),
+      applyColorOverrides: true,
+    },
+  };
+};
+
+export const buildBackgroundShapeFromShapeItem = (item = {}) => {
+  if (!item || (item.kind !== 'shape' && item.type !== 'shape')) {
+    return null;
+  }
+
+  const safeShapeType = item.shapeType || item.backgroundShapeType || 'rectangle';
+  const dimensions = getDefaultShapeDimensions(safeShapeType);
+
+  return {
+    type: safeShapeType,
+    fillColor: item.style?.fillColor || '#F8FAFC',
+    strokeColor: item.style?.outlineColor || '#111827',
+    strokeWidth: Math.max(1, Number(item.style?.outlineWidth || 4)),
+    baseWidth: Number(item.baseWidth || item.width || dimensions.width),
+    baseHeight: Number(item.baseHeight || item.height || dimensions.height),
+    opacity: Math.max(0.05, Math.min(1, Number(item.opacity ?? 1))),
+    transform: {
+      x: Number(item.transform?.x ?? CARD_X + 170),
+      y: Number(item.transform?.y ?? CARD_Y + 90),
+      scaleX: Number(item.transform?.scaleX ?? 1),
+      scaleY: Number(item.transform?.scaleY ?? 1),
+      rotation: Number(item.transform?.rotation ?? 0),
+    },
+  };
+};
+
 export const normalizePayloadLogoItem = (item) => {
   if (!item || typeof item !== 'object') {
     return null;
+  }
+
+  if (item.kind === 'shape' || item.type === 'shape') {
+    const safeShapeType = item.shapeType || item.backgroundShapeType || 'rectangle';
+    const dimensions = getDefaultShapeDimensions(safeShapeType);
+
+    return {
+      ...item,
+      kind: 'shape',
+      type: 'shape',
+      shapeType: safeShapeType,
+      baseWidth: Number(item.baseWidth || item.width || dimensions.width),
+      baseHeight: Number(item.baseHeight || item.height || dimensions.height),
+      opacity: item.opacity ?? 1,
+      transform: {
+        x: Number(item.transform?.x ?? item.x ?? (CARD_X + 170)),
+        y: Number(item.transform?.y ?? item.y ?? (CARD_Y + 90)),
+        scaleX: Number(item.transform?.scaleX ?? item.scaleX ?? 1),
+        scaleY: Number(item.transform?.scaleY ?? item.scaleY ?? 1),
+        rotation: Number(item.transform?.rotation ?? item.rotation ?? 0),
+      },
+      style: {
+        ...buildDefaultItemStyle('#F8FAFC'),
+        fillColor: '#F8FAFC',
+        outlineColor: '#111827',
+        outlineWidth: 4,
+        applyColorOverrides: true,
+        ...(item.style || {}),
+      },
+    };
   }
 
   if (item.imageUrl && item.transform) {
@@ -547,7 +1086,9 @@ export const normalizePayloadTextItem = (item) => {
       letterSpacing: Number(item.letterSpacing || 0),
       fontFamily: item.fontFamily || 'Arial',
       fontUrl: item.fontUrl || null,
-      fontStyle: item.fontStyle || 'normal',
+      fontStyle: normalizeTextFontStyleValue(item.fontStyle || 'normal'),
+      fontWeight: normalizeTextFontWeight(item.fontWeight, null),
+      lineHeight: normalizeTextLineHeight(item.lineHeight, Number(item.fontSize || 46), null),
       renderMode: item.renderMode || (item.svgDataUri ? 'svg' : 'text'),
       svgDataUri: item.svgDataUri || null,
       transform: {
@@ -582,7 +1123,9 @@ export const normalizePayloadTextItem = (item) => {
     fill,
     fontFamily: item.fontFamily || 'Arial',
     fontUrl: item.fontUrl || null,
-    fontStyle: item.fontStyle || 'normal',
+    fontStyle: normalizeTextFontStyleValue(item.fontStyle || 'normal'),
+    fontWeight: normalizeTextFontWeight(item.fontWeight, null),
+    lineHeight: normalizeTextLineHeight(item.lineHeight, fontSize, null),
     letterSpacing: Number(item.letterSpacing || 0),
     renderMode: item.renderMode || (item.svgDataUri ? 'svg' : 'text'),
     svgDataUri: item.svgDataUri || null,
@@ -677,6 +1220,11 @@ export const buildInitialPresent = ({
       },
     ],
   };
+  fallbackPresent.layerOrder = syncCanvasLayerOrder(
+    [],
+    fallbackPresent.logoItems,
+    fallbackPresent.textItems
+  );
 
   if (!payload || typeof payload !== 'object') {
     return fallbackPresent;
@@ -704,5 +1252,10 @@ export const buildInitialPresent = ({
     textTemplate: payloadTextTemplate,
     logoItems: payloadLogoItems.length ? payloadLogoItems : fallbackPresent.logoItems,
     textItems: payloadTextItems.length ? payloadTextItems : fallbackPresent.textItems,
+    layerOrder: syncCanvasLayerOrder(
+      payload.layerOrder,
+      payloadLogoItems.length ? payloadLogoItems : fallbackPresent.logoItems,
+      payloadTextItems.length ? payloadTextItems : fallbackPresent.textItems
+    ),
   };
 };

@@ -5,6 +5,20 @@ import { isValidHexColor, normalizeHexColor } from './editorUtils';
 
 export function ColorPickerField({ value, onChange, disabled = false, className = '' }) {
   const safeValue = isValidHexColor(value) ? value : normalizeHexColor(value, '#FFFFFF');
+  const inputValue = safeValue.toLowerCase();
+  const handleColorChange = useCallback((event) => {
+    const normalizedNext = normalizeHexColor(event.target.value, safeValue);
+
+    if (normalizedNext === safeValue) {
+      return;
+    }
+
+    onChange?.({
+      target: {
+        value: normalizedNext,
+      },
+    });
+  }, [onChange, safeValue]);
 
   return (
     <label
@@ -16,8 +30,8 @@ export function ColorPickerField({ value, onChange, disabled = false, className 
       />
       <input
         type="color"
-        value={safeValue}
-        onChange={onChange}
+        value={inputValue}
+        onChange={handleColorChange}
         disabled={disabled}
         className={`absolute inset-0 h-full w-full opacity-0 ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
       />

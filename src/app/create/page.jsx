@@ -1,9 +1,9 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import BusinessInfo from "./steps/bussiness-info";
+import BusinessInfo from "./steps/business-info";
 import Category from "./steps/category";
 import Fonts from "./steps/fonts";
 import ColorPalette from "./steps/color-palette";
@@ -62,60 +62,22 @@ const buildInitialCreateData = (source) => ({
   color: COLOR_NAMES[String(source?.colorId || "")] || "",
 });
 
-export default function CreateLogoPage() {
-  const dispatch = useDispatch();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { formData: savedFormData, createStep: savedCreateStep } = useSelector((state) => state.logo);
-  const shouldResetDraft = searchParams.get('fresh') === '1';
-  const showMissingResultsNotice = searchParams.get('notice') === 'missing-results';
-  const hasExplicitResumeStep = searchParams.has('step');
-  const requestedResumeStep = Math.max(1, Math.min(4, Number(searchParams.get('step')) || 0));
-  const routeResumeToken = searchParams.toString();
-  const hasSavedDraft = hasCreateDraft(savedFormData);
-  const appliedResumeTokenRef = useRef('');
-  const [step, setStep] = useState(1);
+function CreateFlowContent({
+  initialFormData,
+  initialStep,
+  progressPercentage,
+  hasSavedDraft,
+  onStartOver,
+  onStepPersist,
+  showMissingResultsNotice,
+}) {
+  const [step, setStep] = useState(initialStep);
+  const [formData, setFormData] = useState(initialFormData);
   const totalSteps = 4;
-  const progressPercentage = (step / totalSteps) * 100;
-  const [formData, setFormData] = useState(hasSavedDraft ? buildInitialCreateData(savedFormData) : EMPTY_FORM_DATA);
 
   useEffect(() => {
-    if (!shouldResetDraft) {
-      return;
-    }
-
-    appliedResumeTokenRef.current = '';
-    clearGeneratedResultsSnapshot();
-    dispatch(resetLogoProcess());
-    setFormData(EMPTY_FORM_DATA);
-    setStep(1);
-    router.replace('/create');
-  }, [dispatch, router, shouldResetDraft]);
-
-  useEffect(() => {
-    if (shouldResetDraft) {
-      return;
-    }
-
-    if (appliedResumeTokenRef.current === routeResumeToken) {
-      return;
-    }
-
-    appliedResumeTokenRef.current = routeResumeToken;
-
-    if (!hasSavedDraft) {
-      setFormData(EMPTY_FORM_DATA);
-      setStep(hasExplicitResumeStep ? requestedResumeStep : 1);
-      return;
-    }
-
-    setFormData(buildInitialCreateData(savedFormData));
-    setStep(hasExplicitResumeStep ? requestedResumeStep : deriveCreateResumeStep(savedFormData, savedCreateStep));
-  }, [hasExplicitResumeStep, hasSavedDraft, requestedResumeStep, routeResumeToken, savedCreateStep, savedFormData, shouldResetDraft]);
-
-  useEffect(() => {
-    dispatch(setCreateStep(step));
-  }, [dispatch, step]);
+    onStepPersist(step);
+  }, [onStepPersist, step]);
 
   const nextStep = () => {
     if (step < totalSteps) {
@@ -138,19 +100,19 @@ export default function CreateLogoPage() {
             <div className="flex items-center gap-3">
               {hasSavedDraft && (
                 <button
-                  onClick={() => router.push('/create?fresh=1')}
+                  onClick={onStartOver}
                   className="text-xs font-black uppercase tracking-[0.16em] text-slate-400 transition hover:text-slate-600"
                 >
                   Start Over
                 </button>
               )}
-              <span className="text-sm font-bold text-slate-500">{Math.round(progressPercentage)}%</span>
+              <span className="text-sm font-bold text-slate-500">{Math.round(progressPercentage(step, totalSteps))}%</span>
             </div>
           </div>
           <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
             <div
               className="h-full rounded-full bg-linear-to-r from-[#FF5C00] via-[#FF007A] to-[#C400FF] transition-all duration-700 ease-in-out"
-              style={{ width: `${progressPercentage}%` }}
+              style={{ width: `${progressPercentage(step, totalSteps)}%` }}
             />
           </div>
         </div>
@@ -181,5 +143,63 @@ export default function CreateLogoPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CreateLogoPage() {
+  const dispatch = useDispatch();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { formData: savedFormData, createStep: savedCreateStep } = useSelector((state) => state.logo);
+  const shouldResetDraft = searchParams.get('fresh') === '1';
+  const showMissingResultsNotice = searchParams.get('notice') === 'missing-results';
+  const hasExplicitResumeStep = searchParams.has('step');
+  const requestedResumeStep = Math.max(1, Math.min(4, Number(searchParams.get('step')) || 0));
+  const routeResumeToken = searchParams.toString();
+  const hasSavedDraft = hasCreateDraft(savedFormData);
+  const appliedResumeTokenRef = useRef('');
+  const getProgressPercentage = (currentStep, totalSteps = 4) => (currentStep / totalSteps) * 100;
+  const initialCreateState = useMemo(() => {
+    if (!hasSavedDraft) {
+      return {
+        formData: EMPTY_FORM_DATA,
+        step: hasExplicitResumeStep ? requestedResumeStep : 1,
+      };
+    }
+
+    return {
+      formData: buildInitialCreateData(savedFormData),
+      step: hasExplicitResumeStep ? requestedResumeStep : deriveCreateResumeStep(savedFormData, savedCreateStep),
+    };
+  }, [hasExplicitResumeStep, hasSavedDraft, requestedResumeStep, savedCreateStep, savedFormData]);
+
+  useEffect(() => {
+    if (!shouldResetDraft) {
+      return;
+    }
+
+    appliedResumeTokenRef.current = '';
+    clearGeneratedResultsSnapshot();
+    dispatch(resetLogoProcess());
+    router.replace('/create');
+  }, [dispatch, router, shouldResetDraft]);
+
+  if (shouldResetDraft) {
+    return null;
+  }
+
+  const flowKey = routeResumeToken || 'create-flow';
+
+  return (
+    <CreateFlowContent
+      key={flowKey}
+      initialFormData={initialCreateState.formData}
+      initialStep={initialCreateState.step}
+      progressPercentage={getProgressPercentage}
+      hasSavedDraft={hasSavedDraft}
+      onStartOver={() => router.push('/create?fresh=1')}
+      onStepPersist={(nextStep) => dispatch(setCreateStep(nextStep))}
+      showMissingResultsNotice={showMissingResultsNotice}
+    />
   );
 }

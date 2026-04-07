@@ -1,8 +1,9 @@
 "use client";
+import Image from 'next/image';
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, Edit3, Heart, Download, Loader2, Sparkles, X } from 'lucide-react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { motion } from 'framer-motion';
+import { ChevronLeft, Edit3, Heart, Download, Loader2, Sparkles } from 'lucide-react';
 import { useSelector } from "react-redux";
 import DownloadDialog from '../../components/DownloadDialog';
 import FloatingNotice from '../../components/MainComponents/FloatingNotice';
@@ -14,9 +15,18 @@ import {
   renderSvgToCanvas,
   triggerBlobDownload,
 } from '../../lib/downloadAssets';
-import { buildEditableLogoPayload, buildLogoCardSvg, svgToDataUri } from '../../lib/logoSvg';
+import { buildEditableLogoPayload, buildLogoCardSvg } from '../../lib/logoSvg';
+import { openEditorWindowWithPayload, saveTemporaryEditorPayload } from '../../lib/editorPayloadStorage';
 import { loadGeneratedResultsSnapshot, saveGeneratedResultsSnapshot } from '../../lib/generatedResultsStorage';
-import { isAuthRequiredError, loadFavoriteLogos, peekFavoriteLogosCache, saveFavoriteLogo, toggleFavoriteLogo } from '../../lib/favoriteLogosRepository';
+import {
+  getLogoLibraryUpgradeMessage,
+  isAuthRequiredError,
+  isLogoLibraryUpgradeRequiredError,
+  loadFavoriteLogos,
+  peekFavoriteLogosCache,
+  saveDownloadedLogo,
+  toggleFavoriteLogo,
+} from '../../lib/favoriteLogosRepository';
 import { getFavoriteLogoKey, subscribeFavoriteLogos } from '../../lib/favoriteLogosStorage';
 import { hasCreateDraft } from '../../lib/logoResumeStorage';
 import { createClient } from '../../lib/supabaseClient';
@@ -35,9 +45,6 @@ const INDUSTRY_LABELS = {
   11: 'Marketing',
   12: 'Construction',
 };
-
-const EDITED_LOGO_STORAGE_PREFIX = 'edited-logo:';
-const EDITED_LOGO_SESSION_PREFIX = 'edited-logo-session:';
 
 const hashString = (value) => {
   const input = String(value || '');
@@ -62,95 +69,6 @@ const buildResultsEditScope = (formData, results) => hashString(JSON.stringify({
     iconNormal: item?.icon_normal || '',
   })),
 }));
-
-const buildEditedLogoStorageKey = (editScopeKey, designId) => (
-  editScopeKey
-    ? `${EDITED_LOGO_STORAGE_PREFIX}${editScopeKey}:${designId}`
-    : `${EDITED_LOGO_STORAGE_PREFIX}${designId}`
-);
-
-const buildEditedLogoSessionKey = (editScopeKey, designId) => (
-  editScopeKey
-    ? `${EDITED_LOGO_SESSION_PREFIX}${editScopeKey}:${designId}`
-    : `${EDITED_LOGO_SESSION_PREFIX}${designId}`
-);
-
-const resolvePayloadTextTemplate = (item = {}, fallback = {}) => {
-  const fill = item?.style?.fillColor || item?.fill || fallback?.style?.fillColor || fallback?.fill || '#1A1A1A';
-
-  return {
-    text: typeof item?.text === 'string' ? item.text : (fallback?.text || ''),
-    fontSize: Number(item?.fontSize || fallback?.fontSize || 46),
-    align: item?.align || fallback?.align || 'center',
-    fill,
-    fontFamily: item?.fontFamily || fallback?.fontFamily || 'Arial',
-    fontUrl: item?.fontUrl || fallback?.fontUrl || null,
-    fontStyle: item?.fontStyle || fallback?.fontStyle || 'bold',
-    letterSpacing: Number(item?.letterSpacing ?? fallback?.letterSpacing ?? 0),
-    style: {
-      fillColor: fill,
-      outlineColor: item?.style?.outlineColor || fallback?.style?.outlineColor || '#111827',
-      outlineWidth: Number(item?.style?.outlineWidth ?? fallback?.style?.outlineWidth ?? 0),
-      applyColorOverrides: Boolean(item?.style?.applyColorOverrides ?? fallback?.style?.applyColorOverrides ?? false),
-      rotateX: Number(item?.style?.rotateX ?? fallback?.style?.rotateX ?? 0),
-      rotateY: Number(item?.style?.rotateY ?? fallback?.style?.rotateY ?? 0),
-      rotateZ: Number(item?.style?.rotateZ ?? fallback?.style?.rotateZ ?? 0),
-    },
-  };
-};
-
-const getPreferredPayloadTextSource = (textItems = []) => (
-  textItems.find((item) => item?.id === 'brand-name') || textItems[0] || null
-);
-
-const mergeEditablePayload = (basePayload, savedPayload) => {
-  if (!savedPayload || typeof savedPayload !== 'object') {
-    return basePayload;
-  }
-
-  const baseTextItems = Array.isArray(basePayload?.textItems) ? basePayload.textItems : [];
-  const savedTextItems = Array.isArray(savedPayload?.textItems) ? savedPayload.textItems : [];
-  const baseTextItemMap = new Map(baseTextItems.map((item) => [item?.id, item]));
-  const mergedTextItems = (savedTextItems.length ? savedTextItems : baseTextItems).map((item) => {
-    const baseItem = baseTextItemMap.get(item?.id);
-    if (!baseItem) {
-      return item;
-    }
-
-    const mergedTemplate = resolvePayloadTextTemplate(item, baseItem);
-
-    return {
-      ...baseItem,
-      ...item,
-      fill: mergedTemplate.fill,
-      fontFamily: mergedTemplate.fontFamily,
-      fontUrl: baseItem?.fontUrl || item?.fontUrl || null,
-      fontStyle: mergedTemplate.fontStyle,
-      align: mergedTemplate.align,
-      letterSpacing: mergedTemplate.letterSpacing,
-      style: mergedTemplate.style,
-    };
-  });
-  const mergedTextTemplate = resolvePayloadTextTemplate(
-    savedPayload?.textTemplate || getPreferredPayloadTextSource(mergedTextItems) || {},
-    basePayload?.textTemplate || getPreferredPayloadTextSource(baseTextItems) || {}
-  );
-
-  return {
-    ...basePayload,
-    ...savedPayload,
-    fontFamily: savedPayload.fontFamily || mergedTextTemplate.fontFamily || basePayload?.fontFamily,
-    textColor: savedPayload.textColor || mergedTextTemplate.fill || basePayload?.textColor,
-    textTemplate: {
-      ...mergedTextTemplate,
-      fontUrl: basePayload?.textTemplate?.fontUrl || mergedTextTemplate.fontUrl || null,
-    },
-    logoItems: Array.isArray(savedPayload.logoItems) && savedPayload.logoItems.length
-      ? savedPayload.logoItems
-      : basePayload?.logoItems,
-    textItems: mergedTextItems.length ? mergedTextItems : baseTextItems,
-  };
-};
 
 const normalizeLogoUrl = (value) => {
   if (typeof value !== 'string' || !value.trim()) return null;
@@ -183,33 +101,31 @@ const InlineSvgPreview = ({ svgMarkup, alt }) => {
   );
 };
 
-const buildRasterSvgMarkup = (imageUrl) => {
-  if (!imageUrl) {
-    return null;
-  }
-
-  return [
-    '<svg xmlns="http://www.w3.org/2000/svg" width="340" height="250" viewBox="40 40 620 420" preserveAspectRatio="xMidYMid meet">',
-    `<image href="${imageUrl}" x="0" y="0" width="700" height="500" preserveAspectRatio="none" />`,
-    '</svg>',
-  ].join('');
-};
+const toFavoriteIdSet = (logos) => new Set(
+  (Array.isArray(logos) ? logos : [])
+    .map((item) => item?.favoriteId)
+    .filter(Boolean)
+);
 
 const ResultsPage = () => {
   const router = useRouter();
-  const [selectedDesign, setSelectedDesign] = useState(null);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [downloadDesign, setDownloadDesign] = useState(null);
   const [downloadingFormat, setDownloadingFormat] = useState(null);
   const [persistedResults, setPersistedResults] = useState([]);
   const [favoriteIds, setFavoriteIds] = useState(new Set());
   const [authUser, setAuthUser] = useState(null);
   const [favoriteNotice, setFavoriteNotice] = useState(null);
-  const [savedEdits, setSavedEdits] = useState({});
-  const [navigationKind, setNavigationKind] = useState(null);
+  const [navigationKind] = useState(null);
   const { formData, results, status } = useSelector((state) => state.logo);
   const hasRecoverableDraft = hasCreateDraft(formData);
   const activeResults = Array.isArray(results) && results.length > 0 ? results : persistedResults;
   const editScopeKey = useMemo(() => buildResultsEditScope(formData, activeResults), [activeResults, formData]);
+  const currentLocation = useMemo(() => {
+    const query = searchParams?.toString();
+    return `${pathname || '/results'}${query ? `?${query}` : ''}`;
+  }, [pathname, searchParams]);
 
 
   useEffect(() => {
@@ -228,9 +144,35 @@ const ResultsPage = () => {
   useEffect(() => {
     const supabase = createClient();
 
+    const syncUserFromServer = async () => {
+      try {
+        const response = await fetch('/auth/session', {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+        const payload = await response.json();
+        const nextUser = payload?.user || null;
+        setAuthUser(nextUser);
+        return nextUser;
+      } catch {
+        return null;
+      }
+    };
+
+    const syncUserFromClient = async () => {
+      const { data } = await supabase.auth.getSession();
+      const nextUser = data?.session?.user || null;
+      setAuthUser(nextUser);
+      return nextUser;
+    };
+
     const syncUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      setAuthUser(data?.user || null);
+      const serverUser = await syncUserFromServer();
+      if (serverUser) {
+        return;
+      }
+
+      await syncUserFromClient();
     };
 
     void syncUser();
@@ -241,7 +183,18 @@ const ResultsPage = () => {
       setAuthUser(session?.user || null);
     });
 
-    return () => subscription.unsubscribe();
+    const handleWindowFocus = () => {
+      void syncUser();
+    };
+
+    window.addEventListener('focus', handleWindowFocus);
+    document.addEventListener('visibilitychange', handleWindowFocus);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('focus', handleWindowFocus);
+      document.removeEventListener('visibilitychange', handleWindowFocus);
+    };
   }, []);
 
   useEffect(() => {
@@ -256,76 +209,24 @@ const ResultsPage = () => {
         setFavoriteIds(new Set(cachedFavorites.map((item) => item.favoriteId)));
       }
 
-      const logos = await loadFavoriteLogos();
-      setFavoriteIds(new Set((Array.isArray(logos) ? logos : []).map((item) => item.favoriteId)));
+      try {
+        const logos = await loadFavoriteLogos();
+        setFavoriteIds(toFavoriteIdSet(logos));
+      } catch (error) {
+        if (!isLogoLibraryUpgradeRequiredError(error)) {
+          console.error('Unable to load favorites:', error);
+        }
+        setFavoriteIds(new Set());
+      }
     };
 
     const syncFavoritesFromCache = () => {
-      const cachedFavorites = peekFavoriteLogosCache(authUser.id);
-      setFavoriteIds(new Set((Array.isArray(cachedFavorites) ? cachedFavorites : []).map((item) => item.favoriteId)));
+      setFavoriteIds(toFavoriteIdSet(peekFavoriteLogosCache(authUser.id)));
     };
 
     void syncFavorites();
     return subscribeFavoriteLogos(syncFavoritesFromCache);
   }, [authUser?.id]);
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    const nextSavedEdits = {};
-    const items = Array.isArray(activeResults) ? activeResults : [];
-
-    items.forEach((item, index) => {
-      const designId = String(item?.id || index + 1);
-      const storageKey = buildEditedLogoStorageKey(editScopeKey, designId);
-      const sessionKey = buildEditedLogoSessionKey(editScopeKey, designId);
-      let localSavedEdit = null;
-      let sessionSavedEdit = null;
-
-      try {
-        const rawValue = window.localStorage.getItem(storageKey);
-        if (rawValue) {
-          localSavedEdit = JSON.parse(rawValue);
-        }
-      } catch {
-      }
-
-      try {
-        const rawSessionValue = window.sessionStorage.getItem(sessionKey);
-        if (rawSessionValue) {
-          sessionSavedEdit = JSON.parse(rawSessionValue);
-        }
-      } catch {
-      }
-
-      const localUpdatedAt = Number(localSavedEdit?.updatedAt || 0);
-      const sessionUpdatedAt = Number(sessionSavedEdit?.updatedAt || 0);
-      const primarySavedEdit = sessionUpdatedAt >= localUpdatedAt ? sessionSavedEdit : localSavedEdit;
-      const secondarySavedEdit = primarySavedEdit === sessionSavedEdit ? localSavedEdit : sessionSavedEdit;
-
-      const mergedSavedEdit = localSavedEdit || sessionSavedEdit
-        ? {
-            ...(secondarySavedEdit || {}),
-            ...(primarySavedEdit || {}),
-            editablePayload: primarySavedEdit?.editablePayload || secondarySavedEdit?.editablePayload || null,
-            previewDataUrl: primarySavedEdit?.previewDataUrl || secondarySavedEdit?.previewDataUrl || null,
-            previewVersion: Math.max(
-              Number(localSavedEdit?.previewVersion || 0),
-              Number(sessionSavedEdit?.previewVersion || 0)
-            ),
-            updatedAt: Math.max(localUpdatedAt, sessionUpdatedAt),
-          }
-        : null;
-
-      if (mergedSavedEdit) {
-        nextSavedEdits[designId] = mergedSavedEdit;
-      }
-    });
-
-    setSavedEdits(nextSavedEdits);
-  }, [activeResults, editScopeKey]);
-
   const logos = useMemo(() => {
     const businessName = typeof formData?.name === 'string' && formData.name.trim() ? formData.name.trim() : 'BRAND';
     const slogan = typeof formData?.slogan === 'string' ? formData.slogan.trim() : '';
@@ -334,7 +235,6 @@ const ResultsPage = () => {
     const items = Array.isArray(activeResults) ? activeResults : [];
 
     return items.map((item, index) => {
-      const designId = String(item?.id || index + 1);
       const svgMarkup = buildLogoCardSvg(item, {
         businessName,
         slogan,
@@ -353,10 +253,6 @@ const ResultsPage = () => {
         iconAsset?.image_url ||
         iconAsset?.url
       );
-      const savedEdit = savedEdits[designId] || null;
-      const savedPreviewDataUrl = savedEdit?.previewVersion >= 8 ? savedEdit.previewDataUrl || null : null;
-      const mergedEditablePayload = mergeEditablePayload(editablePayload, savedEdit?.editablePayload);
-      const previewSvgMarkup = savedPreviewDataUrl ? buildRasterSvgMarkup(savedPreviewDataUrl) : svgMarkup;
 
       return {
         id: item?.id || index + 1,
@@ -364,17 +260,16 @@ const ResultsPage = () => {
         businessName,
         slogan,
         industryLabel,
-        themeColor: mergedEditablePayload?.textColor || item?.name_color || '#111827',
-        backgroundColor: mergedEditablePayload?.bgColor || mergedEditablePayload?.backgroundColor || item?.background_color || '#ffffff',
-        svgMarkup: previewSvgMarkup,
-        svgDataUri: savedPreviewDataUrl || svgToDataUri(previewSvgMarkup),
-        editablePayload: mergedEditablePayload,
-        previewDataUrl: savedPreviewDataUrl,
+        themeColor: editablePayload?.textColor || item?.name_color || '#111827',
+        backgroundColor: editablePayload?.bgColor || editablePayload?.backgroundColor || item?.background_color || '#ffffff',
+        svgMarkup,
+        editablePayload,
+        previewDataUrl: null,
         fallbackUrl,
         favoriteId: getFavoriteLogoKey({ id: item?.id || index + 1, businessName }),
       };
     });
-  }, [activeResults, formData, savedEdits]);
+  }, [activeResults, formData]);
 
 
   if (status === 'loading') {
@@ -422,7 +317,7 @@ const ResultsPage = () => {
   }
 
   const redirectToSignIn = () => {
-    router.push('/auth/signin?next=%2Fresults');
+    router.push(`/auth/signin?next=${encodeURIComponent(currentLocation)}`);
   };
 
   const handleFavoriteAuthRequired = () => {
@@ -439,7 +334,7 @@ const ResultsPage = () => {
     const imageParam = design.fallbackUrl || '';
 
     if (typeof window !== 'undefined') {
-      window.sessionStorage.setItem(payloadKey, JSON.stringify(design.editablePayload || null));
+      saveTemporaryEditorPayload(payloadKey, design.editablePayload || null);
     }
 
     const params = new URLSearchParams({
@@ -453,13 +348,24 @@ const ResultsPage = () => {
       favoriteId: design.favoriteId,
       industryLabel: design.industryLabel || '',
       isFavorite: favoriteIds.has(design.favoriteId) ? '1' : '0',
+      isSaved: '0',
+      isDownloaded: '0',
       sourceContext: 'results',
       editScopeKey,
       payloadKey,
-      returnTo: '/results',
+      returnTo: '/saved',
       returnMode: 'push',
     });
-    router.push(`/editor?${params.toString()}`);
+
+    const editorUrl = `/editor?${params.toString()}`;
+    if (typeof window !== 'undefined') {
+      if (!openEditorWindowWithPayload(editorUrl, payloadKey, design.editablePayload || null)) {
+        window.open(editorUrl, '_blank');
+      }
+      return;
+    }
+
+    router.push(editorUrl);
   };
   const handleDownload = async (design, format) => {
     if (!design?.svgMarkup || !format) {
@@ -472,36 +378,24 @@ const ResultsPage = () => {
       return;
     }
 
-    const wasFavorite = favoriteIds.has(design.favoriteId);
-    const optimisticFavoriteIds = new Set(favoriteIds);
-    optimisticFavoriteIds.add(design.favoriteId);
-    setFavoriteIds(optimisticFavoriteIds);
-
-    try {
-      const nextFavorites = await saveFavoriteLogo(design, { markDownloaded: true });
-      setFavoriteIds(new Set(nextFavorites.map((item) => item.favoriteId)));
-
-      if (!wasFavorite) {
-        setFavoriteNotice({
-          type: 'favorite',
-          title: 'Saved To Favorites',
-          message: `${design.name} was automatically saved when you downloaded it.`,
-        });
-      }
-    } catch (error) {
-      if (!wasFavorite) {
-        const rollbackFavoriteIds = new Set(favoriteIds);
-        rollbackFavoriteIds.delete(design.favoriteId);
-        setFavoriteIds(rollbackFavoriteIds);
-      }
-
+    void saveDownloadedLogo(design, {
+      isFavorite: favoriteIds.has(design.favoriteId),
+      isSaved: false,
+    }).catch((error) => {
       if (isAuthRequiredError(error)) {
         handleFavoriteAuthRequired();
         setDownloadDesign(null);
         return;
       }
-      throw error;
-    }
+
+      setFavoriteNotice({
+        type: 'info',
+        title: isLogoLibraryUpgradeRequiredError(error) ? 'Database Upgrade Required' : 'Download Saved Locally Only',
+        message: isLogoLibraryUpgradeRequiredError(error)
+          ? getLogoLibraryUpgradeMessage('downloads can be tracked')
+          : 'The file was downloaded, but we could not update your downloads history right now.',
+      });
+    });
 
     const safeBaseName = getDownloadBaseName(design.name || design.businessName || 'logo');
 
@@ -510,6 +404,7 @@ const ResultsPage = () => {
     try {
       if (format === 'svg') {
         triggerBlobDownload(new Blob([design.svgMarkup], { type: 'image/svg+xml;charset=utf-8' }), `${safeBaseName}.svg`);
+        setDownloadDesign(null);
         return;
       }
 
@@ -518,18 +413,21 @@ const ResultsPage = () => {
       if (format === 'png') {
         const blob = await canvasToBlob(canvas, 'image/png');
         triggerBlobDownload(blob, `${safeBaseName}.png`);
+        setDownloadDesign(null);
         return;
       }
 
       if (format === 'jpg') {
         const blob = await canvasToBlob(canvas, 'image/jpeg', 0.96);
         triggerBlobDownload(blob, `${safeBaseName}.jpg`);
+        setDownloadDesign(null);
         return;
       }
 
       if (format === 'webp') {
         const blob = await canvasToBlob(canvas, 'image/webp', 0.96);
         triggerBlobDownload(blob, `${safeBaseName}.webp`);
+        setDownloadDesign(null);
         return;
       }
 
@@ -538,6 +436,7 @@ const ResultsPage = () => {
         const jpegBytes = new Uint8Array(await jpegBlob.arrayBuffer());
         const pdfBlob = buildPdfBlobFromJpegBytes(jpegBytes, canvas.width || width, canvas.height || height);
         triggerBlobDownload(pdfBlob, `${safeBaseName}.pdf`);
+        setDownloadDesign(null);
       }
     } finally {
       setDownloadingFormat(null);
@@ -563,7 +462,7 @@ const ResultsPage = () => {
 
     try {
       const nextState = await toggleFavoriteLogo(design);
-      setFavoriteIds(new Set(nextState.favorites.map((item) => item.favoriteId)));
+      setFavoriteIds(toFavoriteIdSet(nextState.logos));
       setFavoriteNotice({
         type: nextState.isFavorite ? 'favorite' : 'info',
         title: nextState.isFavorite ? 'Added To Favorites' : 'Removed From Favorites',
@@ -578,7 +477,14 @@ const ResultsPage = () => {
         handleFavoriteAuthRequired();
         return;
       }
-      throw error;
+
+      setFavoriteNotice({
+        type: 'info',
+        title: isLogoLibraryUpgradeRequiredError(error) ? 'Database Upgrade Required' : 'Unable To Update',
+        message: isLogoLibraryUpgradeRequiredError(error)
+          ? getLogoLibraryUpgradeMessage('Favorites can update')
+          : 'We could not update this favorite right now. Please try again.',
+      });
     }
   };
   return (
@@ -611,7 +517,13 @@ const ResultsPage = () => {
                 {design.svgMarkup ? (
                   <InlineSvgPreview svgMarkup={design.svgMarkup} alt={design.name} />
                 ) : design.fallbackUrl ? (
-                  <img src={design.fallbackUrl} alt={design.name} className="w-full h-full object-cover" />
+                  <Image
+                    src={design.fallbackUrl}
+                    alt={design.name}
+                    fill
+                    unoptimized
+                    className="object-cover"
+                  />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-slate-400 font-semibold">
                     No preview
@@ -653,64 +565,6 @@ const ResultsPage = () => {
           ))}
         </div>
       </div>
-
-      <AnimatePresence>
-        {selectedDesign && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
-            onClick={() => setSelectedDesign(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="relative w-full max-w-lg rounded-[2rem] bg-white p-5 shadow-2xl sm:rounded-[3rem] sm:p-6 md:p-8"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                onClick={() => setSelectedDesign(null)}
-                className="brand-icon-button absolute top-5 right-5 z-10 h-11 w-11 p-0"
-              >
-                <X size={24} />
-              </button>
-
-              <div className="mb-5 aspect-[7/5] w-full overflow-hidden rounded-[1.5rem] border border-slate-100 bg-slate-50 sm:mb-6 sm:rounded-[2rem]">
-                {selectedDesign.svgMarkup ? (
-                  <InlineSvgPreview svgMarkup={selectedDesign.svgMarkup} alt={selectedDesign.name} />
-                ) : selectedDesign.fallbackUrl ? (
-                  <img src={selectedDesign.fallbackUrl} alt="Preview" className="w-full h-full object-cover" />
-                ) : null}
-              </div>
-
-              <div className="mb-6 text-center sm:mb-8">
-                <h2 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">{selectedDesign.name}</h2>
-                <p className="mt-1 text-sm font-medium text-slate-500 sm:text-base">{selectedDesign.industryLabel}</p>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-4">
-                <button
-                  onClick={() => handleEditOnCanva(selectedDesign)}
-                  className="brand-button-outline flex-1 gap-2 rounded-2xl py-4"
-                >
-                  <Edit3 size={18} />
-                  Edit Design
-                </button>
-
-                <button
-                  onClick={() => setDownloadDesign(selectedDesign)}
-                  className="brand-button-outline flex-1 gap-2 rounded-2xl py-4"
-                >
-                  <Download size={18} />
-                  Download Logo
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <DownloadDialog
         open={Boolean(downloadDesign)}

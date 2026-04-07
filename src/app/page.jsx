@@ -31,7 +31,7 @@ const AppPreview = dynamic(() => import("../components/Home/AppPreview.jsx"), {
   suspense: true,
 });
 
-const Testomonials = dynamic(() => import("../components/Home/Testomonials.jsx"), {
+const Testimonials = dynamic(() => import("../components/Home/Testimonials.jsx"), {
   suspense: true,
 });
 
@@ -96,7 +96,7 @@ export default function HomePage() {
         <AppPreview />
       </Suspense>
       <Suspense fallback={<SectionPlaceholder title="testimonials" />}>
-        <Testomonials />
+        <Testimonials />
       </Suspense>
       <Suspense fallback={<SectionPlaceholder title="call to action" />}>
         <FinalCTA />

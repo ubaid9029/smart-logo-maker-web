@@ -1,6 +1,6 @@
 "use client";
 import Hero from "../../components/Privacy/Hero";
-import Testomonials from "../../components/Privacy/Testomonials";
+import Testimonials from "../../components/Privacy/Testimonials";
 import FinalCTA from "../../components/Privacy/FinalCTA";
 import PrivacyHero from "../../components/Privacy/PrivacyHero";
 
@@ -9,7 +9,7 @@ export default function PrivacyPage() {
     <>
       <Hero />
       <PrivacyHero />
-      <Testomonials />
+      <Testimonials />
       <FinalCTA />
     </>
   );

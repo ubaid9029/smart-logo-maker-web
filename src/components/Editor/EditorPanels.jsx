@@ -1,7 +1,7 @@
 "use client";
 
 import Image from 'next/image';
-import React from 'react';
+import React, { useState } from 'react';
 import {
   AlignHorizontalJustifyCenter,
   AlignVerticalJustifyCenter,
@@ -9,6 +9,11 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
+  ChevronDown,
+  ChevronUp,
+  ChevronsDown,
+  ChevronsUp,
+  GripVertical,
   Images,
   Maximize2,
   Minimize2,
@@ -19,13 +24,193 @@ import {
 } from 'lucide-react';
 import { ColorPickerField, HexColorInput } from './ColorInputs';
 
+const MOBILE_PANEL_LABELS = {
+  controls: 'CONTROL',
+  fonts: 'FONT',
+  colors: 'COLOR',
+  outlines: 'OUTLINE',
+  '3D': '3D',
+};
+
+const LAYER_MOVE_ACTION_DEFINITIONS = [
+  {
+    key: 'forward',
+    label: 'Forward',
+    mobileLabel: 'FORWARD',
+    direction: 'forward',
+    icon: ChevronUp,
+    canMove: ({ canBringForward }) => canBringForward,
+  },
+  {
+    key: 'backward',
+    label: 'Backward',
+    mobileLabel: 'BACKWARD',
+    direction: 'backward',
+    icon: ChevronDown,
+    canMove: ({ canSendBackward }) => canSendBackward,
+  },
+  {
+    key: 'front',
+    label: 'To Front',
+    mobileLabel: 'TO FRONT',
+    direction: 'front',
+    icon: ChevronsUp,
+    canMove: ({ canBringToFront }) => canBringToFront,
+  },
+  {
+    key: 'back',
+    label: 'To Back',
+    mobileLabel: 'TO BACK',
+    direction: 'back',
+    icon: ChevronsDown,
+    canMove: ({ canSendToBack }) => canSendToBack,
+  },
+];
+
+function buildLayerMoveActions({
+  canBringForward,
+  canBringToFront,
+  canSendBackward,
+  canSendToBack,
+  handleMoveSelectedLayers,
+}) {
+  const permissions = {
+    canBringForward,
+    canBringToFront,
+    canSendBackward,
+    canSendToBack,
+  };
+
+  return LAYER_MOVE_ACTION_DEFINITIONS.map((action) => ({
+    ...action,
+    disabled: !action.canMove(permissions),
+    onClick: () => handleMoveSelectedLayers(action.direction),
+  }));
+}
+
+function CompactActionButton({ disabled, icon, label, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`min-w-0 rounded-xl border px-2.5 py-2 text-xs font-bold transition-all ${
+        disabled
+          ? 'cursor-not-allowed border-slate-100 text-slate-300'
+          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+      }`}
+    >
+      <span className="flex items-center justify-center gap-1.5">
+        {icon}
+        <span>{label}</span>
+      </span>
+    </button>
+  );
+}
+
+function AdvancedNumberField({ disabled = false, label, onChange, value }) {
+  return (
+    <label className="flex flex-col gap-2">
+      <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">{label}</span>
+      <input
+        type="number"
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+        className={`h-10 rounded-xl border px-3 text-sm font-semibold outline-none transition-all ${
+          disabled
+            ? 'cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300'
+            : 'border-slate-200 bg-white text-slate-700 focus:border-orange-300 focus:ring-2 focus:ring-orange-100'
+        }`}
+      />
+    </label>
+  );
+}
+
+function SegmentedToggleButton({ active, children, onClick, withIcon = false }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded-[1.1rem] px-4 py-3 text-sm font-black transition-all ${
+        active
+          ? 'bg-white text-slate-900 shadow-sm'
+          : 'text-slate-500'
+      } ${withIcon ? 'flex items-center justify-center gap-2' : ''}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function LayerPanelRow({
+  draggedLayerKey,
+  handleReorderLayerFromPanel,
+  handleSelectLayerFromPanel,
+  layer,
+  layerView,
+  selectedLayerKey,
+  setDraggedLayerKey,
+  visibleLayerItems,
+}) {
+  return (
+    <button
+      key={layer.key}
+      type="button"
+      draggable={layerView === 'all'}
+      onClick={() => handleSelectLayerFromPanel(layer.key)}
+      onDragStart={() => {
+        if (layerView === 'all') {
+          setDraggedLayerKey(layer.key);
+        }
+      }}
+      onDragOver={(event) => {
+        if (layerView === 'all') {
+          event.preventDefault();
+        }
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        if (draggedLayerKey && layerView === 'all') {
+          handleReorderLayerFromPanel(
+            draggedLayerKey,
+            layer.key,
+            visibleLayerItems.map((entry) => entry.key)
+          );
+        }
+        setDraggedLayerKey(null);
+      }}
+      onDragEnd={() => setDraggedLayerKey(null)}
+      className={`flex w-full items-center gap-3 rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
+        layer.isSelected
+          ? 'border-orange-300 bg-orange-50 ring-2 ring-orange-100'
+          : draggedLayerKey === layer.key
+            ? 'border-slate-300 bg-slate-100'
+            : 'border-slate-200 bg-slate-50 hover:bg-white'
+      }`}
+    >
+      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white ${
+        layerView === 'all' ? 'text-slate-400' : 'text-slate-300'
+      }`}>
+        <GripVertical size={18} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-black text-slate-800">{layer.label}</p>
+        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
+          <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-slate-500">{layer.type}</span>
+          {layer.isBackground ? <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] text-sky-700">Background</span> : null}
+          <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-slate-500">{layer.orderLabel}</span>
+          {layer.key === selectedLayerKey ? <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] text-orange-600">Selected</span> : null}
+        </div>
+      </div>
+    </button>
+  );
+}
+
 export function EditorSidebarContent(props) {
   const {
     activeBackgroundOpacity,
     activeBackgroundOption,
     activeBackgroundShape,
     activeBackgroundShapeColor,
-    activeBackgroundShapeType,
     activeObjectPanel,
     activeTool,
     applyBackgroundColor,
@@ -35,10 +220,15 @@ export function EditorSidebarContent(props) {
     applyDesignPalette,
     applyGradientToBackground,
     applyPresetBackgroundImage,
+    backgroundLayerCount,
     backgroundColorSwatches,
     backgroundLibraryImages,
     backgroundShapeOptions,
+    canBringForward,
+    canBringToFront,
     canEditText,
+    canSendBackward,
+    canSendToBack,
     colorSwatches,
     customColorValue,
     designPalettes,
@@ -52,24 +242,32 @@ export function EditorSidebarContent(props) {
     gradientStartColor,
     gradientType,
     handleAddPresetArt,
+    handleAddShapeElement,
     handleCenter,
+    handleMoveSelectedLayers,
     handleNudge,
     handleResetSelectedTransform,
     handleRotateSelected,
     handleScaleSelected,
     handleSelectedOpacityChange,
     handleSelectedTextFontChange,
-    handleSelectedTextFontSizeChange,
+    handleSelectedTextFontStyleChange,
     isControlsContext,
     isMobileViewport,
     isValidHexColor,
+    layerPanelItems,
     logoConfig,
     movementStep,
     normalizeHexColor,
     openBackgroundImageBrowser,
     selectedCanvasItem,
+    selectedAdvancedMetrics,
     selectedItemData,
+    selectedLayerKey,
     selectedStyle,
+    handleReorderLayerFromPanel,
+    handleSelectLayerFromPanel,
+    handleSingleSelectedNumericChange,
     setCustomColorValue,
     setDialogBaseColor,
     setDialogSelectedColor,
@@ -83,6 +281,70 @@ export function EditorSidebarContent(props) {
     AVAILABLE_EDITOR_FONTS,
     artLibraryImages,
   } = props;
+  const [positionView, setPositionView] = useState('arrange');
+  const [draggedLayerKey, setDraggedLayerKey] = useState(null);
+  const visibleLayerItems = layerPanelItems || [];
+  const selectedItemIsShape = selectedItemData?.kind === 'shape' || selectedItemData?.type === 'shape';
+  const canRoundSelectedShape = Boolean(
+    selectedItemIsShape &&
+    ['rectangle', 'full'].includes(selectedItemData?.shapeType || 'rectangle')
+  );
+  const selectedCornerRadius = Math.round(Number(selectedStyle.cornerRadius ?? 28));
+  const selectedFontFamily = selectedItemData?.fontFamily || logoConfig.fontFamily || 'Arial';
+  const selectedFontStyle = String(selectedItemData?.fontStyle || 'normal').toLowerCase();
+  const fontStyleOptions = [
+    { id: 'normal', label: 'Regular' },
+    { id: 'bold', label: 'Bold' },
+    { id: 'italic', label: 'Italic' },
+    { id: 'bold italic', label: 'Bold Italic' },
+  ];
+  const layerMoveActions = buildLayerMoveActions({
+    canBringForward,
+    canBringToFront,
+    canSendBackward,
+    canSendToBack,
+    handleMoveSelectedLayers,
+  });
+  const desktopArrangeActions = layerMoveActions.map((action) => {
+    const Icon = action.icon;
+
+    return {
+      ...action,
+      icon: <Icon size={16} />,
+    };
+  });
+  const arrangePrimaryFields = [
+    { key: 'width', label: 'Width', value: selectedAdvancedMetrics?.width ?? 0 },
+    { key: 'height', label: 'Height', value: selectedAdvancedMetrics?.height ?? 0 },
+  ];
+  const arrangeSecondaryFields = [
+    { key: 'x', label: 'X', value: selectedAdvancedMetrics?.x ?? 0 },
+    { key: 'y', label: 'Y', value: selectedAdvancedMetrics?.y ?? 0 },
+    { key: 'rotation', label: 'Rotate', value: selectedAdvancedMetrics?.rotation ?? 0 },
+  ];
+  const applySelectedFillColor = (nextColor) => {
+    const safeColor = normalizeHexColor(nextColor, '#111827');
+    updateSelectedItemStyle(
+      selectedItemIsShape
+        ? { fillColor: safeColor, outlineColor: safeColor }
+        : { fillColor: safeColor }
+    );
+  };
+  const renderIconClusterButton = (label, icon, onClick, tone = 'default') => (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      onClick={onClick}
+      className={`flex h-[62px] w-[86px] items-center justify-center rounded-[1.35rem] transition-all ${
+        tone === 'accent'
+          ? 'bg-orange-50 text-orange-600 hover:bg-orange-100'
+          : 'bg-slate-100/90 text-slate-700 hover:bg-slate-200/80'
+      }`}
+    >
+      {icon}
+    </button>
+  );
 
   const renderSidebarContent = () => {
     if (isControlsContext && selectedItemData) {
@@ -157,177 +419,190 @@ export function EditorSidebarContent(props) {
                   className="mt-1.5 w-full accent-orange-500"
                 />
               </div>
+
+              <div className="mt-2 rounded-[0.95rem] border border-slate-100 bg-slate-50 p-2">
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+                  Layer
+                </p>
+                <div className="mt-2 grid grid-cols-2 gap-1">
+                  <button
+                    onClick={() => handleMoveSelectedLayers('back')}
+                    disabled={!canSendToBack}
+                    className={`rounded-[0.85rem] border px-2 py-2 text-[9px] font-black uppercase ${
+                      !canSendToBack ? 'cursor-not-allowed border-slate-100 text-slate-300' : 'border-slate-200 bg-white text-slate-700'
+                    }`}
+                  >
+                    To Back
+                  </button>
+                  <button
+                    onClick={() => handleMoveSelectedLayers('backward')}
+                    disabled={!canSendBackward}
+                    className={`rounded-[0.85rem] border px-2 py-2 text-[9px] font-black uppercase ${
+                      !canSendBackward ? 'cursor-not-allowed border-slate-100 text-slate-300' : 'border-slate-200 bg-white text-slate-700'
+                    }`}
+                  >
+                    Backward
+                  </button>
+                  <button
+                    onClick={() => handleMoveSelectedLayers('forward')}
+                    disabled={!canBringForward}
+                    className={`rounded-[0.85rem] border px-2 py-2 text-[9px] font-black uppercase ${
+                      !canBringForward ? 'cursor-not-allowed border-slate-100 text-slate-300' : 'border-slate-200 bg-white text-slate-700'
+                    }`}
+                  >
+                    Forward
+                  </button>
+                  <button
+                    onClick={() => handleMoveSelectedLayers('front')}
+                    disabled={!canBringToFront}
+                    className={`rounded-[0.85rem] border px-2 py-2 text-[9px] font-black uppercase ${
+                      !canBringToFront ? 'cursor-not-allowed border-slate-100 text-slate-300' : 'border-slate-200 bg-white text-slate-700'
+                    }`}
+                  >
+                    To Front
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         );
       }
 
       return (
-        <div className="space-y-4">
-          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-            <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
-              Position
-            </p>
-            <div className="mt-4 grid grid-cols-3 gap-3">
-              <div />
-              {(() => {
-                const Icon = ArrowUp;
-                return (
-                  <button
-                    title="Move Up"
-                    onClick={() => handleNudge(0, -movementStep)}
-                    className="flex h-12 w-full items-center justify-center rounded-2xl bg-slate-100 text-slate-700 transition-all hover:bg-slate-200"
-                  >
-                    <Icon size={18} />
-                  </button>
-                );
-              })()}
-              <div />
-              {(() => {
-                const Icon = ArrowLeft;
-                return (
-                  <button
-                    title="Move Left"
-                    onClick={() => handleNudge(-movementStep, 0)}
-                    className="flex h-12 w-full items-center justify-center rounded-2xl bg-slate-100 text-slate-700 transition-all hover:bg-slate-200"
-                  >
-                    <Icon size={18} />
-                  </button>
-                );
-              })()}
-              {(() => {
-                const Icon = AlignHorizontalJustifyCenter;
-                return (
-                  <button
-                    title="Center Horizontally"
-                    onClick={() => handleCenter('x')}
-                    className="flex h-12 w-full items-center justify-center rounded-2xl bg-orange-50 text-orange-600 transition-all hover:bg-orange-100"
-                  >
-                    <Icon size={18} />
-                  </button>
-                );
-              })()}
-              {(() => {
-                const Icon = ArrowRight;
-                return (
-                  <button
-                    title="Move Right"
-                    onClick={() => handleNudge(movementStep, 0)}
-                    className="flex h-12 w-full items-center justify-center rounded-2xl bg-slate-100 text-slate-700 transition-all hover:bg-slate-200"
-                  >
-                    <Icon size={18} />
-                  </button>
-                );
-              })()}
-              <div />
-              {(() => {
-                const Icon = ArrowDown;
-                return (
-                  <button
-                    title="Move Down"
-                    onClick={() => handleNudge(0, movementStep)}
-                    className="flex h-12 w-full items-center justify-center rounded-2xl bg-slate-100 text-slate-700 transition-all hover:bg-slate-200"
-                  >
-                    <Icon size={18} />
-                  </button>
-                );
-              })()}
-              {(() => {
-                const Icon = AlignVerticalJustifyCenter;
-                return (
-                  <button
-                    title="Center Vertically"
-                    onClick={() => handleCenter('y')}
-                    className="flex h-12 w-full items-center justify-center rounded-2xl bg-orange-50 text-orange-600 transition-all hover:bg-orange-100"
-                  >
-                    <Icon size={18} />
-                  </button>
-                );
-              })()}
-            </div>
-          </div>
+        <div className="space-y-3">
+          {activeObjectPanel === 'controls' ? (
+            <div className="mx-auto mt-1 max-w-[290px] space-y-3">
+              <div className="rounded-[1.22rem] border border-slate-100 bg-white p-2.5 shadow-sm">
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">Position</p>
+                <div className="mt-2.5 space-y-2">
+                  <div className="flex justify-center">
+                    {renderIconClusterButton('Top', <ArrowUp size={22} />, () => handleNudge(0, -movementStep))}
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    {renderIconClusterButton('Left', <ArrowLeft size={22} />, () => handleNudge(-movementStep, 0))}
+                    {renderIconClusterButton('Center X', <AlignHorizontalJustifyCenter size={22} />, () => handleCenter('x'), 'accent')}
+                    {renderIconClusterButton('Right', <ArrowRight size={22} />, () => handleNudge(movementStep, 0))}
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div />
+                    {renderIconClusterButton('Bottom', <ArrowDown size={22} />, () => handleNudge(0, movementStep))}
+                    {renderIconClusterButton('Center Y', <AlignVerticalJustifyCenter size={22} />, () => handleCenter('y'), 'accent')}
+                  </div>
+                </div>
+              </div>
 
-          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
-                Transform
-              </p>
-              <div className="flex items-center gap-2">
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600">
-                  {Math.round((Math.abs(selectedItemData.transform?.scaleX ?? 1) || 1) * 100)}%
-                </span>
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600">
-                  {Math.round(Number(selectedItemData.transform?.rotation ?? 0))}°
-                </span>
+              <div className="rounded-[1.22rem] border border-slate-100 bg-white p-2.5 shadow-sm">
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">Transform</p>
+                <div className="mt-2.5 space-y-2">
+                  <div className="flex justify-center">
+                    {renderIconClusterButton('Zoom In', <Maximize2 size={22} />, () => handleScaleSelected((Math.abs(selectedItemData.transform?.scaleX ?? 1) || 1) + 0.1))}
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    {renderIconClusterButton('Rotate -', <RotateCcw size={22} />, () => handleRotateSelected(Number(selectedItemData.transform?.rotation ?? 0) - 15))}
+                    {renderIconClusterButton('Reset', <RefreshCcw size={22} />, handleResetSelectedTransform, 'accent')}
+                    {renderIconClusterButton('Rotate +', <RotateCw size={22} />, () => handleRotateSelected(Number(selectedItemData.transform?.rotation ?? 0) + 15))}
+                  </div>
+                  <div className="flex justify-center">
+                    {renderIconClusterButton('Zoom Out', <Minimize2 size={22} />, () => handleScaleSelected((Math.abs(selectedItemData.transform?.scaleX ?? 1) || 1) - 0.1))}
+                  </div>
+                </div>
               </div>
             </div>
-
-            <div className="mt-4 grid grid-cols-3 gap-3">
-              <div />
-              <button
-                title="Scale Up"
-                onClick={() => handleScaleSelected((Math.abs(selectedItemData.transform?.scaleX ?? 1) || 1) + 0.1)}
-                className="flex h-14 w-full items-center justify-center rounded-[1.4rem] bg-slate-100 text-slate-700 transition-all hover:bg-slate-200"
-              >
-                <Maximize2 size={18} />
-              </button>
-              <div />
-
-              <button
-                title="Rotate Left"
-                onClick={() => handleRotateSelected(Number(selectedItemData.transform?.rotation ?? 0) - 15)}
-                className="flex h-14 w-full items-center justify-center rounded-[1.4rem] bg-slate-100 text-slate-700 transition-all hover:bg-slate-200"
-              >
-                <RotateCcw size={18} />
-              </button>
-              <button
-                title="Reset Transform"
-                onClick={handleResetSelectedTransform}
-                className="flex h-14 w-full items-center justify-center rounded-[1.4rem] bg-orange-50 text-orange-600 transition-all hover:bg-orange-100"
-              >
-                <RefreshCcw size={18} />
-              </button>
-              <button
-                title="Rotate Right"
-                onClick={() => handleRotateSelected(Number(selectedItemData.transform?.rotation ?? 0) + 15)}
-                className="flex h-14 w-full items-center justify-center rounded-[1.4rem] bg-slate-100 text-slate-700 transition-all hover:bg-slate-200"
-              >
-                <RotateCw size={18} />
-              </button>
-
-              <div />
-              <button
-                title="Scale Down"
-                onClick={() => handleScaleSelected((Math.abs(selectedItemData.transform?.scaleX ?? 1) || 1) - 0.1)}
-                className="flex h-14 w-full items-center justify-center rounded-[1.4rem] bg-slate-100 text-slate-700 transition-all hover:bg-slate-200"
-              >
-                <Minimize2 size={18} />
-              </button>
-              <div />
+          ) : (
+            <div className="mt-1 space-y-3">
+              <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100/80 p-1">
+                <SegmentedToggleButton active={positionView === 'arrange'} onClick={() => setPositionView('arrange')}>
+                  Arrange
+                </SegmentedToggleButton>
+                <SegmentedToggleButton active={positionView === 'layers'} onClick={() => setPositionView('layers')}>
+                  Layers
+                </SegmentedToggleButton>
+              </div>
+              {positionView === 'arrange' ? (
+                <div className="space-y-3">
+                  <div className="rounded-[1.05rem] border border-slate-100 bg-white p-2 shadow-sm">
+                    <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">Arrange</p>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      {desktopArrangeActions.map((action) => (
+                        <CompactActionButton
+                          key={action.key}
+                          disabled={action.disabled}
+                          icon={action.icon}
+                          label={action.label}
+                          onClick={action.onClick}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="rounded-[1.05rem] border border-slate-100 bg-slate-50/70 p-2 shadow-sm">
+                    <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">Advanced</p>
+                    <div className="mt-2 space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        {arrangePrimaryFields.map((field) => (
+                          <AdvancedNumberField
+                            key={field.key}
+                            disabled={field.disabled}
+                            label={field.label}
+                            value={field.value}
+                            onChange={(event) => handleSingleSelectedNumericChange(field.key, event.target.value)}
+                          />
+                        ))}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {arrangeSecondaryFields.slice(0, 2).map((field) => (
+                          <AdvancedNumberField
+                            key={field.key}
+                            label={field.label}
+                            value={field.value}
+                            onChange={(event) => handleSingleSelectedNumericChange(field.key, event.target.value)}
+                          />
+                        ))}
+                      </div>
+                      <div className="mx-auto max-w-[148px]">
+                        <AdvancedNumberField
+                          key={arrangeSecondaryFields[2].key}
+                          label={arrangeSecondaryFields[2].label}
+                          value={arrangeSecondaryFields[2].value}
+                          onChange={(event) => handleSingleSelectedNumericChange(arrangeSecondaryFields[2].key, event.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="rounded-[1.05rem] border border-slate-100 bg-white p-2 shadow-sm">
+                    <p className="px-1 text-[11px] font-semibold text-slate-400">
+                      Drag any row to reorder your full layer stack.
+                    </p>
+                    <div className="mt-2 space-y-2">
+                      {visibleLayerItems.map((layer) => (
+                        <LayerPanelRow
+                          key={layer.key}
+                          draggedLayerKey={draggedLayerKey}
+                          handleReorderLayerFromPanel={handleReorderLayerFromPanel}
+                          handleSelectLayerFromPanel={handleSelectLayerFromPanel}
+                          layer={layer}
+                          layerView="all"
+                          selectedLayerKey={selectedLayerKey}
+                          setDraggedLayerKey={setDraggedLayerKey}
+                          visibleLayerItems={visibleLayerItems}
+                        />
+                      ))}
+                      {!visibleLayerItems.length ? (
+                        <div className="rounded-[1.45rem] border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm font-semibold text-slate-400">
+                          No layers are available for this selection yet.
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-
-          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
-                Opacity
-              </p>
-              <span className="text-sm font-bold text-slate-600">
-                {Math.round((Number(selectedItemData.opacity ?? 1) || 1) * 100)}%
-              </span>
-            </div>
-            <input
-              type="range"
-              min="0.05"
-              max="1"
-              step="0.05"
-              value={Math.max(0.05, Math.min(1, Number(selectedItemData.opacity ?? 1)))}
-              onChange={(event) => handleSelectedOpacityChange(event.target.value)}
-              className="mt-4 w-full accent-orange-500"
-            />
-          </div>
+          )}
         </div>
       );
+
     }
 
     if (selectedCanvasItem && activeObjectPanel === 'colors' && selectedItemData) {
@@ -341,20 +616,20 @@ export function EditorSidebarContent(props) {
               <div className="mt-2 flex items-center gap-2">
                 <ColorPickerField
                   value={isValidHexColor(selectedStyle.fillColor) ? selectedStyle.fillColor : normalizeHexColor(selectedStyle.fillColor, '#111827')}
-                  onChange={(event) => updateSelectedItemStyle({ fillColor: normalizeHexColor(event.target.value, '#111827') })}
+                  onChange={(event) => applySelectedFillColor(event.target.value)}
                 />
                 <HexColorInput
                   value={normalizeHexColor(selectedStyle.fillColor || '#111827', '#111827')}
-                  onValidColorChange={(nextValue) => updateSelectedItemStyle({ fillColor: normalizeHexColor(nextValue, '#111827') })}
+                  onValidColorChange={applySelectedFillColor}
                   placeholder="#111827"
                 />
               </div>
-              <div className="mt-2 flex items-center gap-1.5 overflow-x-auto pb-1">
+              <div className="mt-2 flex items-center gap-0.5 overflow-x-auto pb-1">
                 {colorSwatches.map((color) => (
                   <button
                     key={color}
                     title={color}
-                    onClick={() => updateSelectedItemStyle({ fillColor: color })}
+                    onClick={() => applySelectedFillColor(color)}
                     className={`h-7 w-7 shrink-0 rounded-full border-[3px] transition-all ${
                       selectedStyle.fillColor === color ? 'scale-105 ring-2 ring-orange-300 border-black' : 'border-black/80'
                     }`}
@@ -376,21 +651,21 @@ export function EditorSidebarContent(props) {
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
               <ColorPickerField
                 value={isValidHexColor(selectedStyle.fillColor) ? selectedStyle.fillColor : normalizeHexColor(selectedStyle.fillColor, '#111827')}
-                onChange={(event) => updateSelectedItemStyle({ fillColor: normalizeHexColor(event.target.value, '#111827') })}
+                onChange={(event) => applySelectedFillColor(event.target.value)}
               />
               <HexColorInput
                 value={normalizeHexColor(selectedStyle.fillColor || '#111827', '#111827')}
-                onValidColorChange={(nextValue) => updateSelectedItemStyle({ fillColor: normalizeHexColor(nextValue, '#111827') })}
+                onValidColorChange={applySelectedFillColor}
                 placeholder="#111827"
               />
             </div>
-            <div className="mt-4 grid grid-cols-4 gap-3">
+            <div className="mt-4 grid grid-cols-6 gap-1">
               {colorSwatches.map((color) => (
                 <button
                   key={color}
                   title={color}
-                  onClick={() => updateSelectedItemStyle({ fillColor: color })}
-                  className={`mx-auto h-12 w-12 rounded-full border-[3px] transition-all ${
+                  onClick={() => applySelectedFillColor(color)}
+                  className={`h-10 w-10 rounded-full border-[3px] transition-all ${
                     selectedStyle.fillColor === color ? 'scale-105 ring-2 ring-orange-300 border-black' : 'border-black/80'
                   }`}
                   style={{ backgroundColor: color }}
@@ -407,8 +682,28 @@ export function EditorSidebarContent(props) {
         return (
           <div className={`space-y-2 ${!isMobileViewport && activeBackgroundOption ? 'block' : 'lg:hidden'}`}> 
             <div className="flex items-center gap-2 overflow-x-auto rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
+              {fontStyleOptions.map((styleOption) => {
+                const isActiveStyle = selectedFontStyle === styleOption.id;
+
+                return (
+                  <button
+                    key={styleOption.id}
+                    onClick={() => handleSelectedTextFontStyleChange(styleOption.id)}
+                    className={`shrink-0 rounded-[1rem] border px-3 py-2 text-xs font-black transition-all ${
+                      isActiveStyle
+                        ? 'border-black bg-orange-50 text-orange-600 shadow-sm ring-2 ring-orange-200'
+                        : 'border-slate-100 bg-white text-slate-700 hover:border-orange-300 hover:shadow-sm'
+                    }`}
+                  >
+                    {styleOption.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center gap-2 overflow-x-auto rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
               {AVAILABLE_EDITOR_FONTS.map((fontName) => {
-                const isActiveFont = (selectedItemData.fontFamily || logoConfig.fontFamily || 'Arial') === fontName;
+                const isActiveFont = selectedFontFamily === fontName;
 
                 return (
                   <button
@@ -436,42 +731,9 @@ export function EditorSidebarContent(props) {
       }
 
       return (
-        <div className="space-y-4">
-          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
-                Font Size
-              </p>
-              <span className="text-sm font-bold text-slate-600">{Math.round(Number(selectedItemData.fontSize || 46))} px</span>
-            </div>
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <button
-                onClick={() => handleSelectedTextFontSizeChange(Number(selectedItemData.fontSize || 46) - 2)}
-                className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-lg font-black text-slate-700 transition-all hover:border-orange-300 hover:text-orange-600"
-              >
-                -
-              </button>
-              <input
-                type="range"
-                min="12"
-                max="120"
-                step="1"
-                value={Number(selectedItemData.fontSize || 46)}
-                onChange={(event) => handleSelectedTextFontSizeChange(event.target.value)}
-                className="w-full accent-orange-500"
-              />
-              <button
-                onClick={() => handleSelectedTextFontSizeChange(Number(selectedItemData.fontSize || 46) + 2)}
-                className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-lg font-black text-slate-700 transition-all hover:border-orange-300 hover:text-orange-600"
-              >
-                +
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3">
+        <div className="grid grid-cols-1 gap-3">
             {AVAILABLE_EDITOR_FONTS.map((fontName) => {
-              const isActiveFont = (selectedItemData.fontFamily || logoConfig.fontFamily || 'Arial') === fontName;
+              const isActiveFont = selectedFontFamily === fontName;
 
               return (
                 <button
@@ -493,6 +755,105 @@ export function EditorSidebarContent(props) {
                 </button>
               );
             })}
+        </div>
+      );
+    }
+
+    if (selectedCanvasItem && activeObjectPanel === 'opacity' && selectedItemData) {
+      if (isMobileViewport) {
+        return (
+          <div className={`space-y-2 ${!isMobileViewport && activeBackgroundOption ? 'block' : 'lg:hidden'}`}>
+            <div className="rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                  Opacity
+                </p>
+                <span className="text-xs font-bold text-slate-600">
+                  {Math.round((Number(selectedItemData.opacity ?? 1) || 1) * 100)}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0.05"
+                max="1"
+                step="0.05"
+                value={Math.max(0.05, Math.min(1, Number(selectedItemData.opacity ?? 1)))}
+                onChange={(event) => handleSelectedOpacityChange(event.target.value)}
+                className="mt-2 w-full accent-orange-500"
+              />
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="space-y-4">
+          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                Opacity
+              </p>
+              <span className="text-sm font-bold text-slate-600">
+                {Math.round((Number(selectedItemData.opacity ?? 1) || 1) * 100)}%
+              </span>
+            </div>
+            <input
+              type="range"
+              min="0.05"
+              max="1"
+              step="0.05"
+              value={Math.max(0.05, Math.min(1, Number(selectedItemData.opacity ?? 1)))}
+              onChange={(event) => handleSelectedOpacityChange(event.target.value)}
+              className="mt-4 w-full accent-orange-500"
+            />
+          </div>
+        </div>
+      );
+    }
+
+    if (selectedCanvasItem && activeObjectPanel === 'radius' && selectedItemData && canRoundSelectedShape) {
+      if (isMobileViewport) {
+        return (
+          <div className={`space-y-2 ${!isMobileViewport && activeBackgroundOption ? 'block' : 'lg:hidden'}`}>
+            <div className="rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                  Corner Radius
+                </p>
+                <span className="text-xs font-bold text-slate-600">{selectedCornerRadius}px</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="140"
+                step="1"
+                value={selectedCornerRadius}
+                onChange={(event) => updateSelectedItemStyle({ cornerRadius: Number(event.target.value) })}
+                className="mt-2 w-full accent-orange-500"
+              />
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="space-y-4">
+          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                Corner Radius
+              </p>
+              <span className="text-sm font-bold text-slate-600">{selectedCornerRadius}px</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="140"
+              step="1"
+              value={selectedCornerRadius}
+              onChange={(event) => updateSelectedItemStyle({ cornerRadius: Number(event.target.value) })}
+              className="mt-4 w-full accent-orange-500"
+            />
           </div>
         </div>
       );
@@ -517,7 +878,7 @@ export function EditorSidebarContent(props) {
                   placeholder="#111827"
                 />
               </div>
-              <div className="mt-2 flex items-center gap-1.5 overflow-x-auto pb-1">
+              <div className="mt-2 flex items-center gap-0.5 overflow-x-auto pb-1">
                 {colorSwatches.map((color) => (
                   <button
                     key={color}
@@ -570,13 +931,13 @@ export function EditorSidebarContent(props) {
                 placeholder="#111827"
               />
             </div>
-            <div className="mt-4 grid grid-cols-4 gap-3">
+            <div className="mt-4 grid grid-cols-6 gap-1">
               {colorSwatches.map((color) => (
                 <button
                   key={color}
                   title={color}
                   onClick={() => updateSelectedItemStyle({ outlineColor: color })}
-                  className={`mx-auto h-12 w-12 rounded-full border-[3px] transition-all ${
+                  className={`h-10 w-10 rounded-full border-[3px] transition-all ${
                     selectedStyle.outlineColor === color ? 'scale-105 ring-2 ring-orange-300 border-black' : 'border-black/80'
                   }`}
                   style={{ backgroundColor: color }}
@@ -726,7 +1087,7 @@ export function EditorSidebarContent(props) {
                         placeholder="#FFFFFF"
                       />
                     </div>
-                    <div className="mt-2 flex items-center gap-1.5 overflow-x-auto pb-1">
+                    <div className="mt-2 flex items-center gap-0.5 overflow-x-auto pb-1">
                       {backgroundColorSwatches.map((color) => (
                         <button
                           key={color}
@@ -752,6 +1113,19 @@ export function EditorSidebarContent(props) {
                 </div>
               ) : (
                 <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                  <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Background Layers</p>
+                        <p className="mt-1 text-xs font-semibold text-slate-500">
+                          Select any element, then use `Set As Bg` to stack multiple background layers.
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-white px-2.5 py-1 text-xs font-black text-slate-600">
+                        {backgroundLayerCount}
+                      </span>
+                    </div>
+                  </div>
                   <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
                     Background Color
                   </p>
@@ -779,7 +1153,7 @@ export function EditorSidebarContent(props) {
                       className="min-w-0 flex-1"
                     />
                   </div>
-                  <div className="mt-4 grid grid-cols-5 gap-3">
+                  <div className="mt-4 grid grid-cols-6 gap-1">
                     {backgroundColorSwatches.map((color) => (
                       <button
                         key={color}
@@ -791,7 +1165,7 @@ export function EditorSidebarContent(props) {
                           setCustomColorValue(safeColor);
                           applyBackgroundColor(safeColor);
                         }}
-                        className={`mx-auto h-10 w-10 rounded-full border-[3px] transition-all ${
+                        className={`h-10 w-10 rounded-full border-[3px] transition-all ${
                           dialogSelectedColor === normalizeHexColor(color, '#FFFFFF')
                             ? 'scale-105 ring-2 ring-orange-300 border-black'
                             : 'border-black/80'
@@ -808,17 +1182,25 @@ export function EditorSidebarContent(props) {
               <div className={`space-y-2 ${!isMobileViewport && activeBackgroundOption ? 'block' : 'lg:hidden'}`}> 
                 <div className="rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                    Card Shape
+                    Shape Elements
+                  </p>
+                  <p className="mt-1 text-[11px] font-medium text-slate-500">
+                    Shape add hogi as movable element. Select karke `Set As Bg` se multiple background layers bana sakte ho.
                   </p>
                   <div className="mt-2 flex items-center gap-1.5 overflow-x-auto pb-1">
                     {backgroundShapeOptions.map((shapeOption) => {
                       const Icon = shapeOption.icon;
-                      const isActiveShape = activeBackgroundShapeType === shapeOption.id;
+                      const isRemoveAction = shapeOption.id === 'none';
+                      const isActiveShape = isRemoveAction && !activeBackgroundShape;
 
                       return (
                         <button
                           key={shapeOption.id}
-                          onClick={() => applyBackgroundShape(shapeOption.id)}
+                          onClick={() => (
+                            isRemoveAction
+                              ? applyBackgroundShape('none')
+                              : handleAddShapeElement(shapeOption.id)
+                          )}
                           className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-all ${
                             isActiveShape
                               ? 'border-black bg-orange-50 text-orange-600 ring-2 ring-orange-200'
@@ -833,22 +1215,10 @@ export function EditorSidebarContent(props) {
                 </div>
 
                 <div className="rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
-                  <div className="flex items-center gap-2 rounded-[1rem] border border-slate-200 bg-slate-50 p-2">
-                    <ColorPickerField
-                      disabled={!activeBackgroundShape}
-                      value={activeBackgroundShape ? activeBackgroundShapeColor : '#FFFFFF'}
-                      onChange={(event) => applyBackgroundShapeColor(event.target.value)}
-                      className="h-10 w-10 rounded-[0.9rem]"
-                    />
-                    <HexColorInput
-                      disabled={!activeBackgroundShape}
-                      value={activeBackgroundShape ? activeBackgroundShapeColor : '#FFFFFF'}
-                      onValidColorChange={(nextValue) => applyBackgroundShapeColor(nextValue)}
-                      placeholder="#FFFFFF"
-                      className="h-10 flex-1 min-w-0 border-0 bg-transparent px-2 text-base shadow-none focus:border-0 focus:bg-transparent"
-                    />
-                  </div>
-                  <div className="mt-2 flex items-center gap-1.5 overflow-x-auto pb-1">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                    Shape Color
+                  </p>
+                  <div className="mt-2 flex items-center gap-0.5 overflow-x-auto pb-1">
                     {backgroundColorSwatches.map((color) => (
                       <button
                         key={color}
@@ -1146,21 +1516,30 @@ export function EditorSidebarContent(props) {
 
           <div className={`space-y-3 ${!isMobileViewport && !activeBackgroundOption ? 'hidden lg:block' : 'hidden'}`}> 
             <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-              <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
-                Shape Library
-              </p>
-              <div className="mt-3 grid grid-cols-4 gap-2">
-                {backgroundShapeOptions.map((shapeOption) => {
-                  const Icon = shapeOption.icon;
-                  const isActiveShape = activeBackgroundShapeType === shapeOption.id;
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                  Shape Elements
+                </p>
+                <p className="mt-2 text-sm font-medium text-slate-500">
+                  Kisi bhi shape par click karo aur woh canvas par movable element ki tarah add ho jayegi.
+                  Usay select karke `Set As Bg` se multiple background layers stack kar sakte ho.
+                </p>
+                <div className="mt-3 grid grid-cols-4 gap-2">
+                  {backgroundShapeOptions.map((shapeOption) => {
+                    const Icon = shapeOption.icon;
+                    const isRemoveAction = shapeOption.id === 'none';
+                    const isActiveShape = isRemoveAction && !activeBackgroundShape;
 
-                  return (
-                    <button
-                      key={shapeOption.id}
-                      onClick={() => applyBackgroundShape(shapeOption.id)}
-                      className={`rounded-xl border px-2 py-2 text-left transition-all ${
-                        isActiveShape
-                          ? 'border-black bg-orange-50 text-orange-700 shadow-sm ring-2 ring-orange-200'
+                    return (
+                      <button
+                        key={shapeOption.id}
+                        onClick={() => (
+                          isRemoveAction
+                            ? applyBackgroundShape('none')
+                            : handleAddShapeElement(shapeOption.id)
+                        )}
+                        className={`rounded-xl border px-2 py-2 text-left transition-all ${
+                          isActiveShape
+                            ? 'border-black bg-orange-50 text-orange-700 shadow-sm ring-2 ring-orange-200'
                           : 'border-slate-200 bg-white text-slate-700 hover:border-orange-200'
                       }`}
                     >
@@ -1177,71 +1556,6 @@ export function EditorSidebarContent(props) {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
-                  Background Opacity
-                </p>
-                <span className="text-sm font-bold text-slate-600">
-                  {Math.round(activeBackgroundOpacity * 100)}%
-                </span>
-              </div>
-              <input
-                type="range"
-                min="0.05"
-                max="1"
-                step="0.05"
-                value={activeBackgroundOpacity}
-                onChange={(event) => applyBackgroundOpacity(event.target.value)}
-                className="mt-4 w-full accent-orange-500"
-              />
-            </div>
-
-            <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
-                    Shape Fill
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-slate-500">
-                    {activeBackgroundShape ? 'Selected shape ka fill color change karo.' : 'Pehle koi shape choose karo.'}
-                  </p>
-                </div>
-                <span
-                  className="h-10 w-10 rounded-2xl border border-slate-200"
-                  style={{ backgroundColor: activeBackgroundShape ? activeBackgroundShapeColor : '#F8FAFC' }}
-                />
-              </div>
-              <div className="mt-4 flex items-center gap-3">
-                <ColorPickerField
-                  disabled={!activeBackgroundShape}
-                  value={activeBackgroundShape ? activeBackgroundShapeColor : '#FFFFFF'}
-                  onChange={(event) => applyBackgroundShapeColor(event.target.value)}
-                />
-                <HexColorInput
-                  disabled={!activeBackgroundShape}
-                  value={activeBackgroundShape ? activeBackgroundShapeColor : '#FFFFFF'}
-                  onValidColorChange={(nextValue) => applyBackgroundShapeColor(nextValue)}
-                  placeholder="#FFFFFF"
-                />
-              </div>
-              <div className="mt-3 grid grid-cols-5 gap-2">
-                {backgroundColorSwatches.map((color) => (
-                  <button
-                    key={color}
-                    title={color}
-                    disabled={!activeBackgroundShape}
-                    onClick={() => applyBackgroundShapeColor(color)}
-                    className={`mx-auto h-9 w-9 rounded-full border-[3px] transition-all ${
-                      activeBackgroundShapeColor === normalizeHexColor(color, '#FFFFFF')
-                        ? 'scale-105 ring-2 ring-orange-300 border-black'
-                        : 'border-black/80'
-                    } ${activeBackgroundShape ? '' : 'cursor-not-allowed opacity-40'}`}
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
-              </div>
-            </div>
           </div>
         </div>
       );
@@ -1424,14 +1738,22 @@ export function EditorMobileContextBar(props) {
     activeTool,
     backgroundOptions,
     canDuplicate,
-    canEditSingleText,
+    canBringForward,
+    canBringToFront,
+    canSendBackward,
+    canSendToBack,
+    canSetSelectedShapeAsBackground,
     handleBackgroundOptionSelect,
     handleDeleteSelected,
     handleDuplicateSelected,
-    handleEditSelectedText,
+    handleMoveSelectedLayers,
+    handleToggleSelectedItemBackground,
+    handleSetSelectedShapeAsBackground,
+    isSelectedItemBackground,
     objectPanels,
     selectedCanvasItem,
     setActiveObjectPanel,
+    hasActiveBackgroundShape,
   } = props;
 
   const renderMobileContextBar = () => {
@@ -1439,14 +1761,7 @@ export function EditorMobileContextBar(props) {
       const orderedPanels = [
         activeObjectPanel,
         ...objectPanels.filter((panel) => panel !== activeObjectPanel),
-      ];
-      const mobilePanelLabels = {
-        controls: 'CONTROL',
-        fonts: 'FONT',
-        colors: 'COLOR',
-        outlines: 'OUTLINE',
-        '3D': '3D',
-      };
+      ].filter(Boolean);
       const actionButtons = [];
 
       if (canDuplicate) {
@@ -1457,26 +1772,45 @@ export function EditorMobileContextBar(props) {
         });
       }
 
+      actionButtons.push(
+        ...buildLayerMoveActions({
+          canBringForward,
+          canBringToFront,
+          canSendBackward,
+          canSendToBack,
+          handleMoveSelectedLayers,
+        }).map((action) => ({
+          key: `move-${action.key}`,
+          label: action.mobileLabel,
+          onClick: action.onClick,
+          disabled: action.disabled,
+        }))
+      );
+
       actionButtons.push({
         key: 'delete',
         label: 'DELETE',
         onClick: handleDeleteSelected,
       });
 
-      if (canEditSingleText) {
+      if (canSetSelectedShapeAsBackground) {
         actionButtons.push({
-          key: 'edit',
-          label: 'EDIT',
-          onClick: handleEditSelectedText,
+          key: 'set-background',
+          label: isSelectedItemBackground ? 'CANVAS' : 'SET BG',
+          onClick: () => (
+            isSelectedItemBackground
+              ? handleToggleSelectedItemBackground(false)
+              : handleSetSelectedShapeAsBackground()
+          ),
         });
       }
 
       const compactItems = [
         ...orderedPanels.map((panel, index) => ({
           key: panel,
-          label: mobilePanelLabels[panel] || panel.toUpperCase(),
+          label: MOBILE_PANEL_LABELS[panel] || panel.toUpperCase(),
           onClick: () => setActiveObjectPanel(panel),
-          active: index === 0,
+          active: panel === activeObjectPanel || (!activeObjectPanel && index === 0),
         })),
         ...actionButtons.map((action) => ({
           ...action,
@@ -1494,10 +1828,13 @@ export function EditorMobileContextBar(props) {
               <button
                 key={item.key}
                 onClick={item.onClick}
+                disabled={item.disabled}
                 className={`min-w-0 rounded-full border px-1 py-1 text-[7px] font-black uppercase leading-none transition-all ${
                   item.active
                     ? 'border-orange-300 bg-orange-50 text-orange-600 ring-1 ring-orange-200'
-                    : 'border-slate-200 bg-white text-slate-600'
+                    : item.disabled
+                      ? 'cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300'
+                      : 'border-slate-200 bg-white text-slate-600'
                 }`}
               >
                 <span className="block truncate">{item.label}</span>
@@ -1511,6 +1848,11 @@ export function EditorMobileContextBar(props) {
     if (activeTool === 'background') {
       return (
         <div className="mb-2 flex min-w-max items-center gap-1.5 overflow-x-auto pb-1">
+          {hasActiveBackgroundShape ? (
+            <div className="flex shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5">
+              <span className="text-[9px] font-black uppercase text-slate-600">Background Layers Active</span>
+            </div>
+          ) : null}
           {backgroundOptions.map((option) => {
             const Icon = option.icon;
             const isActiveOption = activeBackgroundOption === option.id;
