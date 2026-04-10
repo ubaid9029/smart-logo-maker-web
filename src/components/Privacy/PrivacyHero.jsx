@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 
 const PrivacyPolicy = () => {
   return (
@@ -44,9 +45,9 @@ const PrivacyPolicy = () => {
                 </li>
               ))}
             </ul>
-            <button className="mt-10 w-full bg-pink-600 text-white py-3 rounded-full font-semibold hover:bg-pink-700 transition-all duration-300 hover:shadow-lg hover:shadow-pink-500/30">
+            <Link href="/" className="mt-10 block w-full rounded-full bg-pink-600 py-3 text-center font-semibold text-white transition-all duration-300 hover:bg-pink-700 hover:shadow-lg hover:shadow-pink-500/30">
               Back to Home
-            </button>
+            </Link>
           </div>
         </aside>
 

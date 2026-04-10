@@ -163,6 +163,7 @@ export function useEditorBackgroundControls({
         {
           id: newId,
           imageUrl,
+          isBackground: true,
           layerLabel: getAssetDisplayLabel(imageUrl, 'Background'),
           baseWidth: defaultInsertedAssetWidth,
           baseHeight: defaultInsertedAssetHeight,

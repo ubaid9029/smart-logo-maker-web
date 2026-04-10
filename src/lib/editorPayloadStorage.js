@@ -21,6 +21,30 @@ const sanitizeEditablePayloadForTransfer = (payload) => {
     return payload ?? null;
   }
 
+  // Keep `svgDataUri` for text layers so the editor can render the exact same
+  // casing/typography as the Results preview (many templates use SVG-path text blocks).
+  // Stripping these caused visible case drift between Results and Editor.
+  const nextPayload = {
+    ...payload,
+    logoItems: Array.isArray(payload.logoItems)
+      ? payload.logoItems.map((item) => ({ ...item }))
+      : payload.logoItems,
+    textItems: Array.isArray(payload.textItems)
+      ? payload.textItems.map((item) => {
+          const nextItem = { ...item };
+          return nextItem;
+        })
+      : payload.textItems,
+  };
+
+  return nextPayload;
+};
+
+const stripSvgDataUrisForTransfer = (payload) => {
+  if (!payload || typeof payload !== 'object') {
+    return payload ?? null;
+  }
+
   const nextPayload = {
     ...payload,
     logoItems: Array.isArray(payload.logoItems)
@@ -68,11 +92,17 @@ export const saveTemporaryEditorPayload = (payloadKey, payload) => {
     return false;
   }
 
-  const serializedPayload = JSON.stringify(sanitizeEditablePayloadForTransfer(payload));
+  const primaryPayload = sanitizeEditablePayloadForTransfer(payload);
+  const serializedPayload = JSON.stringify(primaryPayload);
+  const serializedFallbackPayload = JSON.stringify(stripSvgDataUrisForTransfer(primaryPayload));
 
   try {
     window.sessionStorage.setItem(payloadKey, serializedPayload);
   } catch {
+    try {
+      window.sessionStorage.setItem(payloadKey, serializedFallbackPayload);
+    } catch {
+    }
   }
 
   try {
@@ -90,7 +120,14 @@ export const saveTemporaryEditorPayload = (payloadKey, payload) => {
       window.localStorage.setItem(payloadKey, serializedPayload);
       return true;
     } catch {
-      return false;
+      try {
+        pruneTemporaryEditorPayloads(payloadKey);
+        window.localStorage.removeItem(payloadKey);
+        window.localStorage.setItem(payloadKey, serializedFallbackPayload);
+        return true;
+      } catch {
+        return false;
+      }
     }
   }
 };

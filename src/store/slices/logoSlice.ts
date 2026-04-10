@@ -55,13 +55,12 @@ export const generateLogosAction = createAsyncThunk(
 
       if (
         !payload.name?.trim() ||
-        !payload.slogan?.trim() ||
         payload.industryId === undefined ||
         payload.industryId === null ||
         !payload.fontId ||
         !payload.colorId
       ) {
-        return rejectWithValue('Missing required logo generation selections.');
+        return rejectWithValue('Missing required business name, industry, font, or color selection.');
       }
 
       const response = await axios.post('/api/generate', {

@@ -1,5 +1,5 @@
-import LogoCollectionPage from '../../components/Library/LogoCollectionPage';
+import { redirect } from 'next/navigation';
 
 export default function DownloadsPage() {
-  return <LogoCollectionPage collectionType="downloads" />;
+  redirect('/my-designs');
 }

@@ -39,13 +39,12 @@ const ColorPalette = ({ onBack, data, setData }) => {
 
     if (
       !payload.name?.trim() ||
-      !payload.slogan?.trim() ||
       payload.industryId === undefined ||
       payload.industryId === null ||
       !payload.fontId ||
       !payload.colorId
     ) {
-      setSubmissionError("Please complete business name, slogan, industry, font, and color before generating.");
+      setSubmissionError("Please complete business name, industry, font, and color before generating.");
       return;
     }
 
@@ -77,7 +76,7 @@ const ColorPalette = ({ onBack, data, setData }) => {
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="mb-2 flex flex-col items-center text-center pt-1 md:mb-3 md:pt-1.5">
           <h1 className="mb-2 text-2xl font-black tracking-tight text-[#1A1A1A] md:text-4xl">Choose Your Colors</h1>
-          <p className="max-w-lg px-2 text-xs font-medium text-slate-500 md:text-sm">Select a color scheme that matches your brand personality</p>
+          <p className="max-w-lg px-2 text-xs font-medium leading-relaxed text-slate-600 md:text-sm">Select a color scheme that matches your brand personality</p>
         </div>
 
         <div className="mx-auto mt-3 grid w-full max-w-[880px] flex-1 grid-cols-2 gap-x-2 gap-y-1.5 lg:grid-cols-3 md:mt-4 md:gap-x-2.5 md:gap-y-2">
@@ -102,7 +101,7 @@ const ColorPalette = ({ onBack, data, setData }) => {
                   ))}
                 </div>
 
-                <span className={`mb-0.5 text-[9px] font-black leading-tight sm:text-[11px] md:text-[14px] ${isSelected ? 'text-slate-900' : 'text-slate-500'}`}>{palette.name}</span>
+                <span className={`mb-0.5 text-[9px] font-black leading-tight sm:text-[11px] md:text-[14px] ${isSelected ? 'text-slate-900' : 'text-slate-600'}`}>{palette.name}</span>
 
                 {isSelected && (
                   <div className="absolute right-2 top-2 rounded-full border-2 border-white bg-linear-to-r from-[#FF5C00] to-[#FF007A] p-1.5 shadow-lg md:-right-2 md:-top-2 md:p-2">

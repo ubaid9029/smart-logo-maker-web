@@ -261,6 +261,7 @@ export const CANVAS_WIDTH = 700;
 export const CANVAS_HEIGHT = 500;
 export const CARD_WIDTH = 620;
 export const CARD_HEIGHT = 420;
+export const CARD_CORNER_RADIUS = 0;
 export const CARD_X = (CANVAS_WIDTH - CARD_WIDTH) / 2;
 export const CARD_Y = (CANVAS_HEIGHT - CARD_HEIGHT) / 2;
 export const EDITED_LOGO_STORAGE_PREFIX = 'edited-logo:';

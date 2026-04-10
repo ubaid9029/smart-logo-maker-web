@@ -632,6 +632,39 @@ export const preserveTextCenterTransform = (previousItem = {}, nextItem = {}) =>
   };
 };
 
+export const preserveTextAnchorTransform = (previousItem = {}, nextItem = {}) => {
+  const previousTransform = previousItem.transform || {
+    x: CARD_X + 110,
+    y: CARD_Y + CARD_HEIGHT - 150,
+    scaleX: 1,
+    scaleY: 1,
+    rotation: 0,
+  };
+  const previousMetrics = getTextMetrics(previousItem);
+  const nextMetrics = getTextMetrics(nextItem);
+  const scaleX = Math.abs(previousTransform.scaleX ?? 1);
+  const scaleY = Math.abs(previousTransform.scaleY ?? 1);
+  const align = String(previousItem.align || nextItem.align || 'center').toLowerCase();
+  const previousLeft = previousTransform.x;
+  const previousCenterX = previousLeft + (previousMetrics.width * scaleX) / 2;
+  const previousRight = previousLeft + (previousMetrics.width * scaleX);
+  const previousCenterY = previousTransform.y + (previousMetrics.height * scaleY) / 2;
+
+  let nextX = previousLeft;
+
+  if (align === 'right') {
+    nextX = previousRight - (nextMetrics.width * scaleX);
+  } else if (align === 'center') {
+    nextX = previousCenterX - (nextMetrics.width * scaleX) / 2;
+  }
+
+  return {
+    ...previousTransform,
+    x: nextX,
+    y: previousCenterY - (nextMetrics.height * scaleY) / 2,
+  };
+};
+
 export const withMeasuredTextBox = (item = {}) => {
   const metrics = getTextMetrics(item);
 
@@ -718,6 +751,30 @@ const encodeSvgDataUri = (markup) => (
     : null
 );
 
+const stripSvgStyleProperties = (styleValue = '', properties = []) => {
+  const blockedProperties = new Set(
+    (Array.isArray(properties) ? properties : [])
+      .map((property) => String(property || '').trim().toLowerCase())
+      .filter(Boolean)
+  );
+
+  const nextTokens = String(styleValue || '')
+    .split(';')
+    .map((token) => token.trim())
+    .filter(Boolean)
+    .filter((token) => {
+      const separatorIndex = token.indexOf(':');
+      if (separatorIndex === -1) {
+        return true;
+      }
+
+      const propertyName = token.slice(0, separatorIndex).trim().toLowerCase();
+      return !blockedProperties.has(propertyName);
+    });
+
+  return nextTokens.join('; ');
+};
+
 export const applySvgPresentationToMarkup = (svgMarkup, style = {}) => {
   if (typeof svgMarkup !== 'string' || !svgMarkup.trim()) {
     return null;
@@ -725,15 +782,66 @@ export const applySvgPresentationToMarkup = (svgMarkup, style = {}) => {
 
   const hasFillOverride = Boolean(style.applyColorOverrides && style.fillColor);
   const hasOutline = Number(style.outlineWidth || 0) > 0 && Boolean(style.outlineColor);
+  const strokeOverrideColor = hasOutline
+    ? style.outlineColor
+    : (hasFillOverride ? style.fillColor : null);
 
   let nextMarkup = svgMarkup
-    .replace(/\sstroke="[^"]*"/gi, '')
-    .replace(/\sstroke-width="[^"]*"/gi, '')
-    .replace(/\spaint-order="[^"]*"/gi, '');
+    .replace(/\spaint-order="[^"]*"/gi, '')
+    .replace(/\scolor="[^"]*"/gi, '')
+    .replace(/\sstyle="([^"]*)"/gi, (_match, styleValue) => {
+      const cleanedStyleValue = stripSvgStyleProperties(styleValue, [
+        'fill',
+        'stroke',
+        'stroke-width',
+        'paint-order',
+        'color',
+      ]);
+
+      return cleanedStyleValue ? ` style="${cleanedStyleValue}"` : '';
+    });
 
   if (hasFillOverride) {
     nextMarkup = nextMarkup.replace(/\sfill="(?!none)[^"]*"/gi, ` fill="${style.fillColor}"`);
   }
+
+  if (strokeOverrideColor) {
+    nextMarkup = nextMarkup.replace(/\sstroke="(?!none)[^"]*"/gi, ` stroke="${strokeOverrideColor}"`);
+  }
+
+  if (hasOutline) {
+    nextMarkup = nextMarkup.replace(/\sstroke-width="[^"]*"/gi, ` stroke-width="${Number(style.outlineWidth)}"`);
+  }
+
+  nextMarkup = nextMarkup.replace(/<svg\b([^>]*)>/i, (match, attrs = '') => {
+    const baseAttrs = String(attrs || '')
+      .replace(/\sfill="[^"]*"/gi, '')
+      .replace(/\sstroke="[^"]*"/gi, '')
+      .replace(/\sstroke-width="[^"]*"/gi, '')
+      .replace(/\spaint-order="[^"]*"/gi, '')
+      .replace(/\scolor="[^"]*"/gi, '')
+      .replace(/\sstyle="([^"]*)"/gi, (_styleMatch, styleValue) => {
+        const cleanedStyleValue = stripSvgStyleProperties(styleValue, [
+          'fill',
+          'stroke',
+          'stroke-width',
+          'paint-order',
+          'color',
+        ]);
+
+        return cleanedStyleValue ? ` style="${cleanedStyleValue}"` : '';
+      });
+    const nextAttrs = [
+      baseAttrs.trim(),
+      hasFillOverride ? `fill="${style.fillColor}"` : '',
+      strokeOverrideColor ? `stroke="${strokeOverrideColor}"` : '',
+      hasOutline ? `stroke-width="${Number(style.outlineWidth)}"` : '',
+      hasOutline ? 'paint-order="stroke fill"' : '',
+      hasFillOverride ? `color="${style.fillColor}"` : '',
+    ].filter(Boolean).join(' ');
+
+    return `<svg ${nextAttrs}>`;
+  });
 
   if (hasOutline) {
     nextMarkup = nextMarkup.replace(
@@ -978,9 +1086,13 @@ export const normalizePayloadLogoItem = (item) => {
     };
   }
 
-  if (item.imageUrl && item.transform) {
+  const resolvedImageUrl = item.imageUrl || item.src || '';
+
+  if (resolvedImageUrl && item.transform) {
     return {
       ...item,
+      src: resolvedImageUrl,
+      imageUrl: resolvedImageUrl,
       baseWidth: Number(item.baseWidth || item.width || 220),
       baseHeight: Number(item.baseHeight || item.height || 160),
       transform: {
@@ -1051,22 +1163,22 @@ export const normalizePayloadLogoItem = (item) => {
     };
   }
 
-  const imageUrl = item.src || item.imageUrl || '';
-  if (!imageUrl) {
+  if (!resolvedImageUrl) {
     return null;
   }
 
   return {
     id: item.id || `logo-${Date.now()}`,
-    imageUrl,
-    baseWidth: Number(item.width || 220),
-    baseHeight: Number(item.height || 160),
+    src: resolvedImageUrl,
+    imageUrl: resolvedImageUrl,
+    baseWidth: Number(item.baseWidth || item.width || 220),
+    baseHeight: Number(item.baseHeight || item.height || 160),
     transform: {
-      x: Number(item.x ?? (CARD_X + 170)),
-      y: Number(item.y ?? (CARD_Y + 64)),
-      scaleX: 1,
-      scaleY: 1,
-      rotation: 0,
+      x: Number(item.transform?.x ?? item.x ?? (CARD_X + 170)),
+      y: Number(item.transform?.y ?? item.y ?? (CARD_Y + 64)),
+      scaleX: Number(item.transform?.scaleX ?? item.scaleX ?? 1),
+      scaleY: Number(item.transform?.scaleY ?? item.scaleY ?? 1),
+      rotation: Number(item.transform?.rotation ?? item.rotation ?? 0),
     },
     style: buildDefaultItemStyle('#111827'),
   };
@@ -1195,6 +1307,7 @@ export const buildInitialPresent = ({
     bgFill: null,
     bgImageUrl: null,
     backgroundShape: null,
+    watermarkEnabled: true,
     fontFamily: EDITOR_FONT_FAMILIES[formData?.fontId] || 'Arial',
     textColor: urlTextColor || '#1A1A1A',
     textTemplate: fallbackTextTemplate,
@@ -1230,6 +1343,7 @@ export const buildInitialPresent = ({
     return fallbackPresent;
   }
 
+  const payloadIncludesLogoItems = Array.isArray(payload.logoItems);
   const payloadLogoItems = Array.isArray(payload.logoItems)
     ? payload.logoItems.map(normalizePayloadLogoItem).filter(Boolean)
     : [];
@@ -1239,6 +1353,12 @@ export const buildInitialPresent = ({
   const payloadTextTemplate = payload.textTemplate
     ? extractTextTemplate(payload.textTemplate, fallbackTextTemplate)
     : extractTextTemplate(payloadTextItems[0] || {}, fallbackTextTemplate);
+  const resolvedLogoItems = payloadIncludesLogoItems
+    ? payloadLogoItems
+    : fallbackPresent.logoItems;
+  const resolvedTextItems = payloadTextItems.length
+    ? payloadTextItems
+    : fallbackPresent.textItems;
 
   return {
     ...fallbackPresent,
@@ -1247,15 +1367,16 @@ export const buildInitialPresent = ({
     bgFill: payload.bgFill || fallbackPresent.bgFill,
     bgImageUrl: payload.bgImageUrl || fallbackPresent.bgImageUrl,
     backgroundShape: payload.backgroundShape || fallbackPresent.backgroundShape,
+    watermarkEnabled: payload.watermarkEnabled ?? fallbackPresent.watermarkEnabled,
     fontFamily: payload.fontFamily || fallbackPresent.fontFamily,
     textColor: payload.textColor || fallbackPresent.textColor,
     textTemplate: payloadTextTemplate,
-    logoItems: payloadLogoItems.length ? payloadLogoItems : fallbackPresent.logoItems,
-    textItems: payloadTextItems.length ? payloadTextItems : fallbackPresent.textItems,
+    logoItems: resolvedLogoItems,
+    textItems: resolvedTextItems,
     layerOrder: syncCanvasLayerOrder(
       payload.layerOrder,
-      payloadLogoItems.length ? payloadLogoItems : fallbackPresent.logoItems,
-      payloadTextItems.length ? payloadTextItems : fallbackPresent.textItems
+      resolvedLogoItems,
+      resolvedTextItems
     ),
   };
 };

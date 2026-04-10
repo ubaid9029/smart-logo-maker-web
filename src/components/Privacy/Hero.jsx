@@ -2,7 +2,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { HiArrowRight } from "react-icons/hi";
 import { useState, useEffect } from 'react';
 
 const Hero = () => {
@@ -149,15 +148,12 @@ const Hero = () => {
           transition={{ delay: 0.6, duration: 0.5 }}
           className="flex flex-col sm:flex-row items-center justify-center gap-4 md:gap-6"
         >
-            <Link href="/create">
-              <button className="brand-button-primary group gap-3 px-8 md:px-10 py-3 md:py-4 text-base md:text-lg">
-                Get Started Free
-                <HiArrowRight className="text-xl group-hover:translate-x-1 transition-transform" />
-              </button>
+            <Link href="/create?fresh=1" className="brand-button-primary px-8 py-3 text-base md:px-10 md:py-4 md:text-lg">
+              Get Started Free
             </Link>
-            <button className="brand-button-outline px-8 md:px-10 py-3 md:py-4 text-base md:text-lg">
+            <Link href="/how-it-works" className="brand-button-outline px-8 py-3 text-base md:px-10 md:py-4 md:text-lg">
               See How It Works
-            </button>
+            </Link>
         </motion.div>
       </div>
     </section>

@@ -1,8 +1,16 @@
 "use client";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Group, Image as KonvaImage, Layer, Line, Rect, Shape as KonvaShape, Stage, Text, Transformer } from 'react-konva';
+import { Group, Image as KonvaImage, Layer, Line, Path as KonvaPath, Rect, Shape as KonvaShape, Stage, Text, Transformer } from 'react-konva';
 import useImage from 'use-image';
 import { applySvgPresentationToMarkup, clampTransformToCard, getEditorTextValue, getOrderedCanvasItems, getTextBlockMetrics, getTextTypography, isBackgroundCanvasItem, syncCanvasLayerOrder } from './editorUtils';
+import { CARD_CORNER_RADIUS } from './editorConstants';
+import {
+  BRAND_WATERMARK_OPACITY,
+  BRAND_WATERMARK_OVERLAY_INSET,
+  BRAND_WATERMARK_OVERLAY_SCALE,
+  BRAND_WATERMARK_PATTERN_STYLE,
+  BRAND_WATERMARK_ROTATION,
+} from '../../lib/watermarkConfig';
 
 const CANVAS_WIDTH = 700;
 const CANVAS_HEIGHT = 500;
@@ -51,6 +59,118 @@ const decodeSvgDataUri = (uri) => {
 };
 
 const encodeSvgDataUri = (svgMarkup) => `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svgMarkup)}`;
+
+const encodeSvgBase64DataUri = (svgMarkup) => {
+  if (typeof svgMarkup !== 'string' || !svgMarkup.trim()) {
+    return '';
+  }
+
+  try {
+    if (typeof window !== 'undefined' && typeof window.btoa === 'function') {
+      return `data:image/svg+xml;base64,${window.btoa(unescape(encodeURIComponent(svgMarkup)))}`;
+    }
+
+    if (typeof Buffer !== 'undefined') {
+      return `data:image/svg+xml;base64,${Buffer.from(svgMarkup, 'utf8').toString('base64')}`;
+    }
+  } catch {
+    return encodeSvgDataUri(svgMarkup);
+  }
+
+  return encodeSvgDataUri(svgMarkup);
+};
+
+const parseSvgViewBox = (svgMarkup) => {
+  const match = String(svgMarkup || '').match(/viewBox="([^"]+)"/i);
+  const [minX = 0, minY = 0, width = 100, height = 100] = match?.[1]?.split(/\s+/).map(Number) || [];
+
+  return {
+    minX: Number.isFinite(minX) ? minX : 0,
+    minY: Number.isFinite(minY) ? minY : 0,
+    width: Number.isFinite(width) && width > 0 ? width : 100,
+    height: Number.isFinite(height) && height > 0 ? height : 100,
+  };
+};
+
+const parseSvgPathFallbacks = (svgMarkup) => {
+  const matches = [...String(svgMarkup || '').matchAll(/<path\b([^>]*)\/?>/gi)];
+
+  return matches.map((match, index) => {
+    const attrs = match[1] || '';
+    const getAttr = (name) => {
+      const attrMatch = attrs.match(new RegExp(`${name}="([^"]*)"`, 'i'));
+      return attrMatch?.[1] || '';
+    };
+
+    const data = getAttr('d');
+    if (!data) {
+      return null;
+    }
+
+    return {
+      key: `svg-path-${index}`,
+      data,
+      fill: getAttr('fill') || '#111827',
+      stroke: getAttr('stroke') || undefined,
+      strokeWidth: Number(getAttr('stroke-width') || 0),
+      opacity: Number(getAttr('opacity') || 1),
+    };
+  }).filter(Boolean);
+};
+
+const getImageVisibleBounds = (image) => {
+  const sourceWidth = Number(image?.naturalWidth || image?.width || 0);
+  const sourceHeight = Number(image?.naturalHeight || image?.height || 0);
+
+  if (!sourceWidth || !sourceHeight || typeof document === 'undefined') {
+    return null;
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = sourceWidth;
+  canvas.height = sourceHeight;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+
+  if (!context) {
+    return null;
+  }
+
+  context.clearRect(0, 0, sourceWidth, sourceHeight);
+  context.drawImage(image, 0, 0, sourceWidth, sourceHeight);
+
+  const { data } = context.getImageData(0, 0, sourceWidth, sourceHeight);
+  let minX = sourceWidth;
+  let minY = sourceHeight;
+  let maxX = -1;
+  let maxY = -1;
+
+  for (let y = 0; y < sourceHeight; y += 1) {
+    for (let x = 0; x < sourceWidth; x += 1) {
+      const alpha = data[((y * sourceWidth) + x) * 4 + 3];
+      if (alpha < 8) {
+        continue;
+      }
+
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    }
+  }
+
+  if (maxX < minX || maxY < minY) {
+    return null;
+  }
+
+  return {
+    x: minX,
+    y: minY,
+    width: (maxX - minX) + 1,
+    height: (maxY - minY) + 1,
+    sourceWidth,
+    sourceHeight,
+  };
+};
 
 const getLinearGradientPoints = (direction, width, height) => {
   switch (direction) {
@@ -328,6 +448,12 @@ const getInlineEditorTheme = (textColor) => {
 
 const drawRoundedRectPath = (context, x, y, width, height, radius) => {
   const safeRadius = Math.min(radius, width / 2, height / 2);
+  if (safeRadius <= 0) {
+    context.beginPath();
+    context.rect(x, y, width, height);
+    context.closePath();
+    return;
+  }
   context.beginPath();
   context.moveTo(x + safeRadius, y);
   context.lineTo(x + width - safeRadius, y);
@@ -341,28 +467,40 @@ const drawRoundedRectPath = (context, x, y, width, height, radius) => {
   context.closePath();
 };
 
-const getCoverCrop = (image, targetWidth, targetHeight) => {
+const getContainPlacement = (image, targetWidth, targetHeight, offsetX = 0, offsetY = 0) => {
   const sourceWidth = image?.width || targetWidth;
   const sourceHeight = image?.height || targetHeight;
+
+  if (!sourceWidth || !sourceHeight || !targetWidth || !targetHeight) {
+    return {
+      x: offsetX,
+      y: offsetY,
+      width: targetWidth,
+      height: targetHeight,
+    };
+  }
+
   const sourceRatio = sourceWidth / sourceHeight;
   const targetRatio = targetWidth / targetHeight;
 
   if (sourceRatio > targetRatio) {
-    const cropWidth = sourceHeight * targetRatio;
+    const width = targetWidth;
+    const height = width / sourceRatio;
     return {
-      cropX: (sourceWidth - cropWidth) / 2,
-      cropY: 0,
-      cropWidth,
-      cropHeight: sourceHeight,
+      x: offsetX,
+      y: offsetY + (targetHeight - height) / 2,
+      width,
+      height,
     };
   }
 
-  const cropHeight = sourceWidth / targetRatio;
+  const height = targetHeight;
+  const width = height * sourceRatio;
   return {
-    cropX: 0,
-    cropY: (sourceHeight - cropHeight) / 2,
-    cropWidth: sourceWidth,
-    cropHeight,
+    x: offsetX + (targetWidth - width) / 2,
+    y: offsetY,
+    width,
+    height,
   };
 };
 
@@ -716,16 +854,20 @@ function LogoNode({
   const isShapeNode = item.kind === 'shape' || item.type === 'shape';
   const outlineWidth = Math.max(0, Number(item.style?.outlineWidth || 0));
   const decodedSvgMarkup = useMemo(
-    () => decodeSvgDataUri(item.imageUrl || ""),
-    [item.imageUrl]
+    () => decodeSvgDataUri(item.imageUrl || item.src || ''),
+    [item.imageUrl, item.src]
   );
-  const styledImageUrl = useMemo(() => {
+  const styledSvgMarkup = useMemo(() => {
     if (isLineNode || isShapeNode) {
-      return "";
+      return '';
     }
 
-    if (!item.style?.applyColorOverrides || !decodedSvgMarkup) {
-      return item.imageUrl || "";
+    if (!decodedSvgMarkup) {
+      return '';
+    }
+
+    if (!item.style?.applyColorOverrides) {
+      return decodedSvgMarkup;
     }
 
     const nextSvgMarkup = applySvgPresentationToMarkup(decodedSvgMarkup, {
@@ -734,14 +876,21 @@ function LogoNode({
       outlineColor: item.style?.outlineColor || undefined,
       outlineWidth,
     });
-    return nextSvgMarkup ? encodeSvgDataUri(nextSvgMarkup) : item.imageUrl || "";
-  }, [decodedSvgMarkup, isLineNode, isShapeNode, item.imageUrl, item.style, outlineWidth]);
+    return nextSvgMarkup || decodedSvgMarkup;
+  }, [decodedSvgMarkup, isLineNode, isShapeNode, item.style, outlineWidth]);
+  const styledImageUrl = useMemo(() => {
+    if (styledSvgMarkup) {
+      return encodeSvgBase64DataUri(styledSvgMarkup);
+    }
+
+    return item.imageUrl || item.src || '';
+  }, [item.imageUrl, item.src, styledSvgMarkup]);
   const outlineImageUrl = useMemo(() => {
     if (decodedSvgMarkup || isLineNode || isShapeNode || !outlineWidth || !item.style?.applyColorOverrides || !item.style?.outlineColor) {
       return "";
     }
 
-    const svgMarkup = decodeSvgDataUri(item.imageUrl || "");
+    const svgMarkup = decodeSvgDataUri(item.imageUrl || item.src || '');
     if (!svgMarkup) {
       return "";
     }
@@ -750,23 +899,69 @@ function LogoNode({
       targetColor: item.style?.outlineColor || '#111827',
     });
     return nextSvgMarkup ? encodeSvgDataUri(nextSvgMarkup) : "";
-  }, [decodedSvgMarkup, isLineNode, isShapeNode, item.imageUrl, item.style, outlineWidth]);
-  const [img] = useImage(styledImageUrl || "");
+  }, [decodedSvgMarkup, isLineNode, isShapeNode, item.imageUrl, item.src, item.style, outlineWidth]);
+
+  const [img, imageStatus] = useImage(styledImageUrl || '');
   const [outlineImg] = useImage(outlineImageUrl || "");
   const transform3d = get3dTransforms(item.style);
   const nodeOpacity = Math.max(0.05, Math.min(1, Number(item.opacity ?? 1)));
-  let imageWidth = Number(item.baseWidth || item.width || 220);
-  let imageHeight = Number(item.baseHeight || item.height || 160);
+  const fallbackSvgMarkup = styledSvgMarkup || decodedSvgMarkup || '';
+  const svgViewBox = useMemo(() => parseSvgViewBox(fallbackSvgMarkup), [fallbackSvgMarkup]);
+  const svgPathFallbacks = useMemo(() => parseSvgPathFallbacks(fallbackSvgMarkup), [fallbackSvgMarkup]);
+  const imageVisibleBounds = useMemo(() => {
+    if (!decodedSvgMarkup || !img) {
+      return null;
+    }
 
-  if (!isLineNode && !isShapeNode && !(item.baseWidth || item.width) && img?.width && img?.height) {
-    const maxLogoWidth = 280;
-    const maxLogoHeight = 200;
-    const logoScale = Math.min(maxLogoWidth / img.width, maxLogoHeight / img.height);
-    imageWidth = img.width * logoScale;
-    imageHeight = img.height * logoScale;
-  }
+    return getImageVisibleBounds(img);
+  }, [decodedSvgMarkup, img]);
+  const { imageWidth, imageHeight } = useMemo(() => {
+    const baseImageWidth = Number(item.baseWidth || item.width || 220);
+    const baseImageHeight = Number(item.baseHeight || item.height || 160);
+
+    if (!isLineNode && !isShapeNode && !(item.baseWidth || item.width) && img?.width && img?.height) {
+      const maxLogoWidth = 280;
+      const maxLogoHeight = 200;
+      const logoScale = Math.min(maxLogoWidth / img.width, maxLogoHeight / img.height);
+
+      return {
+        imageWidth: img.width * logoScale,
+        imageHeight: img.height * logoScale,
+      };
+    }
+
+    return {
+      imageWidth: baseImageWidth,
+      imageHeight: baseImageHeight,
+    };
+  }, [img, isLineNode, isShapeNode, item.baseHeight, item.baseWidth, item.height, item.width]);
   const actualScaleX = transform.scaleX || 1;
   const actualScaleY = transform.scaleY || 1;
+  const imageContentCrop = useMemo(() => {
+    if (item.preserveContentBounds || !decodedSvgMarkup || !img || !imageVisibleBounds) {
+      return null;
+    }
+
+    const horizontalPaddingRatio = Math.max(
+      0,
+      (imageVisibleBounds.sourceWidth - imageVisibleBounds.width) / imageVisibleBounds.sourceWidth
+    );
+    const verticalPaddingRatio = Math.max(
+      0,
+      (imageVisibleBounds.sourceHeight - imageVisibleBounds.height) / imageVisibleBounds.sourceHeight
+    );
+
+    if (horizontalPaddingRatio < 0.08 && verticalPaddingRatio < 0.08) {
+      return null;
+    }
+
+    return {
+      x: imageVisibleBounds.x,
+      y: imageVisibleBounds.y,
+      width: imageVisibleBounds.width,
+      height: imageVisibleBounds.height,
+    };
+  }, [decodedSvgMarkup, imageVisibleBounds, img, item.preserveContentBounds]);
 
   const getFreePosition = (position) => ({
     x: Number(position?.x ?? 0),
@@ -931,12 +1126,39 @@ function LogoNode({
                     y={offsetY}
                     width={imageWidth}
                     height={imageHeight}
+                    crop={imageContentCrop || undefined}
                     opacity={Math.min(0.92, nodeOpacity)}
                   />
                 ))}
               </>
             )}
-            <KonvaImage image={img} width={imageWidth} height={imageHeight} opacity={nodeOpacity} />
+            {img ? (
+              <KonvaImage
+                image={img}
+                width={imageWidth}
+                height={imageHeight}
+                crop={imageContentCrop || undefined}
+                opacity={nodeOpacity}
+              />
+            ) : imageStatus === 'failed' && svgPathFallbacks.length > 0 ? (
+              <Group
+                x={(-svgViewBox.minX * imageWidth) / svgViewBox.width}
+                y={(-svgViewBox.minY * imageHeight) / svgViewBox.height}
+                scaleX={imageWidth / svgViewBox.width}
+                scaleY={imageHeight / svgViewBox.height}
+              >
+                {svgPathFallbacks.map((pathItem) => (
+                  <KonvaPath
+                    key={pathItem.key}
+                    data={pathItem.data}
+                    fill={pathItem.fill === 'none' || pathItem.fill.startsWith('url(') ? undefined : pathItem.fill}
+                    stroke={pathItem.stroke === 'none' ? undefined : pathItem.stroke}
+                    strokeWidth={pathItem.strokeWidth}
+                    opacity={Math.max(0.05, Math.min(1, pathItem.opacity * nodeOpacity))}
+                  />
+                ))}
+              </Group>
+            ) : null}
           </>
         )}
       </Group>
@@ -1146,6 +1368,7 @@ export default function Canvas({
   zoom = 1,
   hideSelectionUi = false,
   clipContentToCard = false,
+  renderElementsOnly = false,
 }) {
   const containerRef = useRef(null);
   const transformerRef = useRef(null);
@@ -1190,16 +1413,17 @@ export default function Canvas({
   );
   const backgroundShape = useMemo(() => config.backgroundShape || null, [config.backgroundShape]);
   const backgroundOpacity = useMemo(() => Math.max(0.05, Math.min(1, Number(config.bgOpacity ?? 1))), [config.bgOpacity]);
-  const backgroundImageCrop = useMemo(() => {
+  const backgroundImagePlacement = useMemo(() => {
     if (!backgroundImage) {
       return null;
     }
 
-    return getCoverCrop(backgroundImage, cardWidth, cardHeight);
-  }, [backgroundImage, cardHeight, cardWidth]);
+    return getContainPlacement(backgroundImage, cardWidth, cardHeight, cardX, cardY);
+  }, [backgroundImage, cardHeight, cardWidth, cardX, cardY]);
   const cardFillProps = useMemo(() => {
     return getBackgroundFillProps(config.bgColor || '#FFFFFF', config.bgFill || null, cardWidth, cardHeight);
   }, [config.bgColor, config.bgFill, cardHeight, cardWidth]);
+  const isWatermarkVisible = !renderElementsOnly && config.watermarkEnabled !== false;
   const viewportWidth = cardWidth * dimensions.scale * zoom;
   const viewportHeight = cardHeight * dimensions.scale * zoom;
   const viewportOffsetX = cardX * dimensions.scale * zoom;
@@ -1762,7 +1986,7 @@ export default function Canvas({
   return (
     <div ref={containerRef} className="relative flex h-full w-full items-center justify-center overflow-hidden">
       <div
-        className="overflow-hidden rounded-[2.5rem] border border-gray-50 bg-white shadow-2xl"
+        className="relative overflow-hidden rounded-none border border-gray-50 bg-white shadow-2xl"
         style={{ width: viewportWidth, height: viewportHeight }}
       >
         <div
@@ -1802,70 +2026,73 @@ export default function Canvas({
             }}
           >
             <Layer>
-              <Rect
-                x={cardX}
-                y={cardY}
-                width={cardWidth}
-                height={cardHeight}
-                {...cardFillProps}
-                opacity={backgroundOpacity}
-                cornerRadius={40}
-                name="card-background"
-              />
-              {backgroundImage && backgroundImageCrop ? (
-                <Group
-                  clipFunc={(context) => {
-                    drawRoundedRectPath(context, cardX, cardY, cardWidth, cardHeight, 40);
-                  }}
-                >
-                  <KonvaImage
-                    image={backgroundImage}
+              {!renderElementsOnly ? (
+                <>
+                  <Rect
                     x={cardX}
                     y={cardY}
                     width={cardWidth}
                     height={cardHeight}
-                    crop={backgroundImageCrop}
+                    {...cardFillProps}
                     opacity={backgroundOpacity}
+                    cornerRadius={CARD_CORNER_RADIUS}
                     name="card-background"
                   />
-                </Group>
-              ) : null}
-              <BackgroundDecoration
-                shape={backgroundShape}
-                cardX={cardX}
-                cardY={cardY}
-                cardWidth={cardWidth}
-                cardHeight={cardHeight}
-                backgroundOpacity={backgroundOpacity}
-              />
-
-              <Group
-                clipFunc={(context) => {
-                  drawRoundedRectPath(context, cardX, cardY, cardWidth, cardHeight, 40);
-                }}
-              >
-                {orderedBackgroundCanvasItems.map(({ item }) => (
-                  <LogoNode
-                    key={`logo:${item.id}`}
-                    item={item}
-                    selected={!selectionUiHidden && selectedItems.some((entry) => entry.type === 'logo' && entry.id === item.id)}
-                    onSelect={(event) => handleItemSelect({ type: 'logo', id: item.id }, event)}
-                    onTransformChange={(transform) => updateItemTransform('logoItems', item.id, transform)}
-                    onTransformPreview={handleTransformPreview}
-                    onTransformFinish={clearHelpers}
-                    onNodeDragStart={handleNodeDragStart}
-                    onNodeDragMove={handleNodeDragMove}
-                    onNodeDragEnd={handleNodeDragEnd}
-                    setCursor={setCursor}
-                    registerNode={registerNode}
+                  {backgroundImage && backgroundImagePlacement ? (
+                    <Group
+                      clipFunc={(context) => {
+                        drawRoundedRectPath(context, cardX, cardY, cardWidth, cardHeight, CARD_CORNER_RADIUS);
+                      }}
+                    >
+                      <KonvaImage
+                        image={backgroundImage}
+                        x={backgroundImagePlacement.x}
+                        y={backgroundImagePlacement.y}
+                        width={backgroundImagePlacement.width}
+                        height={backgroundImagePlacement.height}
+                        opacity={backgroundOpacity}
+                        name="card-background"
+                      />
+                    </Group>
+                  ) : null}
+                  <BackgroundDecoration
+                    shape={backgroundShape}
+                    cardX={cardX}
+                    cardY={cardY}
+                    cardWidth={cardWidth}
+                    cardHeight={cardHeight}
+                    backgroundOpacity={backgroundOpacity}
                   />
-                ))}
-              </Group>
+
+                  <Group
+                    clipFunc={(context) => {
+                      drawRoundedRectPath(context, cardX, cardY, cardWidth, cardHeight, CARD_CORNER_RADIUS);
+                    }}
+                  >
+                    {orderedBackgroundCanvasItems.map(({ item }) => (
+                      <LogoNode
+                        key={`logo:${item.id}`}
+                        item={item}
+                        selected={!selectionUiHidden && selectedItems.some((entry) => entry.type === 'logo' && entry.id === item.id)}
+                        onSelect={(event) => handleItemSelect({ type: 'logo', id: item.id }, event)}
+                        onTransformChange={(transform) => updateItemTransform('logoItems', item.id, transform)}
+                        onTransformPreview={handleTransformPreview}
+                        onTransformFinish={clearHelpers}
+                        onNodeDragStart={handleNodeDragStart}
+                        onNodeDragMove={handleNodeDragMove}
+                        onNodeDragEnd={handleNodeDragEnd}
+                        setCursor={setCursor}
+                        registerNode={registerNode}
+                      />
+                    ))}
+                  </Group>
+                </>
+              ) : null}
 
               <Group
                 clipFunc={clipContentToCard
                   ? (context) => {
-                      drawRoundedRectPath(context, cardX, cardY, cardWidth, cardHeight, 40);
+                      drawRoundedRectPath(context, cardX, cardY, cardWidth, cardHeight, CARD_CORNER_RADIUS);
                     }
                   : undefined}
               >
@@ -1982,6 +2209,19 @@ export default function Canvas({
             </Layer>
           </Stage>
         </div>
+        {isWatermarkVisible ? (
+          <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
+            <div
+              className="absolute"
+              style={{
+                ...BRAND_WATERMARK_PATTERN_STYLE,
+                inset: BRAND_WATERMARK_OVERLAY_INSET,
+                opacity: BRAND_WATERMARK_OPACITY,
+                transform: `rotate(${BRAND_WATERMARK_ROTATION}deg) scale(${BRAND_WATERMARK_OVERLAY_SCALE})`,
+              }}
+            />
+          </div>
+        ) : null}
       </div>
       {inlineEditor && inlineEditorLayout ? (
         <input

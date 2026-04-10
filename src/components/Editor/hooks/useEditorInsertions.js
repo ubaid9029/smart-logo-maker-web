@@ -66,6 +66,7 @@ export function useEditorInsertions({
     const nextLogoItem = {
       id: newId,
       imageUrl,
+      isBackground: Boolean(options.isBackground),
       baseWidth,
       baseHeight,
       transform: {
@@ -187,6 +188,7 @@ export function useEditorInsertions({
         baseHeight: defaultInsertedBackgroundAssetHeight,
         x: defaultInsertedBackgroundAssetX,
         y: defaultInsertedBackgroundAssetY,
+        isBackground: true,
         layerLabel: file.name ? getAssetDisplayLabel(file.name, 'Uploaded image') : 'Uploaded image',
       });
     };

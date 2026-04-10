@@ -121,7 +121,7 @@ function CompactActionButton({ disabled, icon, label, onClick }) {
 function AdvancedNumberField({ disabled = false, label, onChange, value }) {
   return (
     <label className="flex flex-col gap-2">
-      <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">{label}</span>
+      <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">{label}</span>
       <input
         type="number"
         value={value}
@@ -207,13 +207,13 @@ function LayerPanelRow({
       }`}
     >
       <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white ${
-        visibleLayerItems.length > 1 ? 'text-slate-400' : 'text-slate-300'
+        visibleLayerItems.length > 1 ? 'text-slate-500' : 'text-slate-300'
       }`}>
         <GripVertical size={18} />
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-black text-slate-800">{layer.label}</p>
-        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
+        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
           <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-slate-500">{layer.type}</span>
           {layer.isBackground ? <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] text-sky-700">Background</span> : null}
           <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-slate-500">{layer.orderLabel}</span>
@@ -382,7 +382,7 @@ export function EditorSidebarContent(props) {
           return (
             <div className="space-y-1">
               <div className="rounded-[0.95rem] border border-slate-100 bg-white p-2.5 shadow-sm">
-                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">
                   Layer
                 </p>
                 <div className="mt-2 grid grid-cols-2 gap-1">
@@ -488,7 +488,7 @@ export function EditorSidebarContent(props) {
           {activeObjectPanel === 'controls' ? (
             <div className="mx-auto mt-1 max-w-[290px] space-y-3">
               <div className="rounded-[1.22rem] border border-slate-100 bg-white p-2.5 shadow-sm">
-                <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">Position</p>
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">Position</p>
                 <div className="mt-2.5 space-y-2">
                   <div className="flex justify-center">
                     {renderIconClusterButton('Top', <ArrowUp size={22} />, () => handleNudge(0, -movementStep))}
@@ -507,7 +507,7 @@ export function EditorSidebarContent(props) {
               </div>
 
               <div className="rounded-[1.22rem] border border-slate-100 bg-white p-2.5 shadow-sm">
-                <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">Transform</p>
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">Transform</p>
                 <div className="mt-2.5 space-y-2">
                   <div className="flex justify-center">
                     {renderIconClusterButton('Zoom In', <Maximize2 size={22} />, () => handleScaleSelected((Math.abs(selectedItemData.transform?.scaleX ?? 1) || 1) + 0.1))}
@@ -536,7 +536,7 @@ export function EditorSidebarContent(props) {
               {positionView === 'arrange' ? (
                 <div className="space-y-3">
                   <div className="rounded-[1.05rem] border border-slate-100 bg-white p-2 shadow-sm">
-                    <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">Arrange</p>
+                    <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">Arrange</p>
                     <div className="mt-2 grid grid-cols-2 gap-2">
                       {desktopArrangeActions.map((action) => (
                         <CompactActionButton
@@ -550,7 +550,7 @@ export function EditorSidebarContent(props) {
                     </div>
                   </div>
                   <div className="rounded-[1.05rem] border border-slate-100 bg-slate-50/70 p-2 shadow-sm">
-                    <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">Advanced</p>
+                    <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">Advanced</p>
                     <div className="mt-2 space-y-2">
                       <div className="grid grid-cols-2 gap-2">
                         {arrangePrimaryFields.map((field) => (
@@ -595,7 +595,7 @@ export function EditorSidebarContent(props) {
                         Overlapping
                       </SegmentedToggleButton>
                     </div>
-                    <p className="px-1 text-[11px] font-semibold text-slate-400">
+                    <p className="px-1 text-[11px] font-semibold text-slate-500">
                       {layerView === 'overlapping'
                         ? 'Showing layers that overlap with the selected item.'
                         : 'Drag any row to reorder your full layer stack.'}
@@ -615,7 +615,7 @@ export function EditorSidebarContent(props) {
                         />
                       ))}
                       {!visibleLayerItems.length ? (
-                        <div className="rounded-[1.45rem] border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm font-semibold text-slate-400">
+                        <div className="rounded-[1.45rem] border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm font-semibold text-slate-500">
                           {layerView === 'overlapping'
                             ? 'No overlapping layers found for this selection.'
                             : 'No layers are available for this selection yet.'}
@@ -637,7 +637,7 @@ export function EditorSidebarContent(props) {
         return (
           <div className={`space-y-2 ${!isMobileViewport && activeBackgroundOption ? 'block' : 'lg:hidden'}`}> 
             <div className="rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
                 Fill Color
               </p>
               <div className="mt-2 flex items-center gap-2">
@@ -672,7 +672,7 @@ export function EditorSidebarContent(props) {
       return (
         <div className="space-y-4">
           <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-            <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+            <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
               Fill Color
             </p>
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -792,7 +792,7 @@ export function EditorSidebarContent(props) {
           <div className={`space-y-2 ${!isMobileViewport && activeBackgroundOption ? 'block' : 'lg:hidden'}`}>
             <div className="rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
                   Opacity
                 </p>
                 <span className="text-xs font-bold text-slate-600">
@@ -817,7 +817,7 @@ export function EditorSidebarContent(props) {
         <div className="space-y-4">
           <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
                 Opacity
               </p>
               <span className="text-sm font-bold text-slate-600">
@@ -844,7 +844,7 @@ export function EditorSidebarContent(props) {
           <div className={`space-y-2 ${!isMobileViewport && activeBackgroundOption ? 'block' : 'lg:hidden'}`}>
             <div className="rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
                   Corner Radius
                 </p>
                 <span className="text-xs font-bold text-slate-600">{selectedCornerRadius}px</span>
@@ -867,7 +867,7 @@ export function EditorSidebarContent(props) {
         <div className="space-y-4">
           <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
                 Corner Radius
               </p>
               <span className="text-sm font-bold text-slate-600">{selectedCornerRadius}px</span>
@@ -891,7 +891,7 @@ export function EditorSidebarContent(props) {
         return (
           <div className={`space-y-2 ${!isMobileViewport && activeBackgroundOption ? 'block' : 'lg:hidden'}`}> 
             <div className="rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm"> 
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
                 Outline Color
               </p>
               <div className="mt-2 flex items-start gap-2">
@@ -910,7 +910,7 @@ export function EditorSidebarContent(props) {
                 </div>
                 <div className="w-[216px] shrink-0 rounded-[0.8rem] border border-slate-100 bg-slate-50/80 px-2 py-1.5">
                   <div className="flex items-center justify-between">
-                    <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">
+                    <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-500">
                       Thick
                     </p>
                     <span className="text-[10px] font-bold text-slate-600">{selectedStyle.outlineWidth ?? 0}</span>
@@ -947,7 +947,7 @@ export function EditorSidebarContent(props) {
       return (
         <div className="space-y-4">
           <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-            <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+            <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
               Outline Color
             </p>
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -978,7 +978,7 @@ export function EditorSidebarContent(props) {
 
           <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
                 Thickness
               </p>
               <span className="text-sm font-bold text-slate-600">{selectedStyle.outlineWidth ?? 0}</span>
@@ -1012,7 +1012,7 @@ export function EditorSidebarContent(props) {
                 {rotateControls.map((control) => (
                   <div key={control.key} className="rounded-[0.85rem] border border-slate-100 bg-slate-50 px-2 py-1.5">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">
+                      <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-500">
                         {control.label}
                       </p>
                       <span className="text-xs font-bold text-slate-600">{control.value}°</span>
@@ -1043,7 +1043,7 @@ export function EditorSidebarContent(props) {
           ].map((control) => (
             <div key={control.key} className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
                   {control.label}
                 </p>
                 <span className="text-sm font-bold text-slate-600">{control.value}°</span>
@@ -1072,7 +1072,7 @@ export function EditorSidebarContent(props) {
                 <div className={`space-y-2 ${!isMobileViewport && activeBackgroundOption ? 'block' : 'lg:hidden'}`}> 
                   <div className="rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
                     <div className="flex items-center gap-2">
-                      <span className="shrink-0 text-slate-400">
+                      <span className="shrink-0 text-slate-500">
                         <Palette size={15} />
                       </span>
                       <ColorPickerField
@@ -1137,7 +1137,7 @@ export function EditorSidebarContent(props) {
                     <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Background Layers</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Background Layers</p>
                         <p className="mt-1 text-xs font-semibold text-slate-500">
                           Select any element, then use `Set As Bg` to stack multiple background layers.
                         </p>
@@ -1147,7 +1147,7 @@ export function EditorSidebarContent(props) {
                       </span>
                     </div>
                   </div>
-                  <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                  <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
                     Background Color
                   </p>
                   <div className="mt-4 flex items-center gap-3">
@@ -1203,7 +1203,7 @@ export function EditorSidebarContent(props) {
             {isMobileViewport && !activeBackgroundOption && (
               <div className={`space-y-2 ${!isMobileViewport && activeBackgroundOption ? 'block' : 'lg:hidden'}`}> 
                 <div className="rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
                     Shape Elements
                   </p>
                   <p className="mt-1 text-[11px] font-medium text-slate-500">
@@ -1310,7 +1310,7 @@ export function EditorSidebarContent(props) {
                     ) : (
                       <div className="mt-2 min-w-0">
                         <div className="flex items-center justify-between">
-                          <span className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">Angle</span>
+                          <span className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-500">Angle</span>
                           <span className="text-[10px] font-bold text-slate-700">{gradientRadialAngle} deg</span>
                         </div>
                         <input
@@ -1350,7 +1350,7 @@ export function EditorSidebarContent(props) {
                 </div>
                 <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                    <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
                       Gradient
                     </p>
                     <div className="flex flex-wrap gap-2">
@@ -1372,12 +1372,12 @@ export function EditorSidebarContent(props) {
                 </div>
 
                 <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
-                  <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                  <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
                     Colors
                   </p>
                   <div className="mt-3 space-y-2.5">
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Start</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">Start</p>
                       <div className="mt-2 flex min-w-0 items-center gap-2">
                         <ColorPickerField
                           value={gradientStartColor}
@@ -1394,7 +1394,7 @@ export function EditorSidebarContent(props) {
                     </div>
 
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">End</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">End</p>
                       <div className="mt-2 flex min-w-0 items-center gap-2">
                         <ColorPickerField
                           value={gradientEndColor}
@@ -1413,7 +1413,7 @@ export function EditorSidebarContent(props) {
                 </div>
 
                 <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
-                  <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                  <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
                     Direction
                   </p>
                   {gradientType === 'linear' ? (
@@ -1480,7 +1480,7 @@ export function EditorSidebarContent(props) {
 
             {!isMobileViewport && activeBackgroundOption === 'background' && (
               <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-                <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
                   Background Library
                 </p>
                 <div className="mt-4 grid grid-cols-2 gap-4">
@@ -1517,7 +1517,7 @@ export function EditorSidebarContent(props) {
 
             {!isMobileViewport && activeBackgroundOption === 'texture' && (
               <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-                <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
                   Texture Library
                 </p>
                 <div className="mt-4 grid grid-cols-2 gap-4">
@@ -1551,7 +1551,7 @@ export function EditorSidebarContent(props) {
 
           <div className={`space-y-3 ${!isMobileViewport && !activeBackgroundOption ? 'hidden lg:block' : 'hidden'}`}> 
             <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-                <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
                   Shape Elements
                 </p>
                 <p className="mt-2 text-sm font-medium text-slate-500">

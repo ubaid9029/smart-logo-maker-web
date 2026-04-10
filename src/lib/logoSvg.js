@@ -85,6 +85,46 @@ const extractSvgParts = (svgMarkup, fallbackViewBox = '0 0 100 100') => {
   };
 };
 
+const buildStandaloneSvgMarkup = (svgMarkup, options = {}) => {
+  if (typeof svgMarkup !== 'string' || !svgMarkup.trim()) {
+    return null;
+  }
+
+  const width = Math.max(1, clampNumber(options.width, 100));
+  const height = Math.max(1, clampNumber(options.height, 100));
+  const viewBox = options.viewBox || '0 0 100 100';
+
+  if (!/<svg\b/i.test(svgMarkup)) {
+    return [
+      `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width.toFixed(2)}" height="${height.toFixed(2)}" viewBox="${escapeXml(viewBox)}" preserveAspectRatio="xMidYMid meet" overflow="visible">`,
+      svgMarkup,
+      '</svg>',
+    ].join('');
+  }
+
+  return svgMarkup.replace(/<svg\b([^>]*)>/i, (_match, attrs = '') => {
+    const baseAttrs = String(attrs || '')
+      .replace(/\sxmlns(?::xlink)?="[^"]*"/gi, '')
+      .replace(/\swidth="[^"]*"/gi, '')
+      .replace(/\sheight="[^"]*"/gi, '')
+      .replace(/\sviewBox="[^"]*"/gi, '')
+      .replace(/\spreserveAspectRatio="[^"]*"/gi, '')
+      .trim();
+    const rebuiltAttrs = [
+      'xmlns="http://www.w3.org/2000/svg"',
+      'xmlns:xlink="http://www.w3.org/1999/xlink"',
+      `width="${width.toFixed(2)}"`,
+      `height="${height.toFixed(2)}"`,
+      `viewBox="${escapeXml(viewBox)}"`,
+      'preserveAspectRatio="xMidYMid meet"',
+      'overflow="visible"',
+      baseAttrs,
+    ].filter(Boolean).join(' ');
+
+    return `<svg ${rebuiltAttrs}>`;
+  });
+};
+
 const getBoundsFromRatio = (ratio = {}) => {
   const x1 = clampNumber(ratio.x1, 0);
   const y1 = clampNumber(ratio.y1, 0);
@@ -305,6 +345,24 @@ const buildSloganBlock = (segment, sloganText, textColor, areaWidth) => {
   };
 };
 
+const getSloganTextMetrics = (text, width) => {
+  const displayText = getSloganDisplayText(null, text);
+  const safeWidth = Math.max(32, width);
+  const maxTextWidth = Math.max(24, safeWidth - 8);
+  const estimatedTextWidth = Math.max(32, displayText.length * 7.2);
+  const fitRatio = Math.min(1, maxTextWidth / estimatedTextWidth);
+  const fontSize = Math.max(8.5, 11 * fitRatio);
+  const letterSpacing = Math.max(0.6, 1.3 * fitRatio);
+  const textWidth = Math.min(maxTextWidth, estimatedTextWidth * fitRatio);
+
+  return {
+    displayText,
+    fontSize,
+    letterSpacing,
+    textWidth,
+  };
+};
+
 const buildIconBlock = (item, maxWidth, maxHeight) => {
   const iconAsset = getResolvedIconAsset(item);
   const iconSvg = iconAsset?.svg_source_code || iconAsset?.source_code || null;
@@ -334,7 +392,33 @@ const buildIconBlock = (item, maxWidth, maxHeight) => {
   };
 };
 
-const shouldUseInlineLeadingIconTemplate = () => false;
+const shouldUseInlineLeadingIconTemplate = (item, businessName, rawNameSegments = []) => {
+  const iconAsset = getResolvedIconAsset(item);
+  const layout = String(iconAsset?.layout || '').toLowerCase();
+  const safeBusinessName = normalizeStringValue(businessName);
+
+  if (!iconAsset || !getIconSvgSource(item) || layout !== 'left' || safeBusinessName.length < 2) {
+    return false;
+  }
+
+  if (!Array.isArray(rawNameSegments) || rawNameSegments.length < 2) {
+    return false;
+  }
+
+  const normalizedSegmentTexts = rawNameSegments
+    .map((segment) => normalizeStringValue(segment?.text))
+    .filter(Boolean);
+
+  if (normalizedSegmentTexts.length !== rawNameSegments.length) {
+    return false;
+  }
+
+  if (!normalizedSegmentTexts.every((segmentText) => segmentText.length === 1)) {
+    return false;
+  }
+
+  return normalizedSegmentTexts[0].toUpperCase() === safeBusinessName.charAt(0).toUpperCase();
+};
 
 const detectLogoTemplate = (item, businessName, rawNameSegments) => {
   const iconAsset = getResolvedIconAsset(item);
@@ -581,10 +665,11 @@ export const buildLogoCardSvg = (item, options = {}) => {
   const nameBaseSize = clampNumber(primaryNameSegment?.size, hasSlogan ? 40 : 46);
   const template = detectLogoTemplate(item, businessName, rawNameSegments);
   const useInlineLeadingIcon = template === 'iconline-inline';
-  const displayBusinessName = useInlineLeadingIcon && businessName.length > 1
+  const useLeadingLetterIconReplacement = shouldUseInlineLeadingIconTemplate(item, businessName, rawNameSegments);
+  const displayBusinessName = (useInlineLeadingIcon || useLeadingLetterIconReplacement) && businessName.length > 1
     ? businessName.slice(1).trim() || businessName
     : businessName;
-  const nameSegments = rawNameSegments;
+  const nameSegments = useLeadingLetterIconReplacement ? rawNameSegments.slice(1) : rawNameSegments;
 
   let iconMarkup = '';
   let nameMarkup = '';
@@ -654,15 +739,9 @@ const getSloganDisplayText = (segment, sloganText) => {
 };
 
 const buildSloganTextMarkup = (text, textColor, width) => {
-  const displayText = getSloganDisplayText(null, text);
+  const { displayText, fontSize, letterSpacing, textWidth } = getSloganTextMetrics(text, width);
   const safeText = escapeXml(displayText);
   const safeWidth = Math.max(32, width);
-  const maxTextWidth = Math.max(24, safeWidth - 8);
-  const estimatedTextWidth = Math.max(32, displayText.length * 7.2);
-  const fitRatio = Math.min(1, maxTextWidth / estimatedTextWidth);
-  const fontSize = Math.max(8.5, 11 * fitRatio);
-  const letterSpacing = Math.max(0.6, 1.3 * fitRatio);
-  const textWidth = Math.min(maxTextWidth, estimatedTextWidth * fitRatio);
 
   return [
     `<text x="${(safeWidth / 2).toFixed(2)}" y="${(fontSize * 0.84).toFixed(2)}" text-anchor="middle" fill="${escapeXml(textColor)}" font-size="${fontSize.toFixed(2)}" font-family="Arial, sans-serif" letter-spacing="${letterSpacing.toFixed(2)}" textLength="${textWidth.toFixed(2)}" lengthAdjust="spacingAndGlyphs">`,
@@ -672,7 +751,17 @@ const buildSloganTextMarkup = (text, textColor, width) => {
 };
 
 export const buildEditableLogoPayload = (item, options = {}) => {
-  const businessName = (item?.logo_name || options.businessName || 'BRAND').trim();
+  // Keep editor payload aligned with the exact text the results SVG uses.
+  // Results rendering prefers `item.logo_name` (when present) which can differ in casing
+  // from the user-entered business name. We mirror that priority here so editor matches previews.
+  const businessName = (
+    normalizeStringValue(item?.logo_name)
+    || normalizeStringValue(options?.businessName)
+    || normalizeStringValue(item?.company_name)
+    || normalizeStringValue(item?.business_name)
+    || normalizeStringValue(item?.brand_name)
+    || 'BRAND'
+  );
   const backgroundColor = normalizeBackgroundColor(item?.background_color || options.backgroundColor);
   const primaryNameSegment = getPrimaryNameSegment(item);
   const sloganSegment = getRenderableSloganSegment(item);
@@ -684,15 +773,19 @@ export const buildEditableLogoPayload = (item, options = {}) => {
   const contentX = 24;
   const nameBaseSize = clampNumber(primaryNameSegment?.size, sloganText || sloganSegment ? 40 : 46);
   const template = detectLogoTemplate(item, businessName, rawNameSegments);
+  const useLeadingLetterIconReplacement = shouldUseInlineLeadingIconTemplate(item, businessName, rawNameSegments);
   const iconAsset = getResolvedIconAsset(item);
   const iconSvgSource = getIconSvgSource(item);
   const iconParts = extractSvgParts(iconSvgSource, iconAsset?.view_box || '0 0 100 100');
-  const displayBusinessName = businessName;
+  const displayBusinessName = useLeadingLetterIconReplacement && businessName.length > 1
+    ? businessName.slice(1).trim() || businessName
+    : businessName;
   const sloganDisplayText = getSloganDisplayText(sloganSegment, sloganText);
   const preferredFontFamily = primaryNameSegment?.name || options.fontFamily || 'Arial';
   const preferredFontUrl = buildEditorFontUrl(primaryNameSegment?.font_url || null);
   const sloganFontFamily = sloganSegment?.name || preferredFontFamily;
   const sloganFontUrl = buildEditorFontUrl(sloganSegment?.font_url || null) || preferredFontUrl;
+  const nameSegments = useLeadingLetterIconReplacement ? rawNameSegments.slice(1) : rawNameSegments;
 
   let iconFrame = null;
   let nameFrame = null;
@@ -705,11 +798,8 @@ export const buildEditableLogoPayload = (item, options = {}) => {
     const iconWidth = iconBlock?.width || 0;
     const gapX = iconBlock ? 18 : 0;
     const textAreaWidth = contentWidth - iconWidth - gapX;
-    const nameBlock = buildNameBlock(rawNameSegments, Math.min(36, Math.max(30, nameBaseSize * 0.92)), textColor, displayBusinessName, textAreaWidth);
+    const nameBlock = buildNameBlock(nameSegments, Math.min(36, Math.max(30, nameBaseSize * 0.92)), textColor, displayBusinessName, textAreaWidth);
     const sloganBlock = buildSloganBlock(sloganSegment, sloganText, sloganColor, textAreaWidth);
-    const sloganLabelWidth = sloganDisplayText
-      ? Math.min(textAreaWidth - 40, Math.max(48, sloganDisplayText.length * 6.4))
-      : 0;
     const sloganGap = sloganBlock.markup ? Math.max(8, 10 + clampNumber(sloganSegment?.marginTop, 0)) : 0;
     const textStackHeight = nameBlock.height + (sloganBlock.markup ? sloganGap + sloganBlock.height : 0);
     const totalHeight = Math.max(iconBlock?.height || 0, textStackHeight);
@@ -740,18 +830,22 @@ export const buildEditableLogoPayload = (item, options = {}) => {
     nameSvgDataUri = buildBlockSvgDataUri(nameBlock.width, nameBlock.height, nameBlock.markup);
 
     if (sloganBlock.markup || sloganText || sloganSegment) {
+      const sloganTextMetrics = getSloganTextMetrics(sloganDisplayText, textAreaWidth);
+      const sloganElementWidth = Math.min(
+        textAreaWidth,
+        Math.max(48, sloganTextMetrics.textWidth + 24)
+      );
       sloganFrame = {
-        x: textX + Math.max(0, (textAreaWidth - sloganLabelWidth) / 2),
+        x: textX + Math.max(0, (textAreaWidth - sloganElementWidth) / 2),
         y: textY + nameBlock.height + sloganGap,
-        width: sloganLabelWidth || Math.max(48, textAreaWidth * 0.35),
+        width: sloganElementWidth,
         height: sloganBlock.height || 12,
         areaX: textX,
         areaWidth: textAreaWidth,
         color: sloganColor,
       };
 
-      const sloganTextWidth = sloganFrame.width;
-      const sloganMarkup = buildSloganTextMarkup(sloganDisplayText, sloganColor, sloganTextWidth);
+      const sloganMarkup = buildSloganTextMarkup(sloganDisplayText, sloganColor, sloganFrame.width);
 
       sloganSvgDataUri = buildBlockSvgDataUri(sloganFrame.width, sloganFrame.height, sloganMarkup);
     }
@@ -760,11 +854,8 @@ export const buildEditableLogoPayload = (item, options = {}) => {
     const nameFontSize = template === 'icon-middle'
       ? Math.min(38, Math.max(28, nameBaseSize * 0.88))
       : Math.min(iconBlock ? 40 : 48, Math.max(iconBlock ? 32 : 36, nameBaseSize));
-    const nameBlock = buildNameBlock(rawNameSegments, nameFontSize, textColor, displayBusinessName, contentWidth);
+    const nameBlock = buildNameBlock(nameSegments, nameFontSize, textColor, displayBusinessName, contentWidth);
     const sloganBlock = buildSloganBlock(sloganSegment, sloganText, sloganColor, contentWidth);
-    const sloganLabelWidth = sloganDisplayText
-      ? Math.min(contentWidth - 40, Math.max(48, sloganDisplayText.length * 6.4))
-      : 0;
     const gapAfterIcon = iconBlock
       ? (template === 'icon-middle'
         ? Math.max(10, 8 + clampNumber(primaryNameSegment?.marginTop, 0))
@@ -800,18 +891,22 @@ export const buildEditableLogoPayload = (item, options = {}) => {
 
     if (sloganBlock.markup || sloganText || sloganSegment) {
       cursorY += gapAfterName;
+      const sloganTextMetrics = getSloganTextMetrics(sloganDisplayText, contentWidth);
+      const sloganElementWidth = Math.min(
+        contentWidth,
+        Math.max(48, sloganTextMetrics.textWidth + 24)
+      );
       sloganFrame = {
-        x: contentX + Math.max(0, (contentWidth - sloganLabelWidth) / 2),
+        x: contentX + Math.max(0, (contentWidth - sloganElementWidth) / 2),
         y: cursorY,
-        width: sloganLabelWidth || Math.max(48, contentWidth * 0.35),
+        width: sloganElementWidth,
         height: sloganBlock.height || 12,
         areaX: contentX,
         areaWidth: contentWidth,
         color: sloganColor,
       };
 
-      const sloganTextWidth = sloganFrame.width;
-      const sloganMarkup = buildSloganTextMarkup(sloganDisplayText, sloganColor, sloganTextWidth);
+      const sloganMarkup = buildSloganTextMarkup(sloganDisplayText, sloganColor, sloganFrame.width);
 
       sloganSvgDataUri = buildBlockSvgDataUri(sloganFrame.width, sloganFrame.height, sloganMarkup);
     }
@@ -821,20 +916,41 @@ export const buildEditableLogoPayload = (item, options = {}) => {
   const textItems = [];
 
   if (iconFrame) {
-    const iconMarkup = [
-      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${escapeXml(iconFrame.viewBox)}" preserveAspectRatio="xMidYMid meet">`,
+    const iconFrameMarkup = [
+      `<svg x="0" y="0" width="${iconFrame.width.toFixed(2)}" height="${iconFrame.height.toFixed(2)}" viewBox="${escapeXml(iconFrame.viewBox)}" preserveAspectRatio="xMidYMid meet">`,
       iconFrame.innerMarkup,
       '</svg>',
     ].join('');
+    const iconImageUrl = buildBlockSvgDataUri(iconFrame.width, iconFrame.height, iconFrameMarkup)
+      || svgToDataUri(buildStandaloneSvgMarkup(iconSvgSource || iconFrame.innerMarkup, {
+        width: iconFrame.width,
+        height: iconFrame.height,
+        viewBox: iconFrame.viewBox,
+      }) || iconFrameMarkup);
+    const iconX = scaleEditorPosX(iconFrame.x);
+    const iconY = scaleEditorPosY(iconFrame.y);
+    const iconWidth = scaleEditorWidth(iconFrame.width);
+    const iconHeight = scaleEditorHeight(iconFrame.height);
 
     logoItems.push({
       id: 'icon',
       type: 'svg',
-      src: svgToDataUri(iconMarkup),
-      x: scaleEditorPosX(iconFrame.x),
-      y: scaleEditorPosY(iconFrame.y),
-      width: scaleEditorWidth(iconFrame.width),
-      height: scaleEditorHeight(iconFrame.height),
+      src: iconImageUrl,
+      imageUrl: iconImageUrl,
+      x: iconX,
+      y: iconY,
+      width: iconWidth,
+      height: iconHeight,
+      baseWidth: iconWidth,
+      baseHeight: iconHeight,
+      preserveContentBounds: true,
+      transform: {
+        x: iconX,
+        y: iconY,
+        scaleX: 1,
+        scaleY: 1,
+        rotation: 0,
+      },
     });
   }
 
@@ -933,6 +1049,7 @@ export const buildEditableLogoPayload = (item, options = {}) => {
 
   return {
     backgroundColor,
+    watermarkEnabled: true,
     textColor,
     fontFamily: preferredFontFamily,
     textTemplate: {

@@ -162,6 +162,14 @@ export function useEditorKeyboardShortcuts({
         return;
       }
 
+      // Quick duplicate shortcut (requested): press "D" when something is selected.
+      // Keep this disabled while typing in inputs/textareas/contenteditable.
+      if (!modifierPressed && selectedCanvasItemsCount && (event.key === 'd' || event.key === 'D')) {
+        event.preventDefault();
+        handleDuplicateSelected();
+        return;
+      }
+
       if (modifierPressed) {
         if (event.key === 'c' || event.key === 'C') {
           event.preventDefault();

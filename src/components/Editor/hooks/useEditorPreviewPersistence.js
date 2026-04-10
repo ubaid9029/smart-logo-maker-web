@@ -2,8 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  applyWatermarkToCanvas,
+  buildRasterImageSvgMarkup,
   buildPdfBlobFromJpegBytes,
   canvasToBlob,
+  cropCanvasToLogicalArea,
+  cropCanvasToVisibleContent,
   getDownloadBaseName,
   renderDataUrlToCanvas,
   triggerBlobDownload,
@@ -19,12 +23,28 @@ import {
 import { saveEditorResumeDraft } from '../../../lib/logoResumeStorage';
 import { createClient } from '../../../lib/supabaseClient';
 import {
+  CANVAS_HEIGHT,
+  CANVAS_WIDTH,
+  CARD_HEIGHT,
+  CARD_WIDTH,
+  CARD_X,
+  CARD_Y,
   EDITED_LOGO_STORAGE_PREFIX,
 } from '../editorConstants';
 import { waitForFrames } from '../editorUtils';
 
 const EDITED_LOGO_SESSION_PREFIX = 'edited-logo-session:';
 const EDITOR_DOWNLOAD_PIXEL_RATIO = 5;
+const EDITOR_CARD_AREA = {
+  x: CARD_X,
+  y: CARD_Y,
+  width: CARD_WIDTH,
+  height: CARD_HEIGHT,
+};
+const EDITOR_LOGICAL_CANVAS_SIZE = {
+  width: CANVAS_WIDTH,
+  height: CANVAS_HEIGHT,
+};
 
 const buildScopedStorageKey = (editScopeKey, designId) => (
   editScopeKey
@@ -52,8 +72,8 @@ const buildPreviewSvgMarkup = (imageUrl) => {
   }
 
   return [
-    '<svg xmlns="http://www.w3.org/2000/svg" width="340" height="250" viewBox="40 40 620 420" preserveAspectRatio="xMidYMid meet">',
-    `<image href="${imageUrl}" x="0" y="0" width="700" height="500" preserveAspectRatio="none" />`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${CARD_WIDTH}" height="${CARD_HEIGHT}" viewBox="0 0 ${CARD_WIDTH} ${CARD_HEIGHT}" preserveAspectRatio="xMidYMid meet">`,
+    `<image href="${imageUrl}" x="0" y="0" width="${CARD_WIDTH}" height="${CARD_HEIGHT}" preserveAspectRatio="none" />`,
     '</svg>',
   ].join('');
 };
@@ -160,6 +180,16 @@ const compressPreviewDataUrl = async (previewDataUrl, options = {}) => {
   return exportCompressedPreview(outputCanvas);
 };
 
+const cropPreviewDataUrlToEditorCard = async (previewDataUrl) => {
+  if (!previewDataUrl) {
+    return null;
+  }
+
+  const { canvas } = await renderDataUrlToCanvas(previewDataUrl);
+  const cardCanvas = cropCanvasToLogicalArea(canvas, EDITOR_CARD_AREA, EDITOR_LOGICAL_CANVAS_SIZE);
+  return cardCanvas.toDataURL('image/png');
+};
+
 export function useEditorPreviewPersistence({
   designId,
   editScopeKey,
@@ -187,8 +217,10 @@ export function useEditorPreviewPersistence({
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [previewFullscreenOpen, setPreviewFullscreenOpen] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState('');
+  const [previewElementsImageUrl, setPreviewElementsImageUrl] = useState('');
   const [hideCanvasSelectionUi, setHideCanvasSelectionUi] = useState(false);
   const [clipCanvasToCard, setClipCanvasToCard] = useState(false);
+  const [renderCanvasElementsOnly, setRenderCanvasElementsOnly] = useState(false);
   const [savingChanges, setSavingChanges] = useState(false);
   const isMountedRef = useRef(false);
   const autoSaveTimerRef = useRef(null);
@@ -259,7 +291,7 @@ export function useEditorPreviewPersistence({
 
   const ensureSignedIn = useCallback(async () => {
     try {
-      const response = await fetch('/auth/session', {
+      const response = await fetch('/api/auth/session', {
         credentials: 'include',
         cache: 'no-store',
       });
@@ -290,12 +322,16 @@ export function useEditorPreviewPersistence({
 
     const shouldHideSelection = Boolean(options.hideSelection);
     const shouldClipToCard = options.clipToCard !== false;
+    const shouldRenderElementsOnly = Boolean(options.elementsOnly);
 
     if (shouldHideSelection) {
       setHideCanvasSelectionUi(true);
     }
     if (shouldClipToCard) {
       setClipCanvasToCard(true);
+    }
+    if (shouldRenderElementsOnly) {
+      setRenderCanvasElementsOnly(true);
     }
 
     await waitForFrames(2);
@@ -317,6 +353,9 @@ export function useEditorPreviewPersistence({
       }
       if (shouldClipToCard) {
         setClipCanvasToCard(false);
+      }
+      if (shouldRenderElementsOnly) {
+        setRenderCanvasElementsOnly(false);
       }
       await waitForFrames(1);
     }
@@ -454,7 +493,10 @@ export function useEditorPreviewPersistence({
       return null;
     }
 
-    const nextPreviewImageUrl = previewDataUrl || await captureEditorPreview(2, { hideSelection: true });
+    const rawPreviewImageUrl = previewDataUrl || await captureEditorPreview(2, { hideSelection: true });
+    const nextPreviewImageUrl = rawPreviewImageUrl
+      ? await cropPreviewDataUrlToEditorCard(rawPreviewImageUrl)
+      : null;
     if (!nextPreviewImageUrl) {
       return null;
     }
@@ -467,7 +509,10 @@ export function useEditorPreviewPersistence({
         hideSelection: true,
         clipToCard: true,
       });
-      const storagePreviewDataUrl = await compressPreviewDataUrl(storageSourcePreviewDataUrl || nextPreviewImageUrl);
+      const croppedStorageSourcePreviewDataUrl = storageSourcePreviewDataUrl
+        ? await cropPreviewDataUrlToEditorCard(storageSourcePreviewDataUrl)
+        : nextPreviewImageUrl;
+      const storagePreviewDataUrl = await compressPreviewDataUrl(croppedStorageSourcePreviewDataUrl || nextPreviewImageUrl);
       const persistedPreviewDataUrl = storagePreviewDataUrl || nextPreviewImageUrl;
       persistDraftSnapshot({
         editablePayload,
@@ -490,7 +535,7 @@ export function useEditorPreviewPersistence({
             });
           });
         }
-        router.replace('/saved');
+        router.replace(returnTo || '/my-designs');
         return nextPreviewImageUrl;
       }
 
@@ -509,7 +554,7 @@ export function useEditorPreviewPersistence({
     } finally {
       setSavingChanges(false);
     }
-  }, [buildEditableSavePayload, captureEditorPreview, designId, handleLibrarySyncError, persistDraftSnapshot, router, syncLibraryRecord]);
+  }, [buildEditableSavePayload, captureEditorPreview, designId, handleLibrarySyncError, persistDraftSnapshot, returnTo, router, syncLibraryRecord]);
 
   useEffect(() => {
     if (!designId || typeof window === 'undefined') {
@@ -545,8 +590,25 @@ export function useEditorPreviewPersistence({
       return;
     }
 
-    await persistEditorChanges({ previewDataUrl: nextPreviewImageUrl });
-    setPreviewImageUrl(nextPreviewImageUrl);
+    const nextElementsPreviewImageUrl = await captureEditorPreview(2, {
+      hideSelection: true,
+      elementsOnly: true,
+      clipToCard: false,
+    });
+
+    await persistEditorChanges({
+      previewDataUrl: nextPreviewImageUrl,
+      skipFavoriteSync: true,
+    });
+    const previewCardDataUrl = await cropPreviewDataUrlToEditorCard(nextPreviewImageUrl);
+    let previewElementsCardDataUrl = '';
+    if (nextElementsPreviewImageUrl) {
+      const { canvas: elementsCanvas } = await renderDataUrlToCanvas(nextElementsPreviewImageUrl);
+      const trimmedCanvas = cropCanvasToVisibleContent(elementsCanvas, { padding: 18 });
+      previewElementsCardDataUrl = trimmedCanvas.toDataURL('image/png');
+    }
+    setPreviewImageUrl(previewCardDataUrl || '');
+    setPreviewElementsImageUrl(previewElementsCardDataUrl || '');
     setPreviewDialogOpen(true);
   }, [captureEditorPreview, persistEditorChanges]);
 
@@ -608,50 +670,54 @@ export function useEditorPreviewPersistence({
       });
 
       const { canvas } = await renderDataUrlToCanvas(pngDataUrl);
+      const cardCanvas = cropCanvasToLogicalArea(canvas, EDITOR_CARD_AREA, EDITOR_LOGICAL_CANVAS_SIZE);
+
+      if (logoConfig?.watermarkEnabled !== false) {
+        await applyWatermarkToCanvas(cardCanvas, {
+          logicalWidth: CARD_WIDTH,
+          logicalHeight: CARD_HEIGHT,
+        });
+      }
 
       if (format === 'svg') {
-        const svgMarkup = [
-          `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}" viewBox="0 0 ${canvas.width} ${canvas.height}" preserveAspectRatio="xMidYMid meet">`,
-          `<image href="${pngDataUrl}" x="0" y="0" width="${canvas.width}" height="${canvas.height}" />`,
-          '</svg>',
-        ].join('');
+        const svgMarkup = buildRasterImageSvgMarkup(cardCanvas.toDataURL('image/png'), cardCanvas.width, cardCanvas.height);
         triggerBlobDownload(new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' }), `${safeBaseName}.svg`);
         setDownloadDialogOpen(false);
         return;
       }
 
       if (format === 'png') {
-        const blob = await canvasToBlob(canvas, 'image/png');
+        const blob = await canvasToBlob(cardCanvas, 'image/png');
         triggerBlobDownload(blob, `${safeBaseName}.png`);
         setDownloadDialogOpen(false);
         return;
       }
 
       if (format === 'jpg') {
-        const blob = await canvasToBlob(canvas, 'image/jpeg', 0.96);
+        const blob = await canvasToBlob(cardCanvas, 'image/jpeg', 0.96);
         triggerBlobDownload(blob, `${safeBaseName}.jpg`);
         setDownloadDialogOpen(false);
         return;
       }
 
       if (format === 'webp') {
-        const blob = await canvasToBlob(canvas, 'image/webp', 0.96);
+        const blob = await canvasToBlob(cardCanvas, 'image/webp', 0.96);
         triggerBlobDownload(blob, `${safeBaseName}.webp`);
         setDownloadDialogOpen(false);
         return;
       }
 
       if (format === 'pdf') {
-        const jpegBlob = await canvasToBlob(canvas, 'image/jpeg', 0.98);
+        const jpegBlob = await canvasToBlob(cardCanvas, 'image/jpeg', 0.98);
         const jpegBytes = new Uint8Array(await jpegBlob.arrayBuffer());
-        const pdfBlob = buildPdfBlobFromJpegBytes(jpegBytes, canvas.width, canvas.height);
+        const pdfBlob = buildPdfBlobFromJpegBytes(jpegBytes, cardCanvas.width, cardCanvas.height);
         triggerBlobDownload(pdfBlob, `${safeBaseName}.pdf`);
         setDownloadDialogOpen(false);
       }
     } finally {
       setDownloadingFormat(null);
     }
-  }, [buildEditableSavePayload, captureEditorPreview, ensureSignedIn, handleLibrarySyncError, initialBusinessValue, logoConfig?.textItems, persistDraftSnapshot, stageRef, syncLibraryRecord]);
+  }, [buildEditableSavePayload, captureEditorPreview, ensureSignedIn, handleLibrarySyncError, initialBusinessValue, logoConfig?.textItems, logoConfig?.watermarkEnabled, persistDraftSnapshot, stageRef, syncLibraryRecord]);
 
   return {
     captureEditorPreview,
@@ -670,9 +736,11 @@ export function useEditorPreviewPersistence({
     previewFullscreenOpen,
     setPreviewFullscreenOpen,
     previewImageUrl,
+    previewElementsImageUrl,
     setPreviewImageUrl,
     hideCanvasSelectionUi,
     clipCanvasToCard,
+    renderCanvasElementsOnly,
     savingChanges,
   };
 }

@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
-import { Download, Edit3, Heart, Loader2 } from 'lucide-react';
+import { Download, Edit3, Heart, Loader2, Trash2 } from 'lucide-react';
 
 import DownloadDialog from '../DownloadDialog';
 import FloatingNotice from '../MainComponents/FloatingNotice';
@@ -15,24 +15,66 @@ import {
   getLogoLibraryUpgradeMessage,
   isLogoLibraryUpgradeRequiredError,
   isSupabaseAuthSessionMissingError,
+  loadLogoLibrary,
   loadDownloadedLogos,
   loadFavoriteLogos,
   loadSavedLogos,
+  peekLogoLibraryCache,
   peekDownloadedLogosCache,
   peekFavoriteLogosCache,
   peekSavedLogosCache,
+  deleteLibraryDesign,
   saveDownloadedLogo,
+  subscribeLogoLibraryRealtime,
   toggleFavoriteLogo,
 } from '../../lib/favoriteLogosRepository';
 import {
+  applyWatermarkToCanvas,
+  buildRasterImageSvgMarkup,
+  buildWatermarkedSvgMarkup,
   buildPdfBlobFromJpegBytes,
   canvasToBlob,
+  cropCanvasToLogicalArea,
   getDownloadBaseName,
+  renderDataUrlToCanvas,
   renderSvgToCanvas,
   triggerBlobDownload,
 } from '../../lib/downloadAssets';
+import {
+  CANVAS_HEIGHT,
+  CANVAS_WIDTH,
+  CARD_HEIGHT,
+  CARD_WIDTH,
+} from '../Editor/editorConstants';
+import {
+  BRAND_WATERMARK_OPACITY,
+  BRAND_WATERMARK_OVERLAY_INSET,
+  BRAND_WATERMARK_OVERLAY_SCALE,
+  BRAND_WATERMARK_PATTERN_STYLE,
+  BRAND_WATERMARK_ROTATION,
+} from '../../lib/watermarkConfig';
+
+const EDITOR_CARD_EXPORT_AREA = {
+  x: 40,
+  y: 40,
+  width: 620,
+  height: 420,
+};
+const EDITOR_LOGICAL_CANVAS_SIZE = {
+  width: CANVAS_WIDTH,
+  height: CANVAS_HEIGHT,
+};
 
 const COLLECTION_CONFIG = {
+  all: {
+    title: 'My Designs',
+    headerDescription: 'All your logos in one place: favorites, saved edits, and downloads.',
+    signInTitle: 'Sign in to view your designs',
+    signInDescription: 'Sign in to access your full logo history and keep it synced across devices.',
+    emptyTitle: 'No designs yet',
+    emptyDescription: 'Generate a logo, then save, favorite, or download to see it here.',
+    routePath: '/my-designs',
+  },
   favorites: {
     title: 'Favorites',
     headerDescription: 'Keep your preferred logos handy, then continue editing or downloading from here.',
@@ -63,12 +105,14 @@ const COLLECTION_CONFIG = {
 };
 
 const LOADERS = {
+  all: loadLogoLibrary,
   favorites: loadFavoriteLogos,
   saved: loadSavedLogos,
   downloads: loadDownloadedLogos,
 };
 
 const PEEKERS = {
+  all: peekLogoLibraryCache,
   favorites: peekFavoriteLogosCache,
   saved: peekSavedLogosCache,
   downloads: peekDownloadedLogosCache,
@@ -80,8 +124,8 @@ const buildRasterSvgMarkup = (imageUrl) => {
   }
 
   return [
-    '<svg xmlns="http://www.w3.org/2000/svg" width="340" height="250" viewBox="40 40 620 420" preserveAspectRatio="xMidYMid meet">',
-    `<image href="${imageUrl}" x="0" y="0" width="700" height="500" preserveAspectRatio="none" />`,
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${CARD_WIDTH}" height="${CARD_HEIGHT}" viewBox="0 0 ${CARD_WIDTH} ${CARD_HEIGHT}" preserveAspectRatio="xMidYMid meet">`,
+    `<image href="${imageUrl}" x="0" y="0" width="${CARD_WIDTH}" height="${CARD_HEIGHT}" preserveAspectRatio="none" />`,
     '</svg>',
   ].join('');
 };
@@ -98,10 +142,18 @@ const InlineSvgPreview = ({ svgMarkup, alt }) => {
   );
 };
 
+const hasEditableGraphicLayer = (editablePayload) => (
+  Array.isArray(editablePayload?.logoItems) &&
+  editablePayload.logoItems.some((item) => (
+    (typeof item?.imageUrl === 'string' && item.imageUrl.trim()) ||
+    (typeof item?.src === 'string' && item.src.trim())
+  ))
+);
+
 export default function LogoCollectionPage({ collectionType = 'favorites' }) {
-  const config = COLLECTION_CONFIG[collectionType] || COLLECTION_CONFIG.favorites;
-  const loadCollection = LOADERS[collectionType] || LOADERS.favorites;
-  const peekCollection = PEEKERS[collectionType] || PEEKERS.favorites;
+  const config = COLLECTION_CONFIG[collectionType] || COLLECTION_CONFIG.all;
+  const loadCollection = LOADERS[collectionType] || LOADERS.all;
+  const peekCollection = PEEKERS[collectionType] || PEEKERS.all;
   const [authChecked, setAuthChecked] = useState(false);
   const [authUser, setAuthUser] = useState(null);
   const [collectionLogos, setCollectionLogos] = useState([]);
@@ -111,9 +163,27 @@ export default function LogoCollectionPage({ collectionType = 'favorites' }) {
   const authUserId = authUser?.id || null;
   const signInHref = `/auth/signin?next=${encodeURIComponent(config.routePath)}`;
 
-  const applyCollectionLogos = useCallback((logos) => {
-    setCollectionLogos(Array.isArray(logos) ? logos : []);
+  const dedupeCollectionLogos = useCallback((logos) => {
+    const safeLogos = Array.isArray(logos) ? logos.filter(Boolean) : [];
+    const seen = new Set();
+    const result = [];
+
+    for (const item of safeLogos) {
+      const key = item?.favoriteId || item?.favoriteRowKey || item?.id || null;
+      if (!key || seen.has(key)) {
+        continue;
+      }
+
+      seen.add(key);
+      result.push(item);
+    }
+
+    return result;
   }, []);
+
+  const applyCollectionLogos = useCallback((logos) => {
+    setCollectionLogos(dedupeCollectionLogos(logos));
+  }, [dedupeCollectionLogos]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -190,7 +260,13 @@ export default function LogoCollectionPage({ collectionType = 'favorites' }) {
     };
 
     void syncCollection();
-    return subscribeFavoriteLogos(syncCollectionFromCache);
+    const unsubscribeLocal = subscribeFavoriteLogos(syncCollectionFromCache);
+    const unsubscribeRealtime = subscribeLogoLibraryRealtime(syncCollectionFromCache);
+
+    return () => {
+      unsubscribeLocal();
+      unsubscribeRealtime();
+    };
   }, [applyCollectionLogos, authChecked, authUserId, collectionType, loadCollection, peekCollection]);
 
   const handleFavoriteToggle = async (design) => {
@@ -233,13 +309,14 @@ export default function LogoCollectionPage({ collectionType = 'favorites' }) {
     const payloadKey = `library-logo-edit-${design.favoriteId}`;
     const runtimePayload = loadFavoriteLogoRuntime(design.favoriteId);
     const editablePayload = runtimePayload?.editablePayload || design.editablePayload || null;
+    const imageParam = hasEditableGraphicLayer(editablePayload) ? (design.fallbackUrl || '') : '';
 
     if (typeof window !== 'undefined' && editablePayload) {
       saveTemporaryEditorPayload(payloadKey, editablePayload);
     }
 
     const params = new URLSearchParams({
-      img: design.fallbackUrl || '',
+      img: imageParam,
       text: design.businessName || 'Brand',
       slogan: design.slogan || '',
       textColor: design.themeColor || '#111827',
@@ -252,7 +329,7 @@ export default function LogoCollectionPage({ collectionType = 'favorites' }) {
       isSaved: design.isSaved ? '1' : '0',
       isDownloaded: design.isDownloaded ? '1' : '0',
       sourceContext: collectionType,
-      returnTo: '/saved',
+      returnTo: '/my-designs',
       returnMode: 'push',
       editScopeKey: design.favoriteId,
     });
@@ -271,6 +348,36 @@ export default function LogoCollectionPage({ collectionType = 'favorites' }) {
         window.open(editorUrl, '_blank');
       }
       return;
+    }
+  };
+
+  const handleDelete = async (design) => {
+    if (!design?.favoriteId) {
+      return;
+    }
+
+    if (typeof window !== 'undefined') {
+      const ok = window.confirm('Delete this design from My Designs? This cannot be undone.');
+      if (!ok) {
+        return;
+      }
+    }
+
+    try {
+      const nextLibraryLogos = await deleteLibraryDesign(design);
+      applyCollectionLogos(filterLogoLibraryItems(nextLibraryLogos, collectionType));
+      setNotice({
+        type: 'info',
+        title: 'Design Deleted',
+        message: 'The design was removed from My Designs.',
+      });
+    } catch (error) {
+      console.error('Unable to delete design:', error);
+      setNotice({
+        type: 'info',
+        title: 'Unable To Delete',
+        message: 'We could not delete this design right now. Please try again.',
+      });
     }
   };
 
@@ -314,12 +421,60 @@ export default function LogoCollectionPage({ collectionType = 'favorites' }) {
     setDownloadingFormat(format);
 
     try {
+      if (refreshedDesign.previewDataUrl) {
+        const { canvas } = await renderDataUrlToCanvas(refreshedDesign.previewDataUrl);
+        const cardCanvas = cropCanvasToLogicalArea(canvas, EDITOR_CARD_EXPORT_AREA, EDITOR_LOGICAL_CANVAS_SIZE);
+
+        if (refreshedDesign?.editablePayload?.watermarkEnabled !== false) {
+          await applyWatermarkToCanvas(cardCanvas, {
+            logicalWidth: EDITOR_CARD_EXPORT_AREA.width,
+            logicalHeight: EDITOR_CARD_EXPORT_AREA.height,
+          });
+        }
+
+        if (format === 'svg') {
+          const svgMarkup = buildRasterImageSvgMarkup(cardCanvas.toDataURL('image/png'), cardCanvas.width, cardCanvas.height);
+          triggerBlobDownload(new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' }), `${safeBaseName}.svg`);
+          return;
+        }
+
+        if (format === 'png') {
+          const blob = await canvasToBlob(cardCanvas, 'image/png');
+          triggerBlobDownload(blob, `${safeBaseName}.png`);
+          return;
+        }
+
+        if (format === 'jpg') {
+          const blob = await canvasToBlob(cardCanvas, 'image/jpeg', 0.96);
+          triggerBlobDownload(blob, `${safeBaseName}.jpg`);
+          return;
+        }
+
+        if (format === 'webp') {
+          const blob = await canvasToBlob(cardCanvas, 'image/webp', 0.96);
+          triggerBlobDownload(blob, `${safeBaseName}.webp`);
+          return;
+        }
+
+        if (format === 'pdf') {
+          const jpegBlob = await canvasToBlob(cardCanvas, 'image/jpeg', 0.98);
+          const jpegBytes = new Uint8Array(await jpegBlob.arrayBuffer());
+          const pdfBlob = buildPdfBlobFromJpegBytes(jpegBytes, cardCanvas.width, cardCanvas.height);
+          triggerBlobDownload(pdfBlob, `${safeBaseName}.pdf`);
+          return;
+        }
+      }
+
+      const exportSvgMarkup = refreshedDesign?.editablePayload?.watermarkEnabled === false
+        ? refreshedSvgMarkup
+        : await buildWatermarkedSvgMarkup(refreshedSvgMarkup);
+
       if (format === 'svg') {
-        triggerBlobDownload(new Blob([refreshedSvgMarkup], { type: 'image/svg+xml;charset=utf-8' }), `${safeBaseName}.svg`);
+        triggerBlobDownload(new Blob([exportSvgMarkup], { type: 'image/svg+xml;charset=utf-8' }), `${safeBaseName}.svg`);
         return;
       }
 
-      const { canvas, width, height } = await renderSvgToCanvas(refreshedSvgMarkup, 4);
+      const { canvas, width, height } = await renderSvgToCanvas(exportSvgMarkup, 4);
 
       if (format === 'png') {
         const blob = await canvasToBlob(canvas, 'image/png');
@@ -394,7 +549,7 @@ export default function LogoCollectionPage({ collectionType = 'favorites' }) {
             <h2 className="text-2xl font-black text-slate-900">{config.emptyTitle}</h2>
             <p className="mt-2 text-sm font-medium text-slate-500">{config.emptyDescription}</p>
             <Link
-              href="/create"
+              href="/create?fresh=1"
               className="mt-6 inline-flex rounded-full bg-linear-to-r from-[#FF5C00] via-[#FF007A] to-[#C400FF] px-8 py-3 text-sm font-bold text-white"
             >
               Create Logos
@@ -428,6 +583,19 @@ export default function LogoCollectionPage({ collectionType = 'favorites' }) {
                         No preview
                       </div>
                     )}
+                    {design?.editablePayload?.watermarkEnabled !== false ? (
+                      <div className="pointer-events-none absolute inset-0 z-[1] overflow-hidden">
+                        <div
+                          className="absolute"
+                          style={{
+                            ...BRAND_WATERMARK_PATTERN_STYLE,
+                            inset: BRAND_WATERMARK_OVERLAY_INSET,
+                            opacity: BRAND_WATERMARK_OPACITY,
+                            transform: `rotate(${BRAND_WATERMARK_ROTATION}deg) scale(${BRAND_WATERMARK_OVERLAY_SCALE})`,
+                          }}
+                        />
+                      </div>
+                    ) : null}
                     <div className="absolute inset-0 hidden items-end justify-center bg-black/20 pb-4 opacity-0 transition-opacity group-hover:opacity-100 sm:flex sm:pb-6">
                       <div className="flex w-full justify-center gap-2 px-2">
                         <button
@@ -442,6 +610,11 @@ export default function LogoCollectionPage({ collectionType = 'favorites' }) {
                         <button onClick={() => setDownloadDesign(design)} className="brand-icon-button h-11 w-11 p-0">
                           <Download size={16} />
                         </button>
+                        {collectionType === 'all' ? (
+                          <button onClick={() => void handleDelete(design)} className="brand-icon-button h-11 w-11 p-0">
+                            <Trash2 size={16} />
+                          </button>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -459,6 +632,11 @@ export default function LogoCollectionPage({ collectionType = 'favorites' }) {
                     <button onClick={() => setDownloadDesign(design)} className="brand-icon-button h-11 w-11 p-0">
                       <Download size={16} />
                     </button>
+                    {collectionType === 'all' ? (
+                      <button onClick={() => void handleDelete(design)} className="brand-icon-button h-11 w-11 p-0">
+                        <Trash2 size={16} />
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               );

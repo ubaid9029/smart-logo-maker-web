@@ -3,7 +3,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { HiArrowRight } from "react-icons/hi";
 import { HiStar } from "react-icons/hi2";
 import { useMemo } from 'react';
 
@@ -120,9 +119,8 @@ const Hero = () => {
           transition={{ delay: 0.6, duration: 0.5 }}
           className="flex flex-col items-center justify-center gap-4 sm:flex-row md:gap-6"
         >
-          <Link href="/create?fresh=1" className="brand-button-primary group inline-flex gap-3 px-8 py-3 text-base md:px-10 md:py-4 md:text-lg">
+          <Link href="/create?fresh=1" className="brand-button-primary inline-flex px-8 py-3 text-base md:px-10 md:py-4 md:text-lg">
             Get Started Free
-            <HiArrowRight className="text-xl transition-transform group-hover:translate-x-1" />
           </Link>
           <Link href="/how-it-works" className="brand-button-outline inline-flex px-8 py-3 text-base md:px-10 md:py-4 md:text-lg">
             See How It Works
@@ -152,6 +150,10 @@ const Hero = () => {
 
           <div className="rounded-full border border-pink-100 bg-white/90 px-4 py-2 shadow-sm">
             50,000+ logos created
+          </div>
+
+          <div className="rounded-full border border-pink-100 bg-white/90 px-4 py-2 shadow-sm">
+            Free logo creation flow
           </div>
         </motion.div>
       </div>

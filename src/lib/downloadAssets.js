@@ -1,3 +1,10 @@
+import {
+  BRAND_WATERMARK_OPACITY,
+  BRAND_WATERMARK_ROTATION,
+  BRAND_WATERMARK_TILE_SIZE,
+  BRAND_WATERMARK_SRC,
+} from './watermarkConfig';
+
 export const DOWNLOAD_FORMATS = [
   { id: 'svg', label: 'SVG', description: 'Best for editing and print' },
   { id: 'png', label: 'PNG', description: 'Recommended for transparent-style sharing' },
@@ -5,6 +12,9 @@ export const DOWNLOAD_FORMATS = [
   { id: 'jpg', label: 'JPG', description: 'Good for previews and uploads' },
   { id: 'webp', label: 'WebP', description: 'Modern lightweight web format' },
 ];
+
+let watermarkSvgTextPromise = null;
+let watermarkSvgDataUriPromise = null;
 
 export const getDownloadBaseName = (value) => (
   (value || 'logo')
@@ -36,6 +46,36 @@ export const getSvgCanvasSize = (svgMarkup) => {
   return { width: 340, height: 250 };
 };
 
+const escapeXmlAttribute = (value) => String(value ?? '')
+  .replace(/&/g, '&amp;')
+  .replace(/"/g, '&quot;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;');
+
+const getSvgViewBoxBounds = (svgMarkup) => {
+  const viewBoxMatch = svgMarkup?.match(/viewBox="([^"]+)"/i);
+
+  if (viewBoxMatch) {
+    const [minX = 0, minY = 0, width = 340, height = 250] = viewBoxMatch[1].split(/\s+/).map(Number);
+    return {
+      minX: Number.isFinite(minX) ? minX : 0,
+      minY: Number.isFinite(minY) ? minY : 0,
+      width: Number.isFinite(width) && width > 0 ? width : 340,
+      height: Number.isFinite(height) && height > 0 ? height : 250,
+      viewBox: viewBoxMatch[1],
+    };
+  }
+
+  const { width, height } = getSvgCanvasSize(svgMarkup);
+  return {
+    minX: 0,
+    minY: 0,
+    width,
+    height,
+    viewBox: `0 0 ${width} ${height}`,
+  };
+};
+
 export const triggerBlobDownload = (blob, filename) => {
   const objectUrl = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -53,6 +93,82 @@ export const loadImage = (src) => new Promise((resolve, reject) => {
   image.onerror = reject;
   image.src = src;
 });
+
+const loadWatermarkSvgText = async () => {
+  if (watermarkSvgTextPromise) {
+    return watermarkSvgTextPromise;
+  }
+
+  watermarkSvgTextPromise = fetch(BRAND_WATERMARK_SRC, { cache: 'force-cache' })
+    .then(async (response) => {
+      if (!response.ok) {
+        throw new Error('Unable to load watermark asset');
+      }
+
+      return response.text();
+    })
+    .catch((error) => {
+      watermarkSvgTextPromise = null;
+      throw error;
+    });
+
+  return watermarkSvgTextPromise;
+};
+
+export const getWatermarkSvgDataUri = async () => {
+  if (watermarkSvgDataUriPromise) {
+    return watermarkSvgDataUriPromise;
+  }
+
+  watermarkSvgDataUriPromise = loadWatermarkSvgText()
+    .then((svgMarkup) => `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svgMarkup)}`)
+    .catch((error) => {
+      watermarkSvgDataUriPromise = null;
+      throw error;
+    });
+
+  return watermarkSvgDataUriPromise;
+};
+
+const buildWatermarkSvgOverlay = (svgMarkup, watermarkHref) => {
+  const { minX, minY, width, height } = getSvgViewBoxBounds(svgMarkup);
+  const overlayX = minX - (width * 0.2);
+  const overlayY = minY - (height * 0.2);
+  const overlayWidth = width * 1.4;
+  const overlayHeight = height * 1.4;
+  const uniqueId = Math.random().toString(36).slice(2, 10);
+  const patternId = `export-watermark-${uniqueId}`;
+  const centerX = minX + (width / 2);
+  const centerY = minY + (height / 2);
+
+  return [
+    '<defs>',
+    `<pattern id="${patternId}" patternUnits="userSpaceOnUse" width="${BRAND_WATERMARK_TILE_SIZE}" height="${BRAND_WATERMARK_TILE_SIZE}">`,
+    `<image href="${escapeXmlAttribute(watermarkHref)}" x="0" y="0" width="${BRAND_WATERMARK_TILE_SIZE}" height="${BRAND_WATERMARK_TILE_SIZE}" preserveAspectRatio="xMidYMid meet" />`,
+    '</pattern>',
+    '</defs>',
+    `<rect x="${overlayX.toFixed(2)}" y="${overlayY.toFixed(2)}" width="${overlayWidth.toFixed(2)}" height="${overlayHeight.toFixed(2)}" fill="url(#${patternId})" opacity="${BRAND_WATERMARK_OPACITY}" transform="rotate(${BRAND_WATERMARK_ROTATION} ${centerX.toFixed(2)} ${centerY.toFixed(2)})" />`,
+  ].join('');
+};
+
+export const buildWatermarkedSvgMarkup = async (svgMarkup) => {
+  if (!svgMarkup || typeof svgMarkup !== 'string') {
+    return svgMarkup;
+  }
+
+  try {
+    const watermarkHref = await getWatermarkSvgDataUri();
+    const overlayMarkup = buildWatermarkSvgOverlay(svgMarkup, watermarkHref);
+
+    if (/<\/svg>\s*$/i.test(svgMarkup)) {
+      return svgMarkup.replace(/<\/svg>\s*$/i, `${overlayMarkup}</svg>`);
+    }
+  } catch {
+    return svgMarkup;
+  }
+
+  return svgMarkup;
+};
 
 export const renderSvgToCanvas = async (svgMarkup, scale = 4) => {
   const svgBlob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
@@ -96,6 +212,201 @@ export const renderDataUrlToCanvas = async (dataUrl) => {
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
 
   return { canvas, width: image.width, height: image.height };
+};
+
+export const cropCanvasToArea = (sourceCanvas, area = {}) => {
+  const sourceWidth = Number(sourceCanvas?.width || 0);
+  const sourceHeight = Number(sourceCanvas?.height || 0);
+  const x = Math.max(0, Math.round(Number(area.x) || 0));
+  const y = Math.max(0, Math.round(Number(area.y) || 0));
+  const width = Math.max(1, Math.round(Number(area.width) || sourceWidth));
+  const height = Math.max(1, Math.round(Number(area.height) || sourceHeight));
+  const safeWidth = Math.max(1, Math.min(width, sourceWidth - x));
+  const safeHeight = Math.max(1, Math.min(height, sourceHeight - y));
+  const outputCanvas = document.createElement('canvas');
+  outputCanvas.width = safeWidth;
+  outputCanvas.height = safeHeight;
+  const outputContext = outputCanvas.getContext('2d');
+
+  if (!outputContext) {
+    throw new Error('Canvas context unavailable');
+  }
+
+  outputContext.imageSmoothingEnabled = true;
+  outputContext.imageSmoothingQuality = 'high';
+  outputContext.drawImage(
+    sourceCanvas,
+    x,
+    y,
+    safeWidth,
+    safeHeight,
+    0,
+    0,
+    safeWidth,
+    safeHeight
+  );
+
+  return outputCanvas;
+};
+
+export const getScaledCanvasArea = (sourceCanvas, area = {}, logicalSize = {}) => {
+  const sourceWidth = Number(sourceCanvas?.width || 0);
+  const sourceHeight = Number(sourceCanvas?.height || 0);
+  const targetWidth = Math.max(1, Math.round(Number(area.width) || sourceWidth));
+  const targetHeight = Math.max(1, Math.round(Number(area.height) || sourceHeight));
+
+  if (
+    Math.abs(sourceWidth - targetWidth) <= 2 &&
+    Math.abs(sourceHeight - targetHeight) <= 2
+  ) {
+    return {
+      x: 0,
+      y: 0,
+      width: sourceWidth,
+      height: sourceHeight,
+    };
+  }
+
+  const logicalWidth = Math.max(1, Number(logicalSize.width) || sourceWidth);
+  const logicalHeight = Math.max(1, Number(logicalSize.height) || sourceHeight);
+  const scaleX = sourceWidth / logicalWidth;
+  const scaleY = sourceHeight / logicalHeight;
+
+  return {
+    x: Math.round((Number(area.x) || 0) * scaleX),
+    y: Math.round((Number(area.y) || 0) * scaleY),
+    width: Math.round(targetWidth * scaleX),
+    height: Math.round(targetHeight * scaleY),
+  };
+};
+
+export const cropCanvasToLogicalArea = (sourceCanvas, area = {}, logicalSize = {}) => (
+  cropCanvasToArea(sourceCanvas, getScaledCanvasArea(sourceCanvas, area, logicalSize))
+);
+
+export const cropCanvasToVisibleContent = (sourceCanvas, options = {}) => {
+  const sourceWidth = Number(sourceCanvas?.width || 0);
+  const sourceHeight = Number(sourceCanvas?.height || 0);
+
+  if (!sourceWidth || !sourceHeight) {
+    return sourceCanvas;
+  }
+
+  const context = sourceCanvas.getContext?.('2d', { willReadFrequently: true });
+  if (!context) {
+    return sourceCanvas;
+  }
+
+  const alphaThreshold = Math.max(0, Math.min(255, Number(options.alphaThreshold ?? 8)));
+  const padding = Math.max(0, Math.round(Number(options.padding ?? 24)));
+  const { data } = context.getImageData(0, 0, sourceWidth, sourceHeight);
+  let minX = sourceWidth;
+  let minY = sourceHeight;
+  let maxX = -1;
+  let maxY = -1;
+
+  for (let y = 0; y < sourceHeight; y += 1) {
+    for (let x = 0; x < sourceWidth; x += 1) {
+      const alpha = data[((y * sourceWidth) + x) * 4 + 3];
+      if (alpha <= alphaThreshold) {
+        continue;
+      }
+
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    }
+  }
+
+  if (maxX < minX || maxY < minY) {
+    return sourceCanvas;
+  }
+
+  return cropCanvasToArea(sourceCanvas, {
+    x: Math.max(0, minX - padding),
+    y: Math.max(0, minY - padding),
+    width: Math.min(sourceWidth, (maxX - minX) + 1 + (padding * 2)),
+    height: Math.min(sourceHeight, (maxY - minY) + 1 + (padding * 2)),
+  });
+};
+
+export const buildRasterImageSvgMarkup = (imageUrl, width, height) => {
+  const safeWidth = Math.max(1, Math.round(Number(width) || 0));
+  const safeHeight = Math.max(1, Math.round(Number(height) || 0));
+
+  if (!imageUrl || !safeWidth || !safeHeight) {
+    return null;
+  }
+
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${safeWidth}" height="${safeHeight}" viewBox="0 0 ${safeWidth} ${safeHeight}" preserveAspectRatio="xMidYMid meet">`,
+    `<image href="${escapeXmlAttribute(imageUrl)}" x="0" y="0" width="${safeWidth}" height="${safeHeight}" preserveAspectRatio="none" />`,
+    '</svg>',
+  ].join('');
+};
+
+const createWatermarkPattern = (tileSize, image) => {
+  const patternCanvas = document.createElement('canvas');
+  const safeTileSize = Math.max(1, Math.round(tileSize));
+  patternCanvas.width = safeTileSize;
+  patternCanvas.height = safeTileSize;
+  const patternContext = patternCanvas.getContext('2d');
+
+  if (!patternContext) {
+    return null;
+  }
+
+  patternContext.imageSmoothingEnabled = true;
+  patternContext.imageSmoothingQuality = 'high';
+  patternContext.drawImage(image, 0, 0, safeTileSize, safeTileSize);
+
+  return patternCanvas;
+};
+
+const fillWatermarkPatternLayer = (context, canvas, image, options) => {
+  const patternCanvas = createWatermarkPattern(options.tileSize, image);
+  if (!patternCanvas) {
+    return;
+  }
+
+  const pattern = context.createPattern(patternCanvas, 'repeat');
+  if (!pattern) {
+    return;
+  }
+
+  context.save();
+  context.globalAlpha = options.opacity;
+  context.translate(canvas.width / 2, canvas.height / 2);
+  context.rotate((options.rotation * Math.PI) / 180);
+  context.fillStyle = pattern;
+  context.fillRect(-canvas.width * 0.7, -canvas.height * 0.7, canvas.width * 1.4, canvas.height * 1.4);
+  context.restore();
+};
+
+export const applyWatermarkToCanvas = async (canvas, options = {}) => {
+  const context = canvas?.getContext?.('2d');
+
+  if (!context) {
+    throw new Error('Canvas context unavailable');
+  }
+
+  try {
+    const watermarkImage = await loadImage(await getWatermarkSvgDataUri());
+    const logicalWidth = Math.max(1, Number(options.logicalWidth) || canvas.width);
+    const logicalHeight = Math.max(1, Number(options.logicalHeight) || canvas.height);
+    const scale = ((canvas.width / logicalWidth) + (canvas.height / logicalHeight)) / 2;
+
+    fillWatermarkPatternLayer(context, canvas, watermarkImage, {
+      tileSize: BRAND_WATERMARK_TILE_SIZE * scale,
+      opacity: BRAND_WATERMARK_OPACITY,
+      rotation: BRAND_WATERMARK_ROTATION,
+    });
+  } catch {
+    return canvas;
+  }
+
+  return canvas;
 };
 
 export const canvasToBlob = (canvas, type, quality) => new Promise((resolve, reject) => {

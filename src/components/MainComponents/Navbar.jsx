@@ -4,12 +4,11 @@ import Image from 'next/image';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ChevronDown, Download, Heart, LogOut, Save, UserRound } from 'lucide-react';
+import { ChevronDown, LayoutGrid, LogOut, PencilLine } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import {
   clearFavoriteLogosRepositoryCache,
-  getLogoLibraryCounts,
   isLogoLibraryUpgradeRequiredError,
   isSupabaseAuthSessionMissingError,
   loadLogoLibrary,
@@ -67,7 +66,7 @@ export default function Navbar({ minimal }) {
   const [isOpen, setIsOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [authUser, setAuthUser] = useState(null);
-  const [libraryCounts, setLibraryCounts] = useState({ favorites: 0, saved: 0, downloads: 0 });
+  const [designCount, setDesignCount] = useState(0);
   const [brokenAvatarUrl, setBrokenAvatarUrl] = useState(null);
   const mobileMenuId = 'primary-mobile-menu';
   const profileMenuId = 'profile-menu-panel';
@@ -89,7 +88,7 @@ export default function Navbar({ minimal }) {
 
     const syncUserFromServer = async () => {
       try {
-        const response = await fetch('/auth/session', {
+        const response = await fetch('/api/auth/session', {
           credentials: 'include',
           cache: 'no-store',
         });
@@ -153,18 +152,18 @@ export default function Navbar({ minimal }) {
   useEffect(() => {
     const syncLibraryCountsFromCache = () => {
       const cachedLogos = peekLogoLibraryCache(authUser?.id || null);
-      setLibraryCounts(getLogoLibraryCounts(cachedLogos));
+      setDesignCount(Array.isArray(cachedLogos) ? cachedLogos.length : 0);
     };
 
     const syncLibraryCounts = async () => {
       try {
         const libraryLogos = await loadLogoLibrary();
-        setLibraryCounts(getLogoLibraryCounts(libraryLogos));
+        setDesignCount(Array.isArray(libraryLogos) ? libraryLogos.length : 0);
       } catch (error) {
         if (!isLogoLibraryUpgradeRequiredError(error)) {
           console.error('Unable to load logo library counts:', error);
         }
-        setLibraryCounts({ favorites: 0, saved: 0, downloads: 0 });
+        setDesignCount(0);
       }
     };
 
@@ -206,7 +205,7 @@ export default function Navbar({ minimal }) {
     document.cookie = 'oauth-return-to=; path=/; max-age=0; samesite=lax';
     clearFavoriteLogosRepositoryCache();
     setAuthUser(null);
-    setLibraryCounts({ favorites: 0, saved: 0, downloads: 0 });
+    setDesignCount(0);
     setBrokenAvatarUrl(null);
     setProfileMenuOpen(false);
     setIsOpen(false);
@@ -321,65 +320,32 @@ export default function Navbar({ minimal }) {
                           <p className="text-xs font-black uppercase tracking-[0.26em] text-slate-400">Profile</p>
                           <p className="mt-1.5 text-[13px] font-semibold text-slate-600">Your logo workspace shortcuts</p>
                         </div>
-                        <div className="flex h-12 w-12 items-center justify-center rounded-[1.15rem] bg-pink-50 text-pink-600">
-                          <UserRound size={20} />
-                        </div>
+                        <Link
+                          href="/profile"
+                          onClick={() => setProfileMenuOpen(false)}
+                          className="flex h-12 w-12 items-center justify-center rounded-[1.15rem] bg-pink-50 text-pink-600"
+                          aria-label="Edit profile"
+                        >
+                          <PencilLine size={20} />
+                        </Link>
                       </div>
 
                       <div className="mt-3 rounded-[1.25rem] border border-pink-200 px-3 py-2.5">
                         <Link
-                          href="/favorites"
+                          href="/my-designs"
                           onClick={() => setProfileMenuOpen(false)}
                           className="flex items-center justify-between"
                         >
                           <div className="flex items-center gap-2.5">
                             <div className="flex h-12 w-12 items-center justify-center rounded-[1rem] bg-slate-100 text-slate-700">
-                              <Heart size={17} />
+                              <LayoutGrid size={17} />
                             </div>
                             <div>
-                              <p className="text-sm font-black text-slate-900">Favorites</p>
-                              <p className="text-[12px] leading-5 font-medium text-slate-500">Logos you marked for quick access</p>
+                              <p className="text-sm font-black text-slate-900">My Designs</p>
+                              <p className="text-[12px] leading-5 font-medium text-slate-500">All favorites, saved, and downloads</p>
                             </div>
                           </div>
-                          <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-black text-white">{libraryCounts.favorites}</span>
-                        </Link>
-                      </div>
-
-                      <div className="mt-2.5 rounded-[1.25rem] border border-pink-100 px-3 py-2.5">
-                        <Link
-                          href="/saved"
-                          onClick={() => setProfileMenuOpen(false)}
-                          className="flex items-center justify-between"
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-[1rem] bg-slate-100 text-slate-700">
-                              <Save size={17} />
-                            </div>
-                            <div>
-                              <p className="text-sm font-black text-slate-900">Saved</p>
-                              <p className="text-[12px] leading-5 font-medium text-slate-500">Edited logos you intentionally saved</p>
-                            </div>
-                          </div>
-                          <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-black text-white">{libraryCounts.saved}</span>
-                        </Link>
-                      </div>
-
-                      <div className="mt-2.5 rounded-[1.25rem] border border-pink-100 px-3 py-2.5">
-                        <Link
-                          href="/downloads"
-                          onClick={() => setProfileMenuOpen(false)}
-                          className="flex items-center justify-between"
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-[1rem] bg-slate-100 text-slate-700">
-                              <Download size={17} />
-                            </div>
-                            <div>
-                              <p className="text-sm font-black text-slate-900">Downloads</p>
-                              <p className="text-[12px] leading-5 font-medium text-slate-500">All logos you exported from the app</p>
-                            </div>
-                          </div>
-                          <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-black text-white">{libraryCounts.downloads}</span>
+                          <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-black text-white">{designCount}</span>
                         </Link>
                       </div>
 
@@ -468,44 +434,26 @@ export default function Navbar({ minimal }) {
                   </div>
                 </div>
 
-                <div className="hidden rounded-[1.4rem] border border-slate-200 bg-white p-4">
-                  <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">Profile</p>
-                  <p className="mt-2 text-sm font-semibold text-slate-600">Favorites: {libraryCounts.favorites}</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-600">Saved: {libraryCounts.saved}</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-600">Downloads: {libraryCounts.downloads}</p>
-                </div>
-
                 <Link
-                  href="/favorites"
+                  href="/my-designs"
                   onClick={() => setIsOpen(false)}
                   className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3"
                 >
                   <span className="flex items-center gap-2 text-sm font-bold text-slate-900">
-                    <Heart size={16} /> Favorites
+                    <LayoutGrid size={16} /> My Designs
                   </span>
-                  <span className="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-bold text-white">{libraryCounts.favorites}</span>
+                  <span className="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-bold text-white">{designCount}</span>
                 </Link>
 
                 <Link
-                  href="/saved"
+                  href="/profile"
                   onClick={() => setIsOpen(false)}
                   className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3"
                 >
                   <span className="flex items-center gap-2 text-sm font-bold text-slate-900">
-                    <Save size={16} /> Saved
+                    <PencilLine size={16} /> Edit Profile
                   </span>
-                  <span className="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-bold text-white">{libraryCounts.saved}</span>
-                </Link>
-
-                <Link
-                  href="/downloads"
-                  onClick={() => setIsOpen(false)}
-                  className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3"
-                >
-                  <span className="flex items-center gap-2 text-sm font-bold text-slate-900">
-                    <Download size={16} /> Downloads
-                  </span>
-                  <span className="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-bold text-white">{libraryCounts.downloads}</span>
+                  <span className="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-bold text-white">Go</span>
                 </Link>
 
                 <button

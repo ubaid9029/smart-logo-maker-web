@@ -165,7 +165,6 @@ export function useEditorObjectActions({
       const nextTextItems = targetCollection.map((item) =>
         item.id === safeItemId
           ? (() => {
-              const currentTransform = item.transform || {};
               const availableWidth = Math.max(48, CARD_WIDTH);
               const nextItem = {
                 ...getResolvedTextProps(item),
@@ -183,7 +182,7 @@ export function useEditorObjectActions({
                 'text',
                 persistedItem,
                 {
-                  ...currentTransform,
+                  ...(item.transform || {}),
                 }
               );
 
@@ -324,7 +323,6 @@ export function useEditorObjectActions({
     updateSelectedTextElements((item) => buildMeasuredTextUpdate(item, {
       fontStyle: normalizedFontStyle,
       fontWeight: syncFontWeightWithStyle(getResolvedTextProps(item), normalizedFontStyle),
-      fontUrl: null,
     }));
   }, [buildMeasuredTextUpdate, getResolvedTextProps, normalizeFontStyleValue, syncFontWeightWithStyle, updateSelectedTextElements]);
 
@@ -350,7 +348,6 @@ export function useEditorObjectActions({
       return buildMeasuredTextUpdate(item, {
         fontStyle: nextFontStyle,
         fontWeight: syncFontWeightWithStyle(getResolvedTextProps(item), nextFontStyle),
-        fontUrl: null,
       });
     });
   }, [buildMeasuredTextUpdate, getResolvedTextProps, normalizeFontStyleValue, syncFontWeightWithStyle, updateSelectedTextElements]);

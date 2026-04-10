@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, BriefcaseBusiness, Building2, Rocket, ShoppingBag, Stethoscope } from 'lucide-react';
+import { BriefcaseBusiness, Building2, Rocket, ShoppingBag, Stethoscope } from 'lucide-react';
 
 export const metadata = {
   title: 'Logo Case Studies | Smart Logo Maker',
@@ -133,11 +133,10 @@ export default function CaseStudiesPage() {
 
           <div className="mt-6">
             <Link
-              href="/create"
+              href="/create?fresh=1"
               className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-bold text-slate-950 transition-all hover:bg-slate-100"
             >
               Start Creating
-              <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         </div>

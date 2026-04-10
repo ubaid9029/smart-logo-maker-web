@@ -216,6 +216,13 @@ iframe {
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+    text-rendering: optimizeLegibility;
+    font-kerning: normal;
+  }
+
+  ::placeholder {
+    /* Slightly darker placeholders improve readability without changing layout. */
+    color: rgb(100 116 139 / 0.82);
   }
 
   code,

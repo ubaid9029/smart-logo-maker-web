@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, BookOpenText, Palette, PenTool, Type, WandSparkles } from 'lucide-react';
+import { BookOpenText, Palette, PenTool, Type, WandSparkles } from 'lucide-react';
 
 export const metadata = {
   title: 'Logo Guides | Smart Logo Maker',
@@ -85,11 +85,10 @@ export default function GuidesPage() {
                     <h2 className="text-2xl font-black tracking-tight text-slate-950">{guide.title}</h2>
                     <p className="mt-3 text-sm font-medium leading-7 text-slate-600">{guide.description}</p>
                     <Link
-                      href="/create"
+                      href="/create?fresh=1"
                       className="mt-4 inline-flex items-center gap-2 text-sm font-black text-[#ff5c01] transition hover:text-[#e25500]"
                     >
                       Try this in the creator
-                      <ArrowRight className="h-4 w-4" />
                     </Link>
                   </div>
                 </div>

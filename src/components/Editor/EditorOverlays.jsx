@@ -4,6 +4,154 @@ import Image from 'next/image';
 import React from 'react';
 import { Maximize2, X } from 'lucide-react';
 import { ColorPickerField, HexColorInput } from './ColorInputs';
+import {
+  BRAND_WATERMARK_OPACITY,
+  BRAND_WATERMARK_OVERLAY_INSET,
+  BRAND_WATERMARK_OVERLAY_SCALE,
+  BRAND_WATERMARK_PATTERN_STYLE,
+  BRAND_WATERMARK_ROTATION,
+} from '../../lib/watermarkConfig';
+
+function PreviewCardFrame({
+  previewImageUrl,
+  alt,
+  emptyClassName = '',
+  imageClassName = '',
+  watermarkEnabled = true,
+}) {
+  return (
+    <div className="relative h-full w-full overflow-hidden">
+      {previewImageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={previewImageUrl} alt={alt} className={`h-full w-full object-contain ${imageClassName}`.trim()} />
+      ) : (
+        <div className={`flex h-full items-center justify-center text-sm font-semibold ${emptyClassName}`.trim()}>
+          Preview unavailable
+        </div>
+      )}
+      {watermarkEnabled !== false ? (
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div
+            className="absolute"
+            style={{
+              ...BRAND_WATERMARK_PATTERN_STYLE,
+              inset: BRAND_WATERMARK_OVERLAY_INSET,
+              opacity: BRAND_WATERMARK_OPACITY,
+              transform: `rotate(${BRAND_WATERMARK_ROTATION}deg) scale(${BRAND_WATERMARK_OVERLAY_SCALE})`,
+            }}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+const PREVIEW_SURFACE_OPTIONS = [
+  {
+    id: 'simple',
+    label: 'Simple View',
+    frameClassName: 'aspect-[31/21] w-full max-w-[min(90vw,560px)]',
+    fullscreenFrameClassName: 'aspect-[31/21] w-full max-w-[min(82vw,760px)]',
+    type: 'simple',
+  },
+  {
+    id: 'shirt',
+    label: 'T-Shirt Mockup',
+    frameClassName: 'aspect-[742/725] w-full max-w-[min(82vw,460px)]',
+    fullscreenFrameClassName: 'aspect-[742/725] w-full max-w-[min(78vw,480px)]',
+    type: 'mockup',
+    mockupSrc: '/mockups/TShirt.png',
+    mockupAlt: 'T-shirt mockup',
+    overlay: {
+      left: '22%',
+      top: '24%',
+      width: '60%',
+      rotation: '0deg',
+      mode: 'direct',
+      imageClassName: 'object-contain mix-blend-multiply drop-shadow-[0_10px_18px_rgba(15,23,42,0.18)]',
+    },
+  },
+  {
+    id: 'billboard',
+    label: 'Billboard Mockup',
+    frameClassName: 'aspect-[853/783] w-full max-w-[min(84vw,560px)]',
+    fullscreenFrameClassName: 'aspect-[853/783] w-full max-w-[min(80vw,520px)]',
+    type: 'mockup',
+    mockupSrc: '/mockups/billboard.png?v=20260410-1',
+    mockupAlt: 'Billboard mockup',
+    overlay: {
+      left: '18%',
+      top: '15%',
+      width: '72%',
+      rotation: '7deg',
+      mode: 'direct',
+      imageClassName: 'object-contain mix-blend-multiply drop-shadow-[0_12px_22px_rgba(15,23,42,0.22)]',
+    },
+  },
+];
+
+function PreviewSurfaceFrame({
+  surface,
+  previewImageUrl,
+  previewElementsImageUrl,
+  watermarkEnabled,
+  fullscreen = false,
+}) {
+  const frameClassName = fullscreen
+    ? surface.fullscreenFrameClassName
+    : surface.frameClassName;
+
+  if (surface.type === 'simple') {
+    return (
+      <div className={`${frameClassName} overflow-hidden rounded-[1.5rem] border border-white/10 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.28)] sm:rounded-[2rem]`}>
+        <PreviewCardFrame
+          previewImageUrl={previewImageUrl}
+          alt={fullscreen ? 'Full screen edited logo preview' : 'Edited logo preview'}
+          emptyClassName={fullscreen ? 'min-h-[280px] text-white/70' : 'text-slate-500'}
+          watermarkEnabled={watermarkEnabled}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className={`${frameClassName} relative overflow-hidden`}>
+      <div className="relative h-full w-full overflow-hidden bg-transparent">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={surface.mockupSrc}
+          alt={surface.mockupAlt}
+          className="absolute inset-0 h-full w-full object-contain"
+        />
+        {previewImageUrl ? (
+          <div
+            className="absolute"
+            style={{
+              left: surface.overlay.left,
+              top: surface.overlay.top,
+              width: surface.overlay.width,
+              transform: `rotate(${surface.overlay.rotation})`,
+              transformOrigin: 'center center',
+            }}
+          >
+            <div className={`relative ${surface.overlay.mode === 'direct-vertical' ? 'aspect-[21/31]' : 'aspect-[31/21]'}`}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={previewElementsImageUrl || previewImageUrl}
+                alt={`${surface.mockupAlt} preview`}
+                className={`h-full w-full ${surface.overlay.imageClassName || 'object-contain'}`.trim()}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-slate-500">
+            Preview unavailable
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function EditorOverlays({
   editDialog,
@@ -53,9 +201,24 @@ export function EditorOverlays({
   previewDialogOpen,
   setPreviewDialogOpen,
   previewImageUrl,
+  previewElementsImageUrl,
   setPreviewFullscreenOpen,
   previewFullscreenOpen,
+  watermarkEnabled,
 }) {
+  const [activePreviewSurfaceId, setActivePreviewSurfaceId] = React.useState('simple');
+
+  React.useEffect(() => {
+    if (!previewDialogOpen && !previewFullscreenOpen) {
+      setActivePreviewSurfaceId('simple');
+    }
+  }, [previewDialogOpen, previewFullscreenOpen]);
+
+  const activePreviewSurface = React.useMemo(
+    () => PREVIEW_SURFACE_OPTIONS.find((option) => option.id === activePreviewSurfaceId) || PREVIEW_SURFACE_OPTIONS[0],
+    [activePreviewSurfaceId]
+  );
+
   return (
     <>
       {editDialog.open && (
@@ -64,7 +227,7 @@ export function EditorOverlays({
             <div className={`w-full bg-white ${isMobileViewport ? 'flex min-h-screen max-w-none flex-col px-4 pb-6 pt-5 shadow-none' : 'max-w-sm rounded-[1.75rem] border border-slate-100 p-4 shadow-2xl sm:max-w-md sm:p-5'}`}>
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-400">
+                  <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
                     {editDialog.mode === 'plain-text' ? 'Edit Text Layer' : 'Edit Brand Line'}
                   </p>
                   <h3 className="mt-2 text-xl font-extrabold text-slate-900">
@@ -173,7 +336,7 @@ export function EditorOverlays({
 
               <div className="mt-4 grid flex-1 gap-3 md:grid-cols-[1.2fr_0.9fr]">
                 <div className="rounded-[1.2rem] border border-slate-100 bg-slate-50/80 p-3">
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Starter Colors</p>
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Starter Colors</p>
                   <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-5">
                     {backgroundColorSwatches.map((color, index) => {
                       const safeColor = normalizeHexColor(color, '#111827');
@@ -198,7 +361,7 @@ export function EditorOverlays({
                   </div>
 
                   <div className="mt-4">
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Shade Scale</p>
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Shade Scale</p>
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       {dialogShadeOptions.map((shade, index) => {
                         const isSelected = dialogSelectedColor === shade;
@@ -227,7 +390,7 @@ export function EditorOverlays({
                     style={{ backgroundColor: isValidHexColor(customColorValue) ? customColorValue : normalizeHexColor(customColorValue, '#111827') }}
                   />
                   <div className="mt-3">
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Color Picker</p>
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Color Picker</p>
                     <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
                       <ColorPickerField
                         value={isValidHexColor(customColorValue) ? customColorValue : normalizeHexColor(customColorValue, '#111827')}
@@ -298,7 +461,7 @@ export function EditorOverlays({
                   onClick={() => openGradientColorDialog('start')}
                   className="rounded-[1.2rem] border border-slate-200 bg-white px-4 py-2.5 text-left transition-all hover:border-orange-300"
                 >
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Start</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">Start</p>
                   <div className="mt-2 flex items-center gap-3">
                     <span className="h-8 w-8 rounded-full border border-slate-200" style={{ backgroundColor: gradientStartColor }} />
                     <span className="text-sm font-bold text-slate-700">{gradientStartColor}</span>
@@ -308,7 +471,7 @@ export function EditorOverlays({
                   onClick={() => openGradientColorDialog('end')}
                   className="rounded-[1.2rem] border border-slate-200 bg-white px-4 py-2.5 text-left transition-all hover:border-orange-300"
                 >
-                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">End</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">End</p>
                   <div className="mt-2 flex items-center gap-3">
                     <span className="h-8 w-8 rounded-full border border-slate-200" style={{ backgroundColor: gradientEndColor }} />
                     <span className="text-sm font-bold text-slate-700">{gradientEndColor}</span>
@@ -318,7 +481,7 @@ export function EditorOverlays({
 
               <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
                 <div className="rounded-[1.2rem] border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Gradient Type</p>
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Gradient Type</p>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <button
                       onClick={() => setGradientType('linear')}
@@ -346,7 +509,7 @@ export function EditorOverlays({
                 <div className="rounded-[1.2rem] border border-slate-200 bg-slate-50 p-3">
                   {gradientType === 'linear' ? (
                     <>
-                      <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Direction</p>
+                      <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Direction</p>
                       <div className="mt-3 flex flex-wrap items-center gap-2">
                         {gradientDirectionOptions.map((option) => {
                           const Icon = option.icon;
@@ -372,7 +535,7 @@ export function EditorOverlays({
                   ) : (
                     <>
                       <div className="flex items-center justify-between">
-                        <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Gradient Angle</p>
+                        <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Gradient Angle</p>
                         <span className="text-sm font-bold text-slate-600">{gradientRadialAngle}°</span>
                       </div>
                       <input
@@ -429,7 +592,7 @@ export function EditorOverlays({
 
               <div className="mt-5 grid gap-4 md:grid-cols-[1.25fr_0.95fr]">
                 <div className="rounded-[1.35rem] border border-slate-100 bg-slate-50/80 p-4">
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Starter Colors</p>
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Starter Colors</p>
                   <div className="mt-3 grid grid-cols-4 gap-2.5 sm:grid-cols-5">
                     {backgroundColorSwatches.map((color, index) => {
                       const safeColor = normalizeHexColor(color, '#111827');
@@ -454,7 +617,7 @@ export function EditorOverlays({
                   </div>
 
                   <div className="mt-5">
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Shade Scale</p>
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Shade Scale</p>
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       {gradientDialogShadeOptions.map((shade, index) => {
                         const isSelected = gradientDialogSelectedColor === shade;
@@ -484,7 +647,7 @@ export function EditorOverlays({
                     style={{ backgroundColor: isValidHexColor(gradientCustomColorValue) ? gradientCustomColorValue : normalizeHexColor(gradientCustomColorValue, '#111827') }}
                   />
                   <div className="mt-4">
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Color Picker</p>
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Color Picker</p>
                     <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
                       <ColorPickerField
                         value={isValidHexColor(gradientCustomColorValue) ? gradientCustomColorValue : normalizeHexColor(gradientCustomColorValue, '#111827')}
@@ -582,48 +745,49 @@ export function EditorOverlays({
           onClick={() => setPreviewDialogOpen(false)}
         >
           <div
-            className="relative w-full max-w-lg rounded-[2rem] border border-orange-100 bg-white p-5 shadow-[0_30px_90px_rgba(255,92,1,0.12)] sm:rounded-[3rem] sm:p-6 md:p-8"
+            className="relative mt-8 flex w-full max-w-[min(92vw,580px)] flex-col items-center justify-center gap-2.5"
             onClick={(event) => event.stopPropagation()}
           >
-            <button
-              onClick={() => setPreviewDialogOpen(false)}
-              className="brand-icon-button absolute right-5 top-5 h-11 w-11 p-0"
-            >
-              <X size={24} />
-            </button>
-
-            <div className="mb-5 aspect-[7/5] w-full overflow-hidden rounded-[1.5rem] border border-slate-100 bg-slate-50 sm:mb-6 sm:rounded-[2rem]">
-              {previewImageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={previewImageUrl} alt="Edited logo preview" className="h-full w-full object-cover" />
-              ) : (
-                <div className="flex h-full items-center justify-center text-sm font-semibold text-slate-400">
-                  Preview unavailable
-                </div>
-              )}
+            <div className="flex flex-wrap items-center justify-center gap-1.5 rounded-[1.1rem] bg-white/95 p-1.5 shadow-[0_18px_45px_rgba(15,23,42,0.2)] backdrop-blur">
+              {PREVIEW_SURFACE_OPTIONS.map((option) => {
+                const isActive = option.id === activePreviewSurface.id;
+                return (
+                  <button
+                    key={option.id}
+                    onClick={() => setActivePreviewSurfaceId(option.id)}
+                    className={`rounded-xl px-3 py-1.5 text-[11px] font-bold transition-all sm:text-xs ${
+                      isActive
+                        ? 'bg-[#ff6b00] text-white shadow-[0_10px_24px_rgba(255,107,0,0.28)]'
+                        : 'border border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:text-[#ff6b00]'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
             </div>
 
-            <div className="mb-6 text-center sm:mb-8">
-              <h2 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">Review Your Updated Logo</h2>
-              <p className="mt-1 text-sm font-medium text-slate-500 sm:text-base">Current editor changes yahan same review style me dikh rahi hain.</p>
-            </div>
+            <PreviewSurfaceFrame
+              surface={activePreviewSurface}
+              previewImageUrl={previewImageUrl}
+              previewElementsImageUrl={previewElementsImageUrl}
+              watermarkEnabled={watermarkEnabled}
+            />
 
-            <div className="flex justify-center">
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <button
-                  onClick={() => setPreviewFullscreenOpen(true)}
-                  className="brand-button-outline flex min-w-40 items-center justify-center gap-2 rounded-2xl px-6 py-3.5"
-                >
-                  <Maximize2 size={18} />
-                  Full View
-                </button>
-                <button
-                  onClick={() => setPreviewDialogOpen(false)}
-                  className="brand-button-outline flex min-w-40 items-center justify-center rounded-2xl px-6 py-3.5"
-                >
-                  Close
-                </button>
-              </div>
+            <div className="flex flex-col gap-2 rounded-full bg-white/95 p-1.5 shadow-[0_18px_45px_rgba(15,23,42,0.2)] backdrop-blur sm:flex-row">
+              <button
+                onClick={() => setPreviewFullscreenOpen(true)}
+                className="brand-button-outline flex min-w-28 items-center justify-center gap-2 rounded-2xl px-4 py-2.5"
+              >
+                <Maximize2 size={18} />
+                Full View
+              </button>
+              <button
+                onClick={() => setPreviewDialogOpen(false)}
+                className="brand-button-outline flex min-w-28 items-center justify-center rounded-2xl px-4 py-2.5"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
@@ -635,29 +799,45 @@ export function EditorOverlays({
           onClick={() => setPreviewFullscreenOpen(false)}
         >
           <div
-            className="relative flex h-full max-h-[96vh] w-full max-w-7xl items-center justify-center rounded-[2rem] border border-white/10 bg-black/20 p-4 shadow-2xl sm:p-6"
+            className="relative flex h-full max-h-[96vh] w-full max-w-7xl items-center justify-center"
             onClick={(event) => event.stopPropagation()}
           >
             <button
               onClick={() => setPreviewFullscreenOpen(false)}
-              className="brand-icon-button absolute right-5 top-5 h-11 w-11 p-0"
+              className="brand-icon-button absolute right-0 top-0 z-10 h-11 w-11 p-0"
             >
               <X size={22} />
             </button>
 
-            <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-[1.5rem]">
-              {previewImageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={previewImageUrl}
-                  alt="Full screen edited logo preview"
-                  className="max-h-full max-w-full object-contain"
-                />
-              ) : (
-                <div className="flex h-full min-h-[280px] w-full items-center justify-center text-sm font-semibold text-white/70">
-                  Preview unavailable
+            <div className="flex h-full w-full items-center justify-center overflow-hidden">
+              <div className="mt-8 flex h-full w-full flex-col items-center justify-center gap-2.5">
+                <div className="flex max-w-full flex-wrap items-center justify-center gap-1.5 rounded-[1.1rem] bg-white/95 p-1.5 shadow-[0_18px_45px_rgba(15,23,42,0.2)] backdrop-blur">
+                  {PREVIEW_SURFACE_OPTIONS.map((option) => {
+                    const isActive = option.id === activePreviewSurface.id;
+                    return (
+                      <button
+                        key={`fullscreen-${option.id}`}
+                        onClick={() => setActivePreviewSurfaceId(option.id)}
+                        className={`rounded-xl px-3 py-1.5 text-[11px] font-bold transition-all sm:text-xs ${
+                          isActive
+                            ? 'bg-[#ff6b00] text-white shadow-[0_10px_24px_rgba(255,107,0,0.28)]'
+                            : 'border border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:text-[#ff6b00]'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
                 </div>
-              )}
+
+                <PreviewSurfaceFrame
+                  surface={activePreviewSurface}
+                  previewImageUrl={previewImageUrl}
+                  previewElementsImageUrl={previewElementsImageUrl}
+                  watermarkEnabled={watermarkEnabled}
+                  fullscreen
+                />
+              </div>
             </div>
           </div>
         </div>

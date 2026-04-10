@@ -12,8 +12,9 @@ export default function ConditionalLayout({ children }) {
   const isResultRoute = pathname.startsWith("/result");
   const isEditorRoute = pathname.startsWith("/editor");
 
-  // Navbar ab generating, result, aur editor par hide nahi hoga
-  // Footer abhi bhi sirf editor par hide rahega
+  // Navbar stays hidden for auth routes only. We keep it visible elsewhere (including editor)
+  // so users have consistent navigation.
+  // Footer remains hidden inside the editor for a focused workspace.
   const hideFooterOnly = isEditorRoute;
 
   return (
@@ -25,15 +26,23 @@ export default function ConditionalLayout({ children }) {
         Skip to main content
       </a>
 
-      {/* Navbar: Auth aur Editor par hide hoga, baki sab par show hoga */}
-      {!isAuthRoute && !isEditorRoute && (
-        <Navbar minimal={isCreateRoute || isGeneratingRoute || isResultRoute} />
+      {/* Navbar: hidden only on auth routes */}
+      {!isAuthRoute && (
+        <div className="app-navbar-shell">
+          <Navbar minimal={isCreateRoute || isGeneratingRoute || isResultRoute || isEditorRoute} />
+        </div>
       )}
 
       <main id="main-content" tabIndex={-1}>{children}</main>
 
       {/* Footer: Auth, Create, aur Editor par hide hoga */}
       {!isAuthRoute && !isCreateRoute && !hideFooterOnly && !isGeneratingRoute && !isResultRoute && <Footer />}
+
+      <style jsx global>{`
+        body.editor-preview-open .app-navbar-shell {
+          display: none;
+        }
+      `}</style>
     </>
   );
 }

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, LayoutTemplate, Palette, Sparkles, Tags, Type } from 'lucide-react';
+import { LayoutTemplate, Palette, Sparkles, Tags, Type } from 'lucide-react';
 
 export const metadata = {
   title: 'Logo Templates | Smart Logo Maker',
@@ -74,11 +74,10 @@ export default function TemplatesPage() {
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
-              href="/create"
+              href="/create?fresh=1"
               className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950 px-6 py-3 text-sm font-bold text-white transition-all hover:bg-slate-800"
             >
               Create a Logo
-              <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
               href="/guides"
@@ -105,11 +104,10 @@ export default function TemplatesPage() {
                 <h2 className="mt-5 text-2xl font-black tracking-tight text-slate-950">{item.title}</h2>
                 <p className="mt-3 text-sm font-medium leading-7 text-slate-600">{item.description}</p>
                 <Link
-                  href="/create"
+                  href="/create?fresh=1"
                   className="mt-5 inline-flex items-center gap-2 text-sm font-black text-[#ff5c01] transition hover:text-[#e25500]"
                 >
                   Use this direction
-                  <ArrowRight className="h-4 w-4" />
                 </Link>
               </article>
             );

@@ -48,7 +48,7 @@ const Fonts = ({ onNext, onBack, data, setData }) => {
           <h1 className="mb-2 px-2 text-2xl font-black tracking-tight text-[#1A1A1A] md:text-4xl">
             Choose Your Font
           </h1>
-          <p className="max-w-md px-4 text-xs font-medium text-slate-500 md:max-w-lg md:text-sm">
+          <p className="max-w-md px-4 text-xs font-medium leading-relaxed text-slate-600 md:max-w-lg md:text-sm">
             Select a typography style that matches your brand personality
           </p>
         </div>
@@ -72,10 +72,10 @@ const Fonts = ({ onNext, onBack, data, setData }) => {
                 </span>
 
                 <div className="space-y-0.5 text-center">
-                  <span className={`block text-[10px] font-bold sm:text-[11px] md:text-[14px] ${isSelected ? 'text-slate-900' : 'text-slate-700'}`}>
+                  <span className={`block text-[11px] font-bold sm:text-[12px] md:text-[15px] ${isSelected ? 'text-slate-900' : 'text-slate-700'}`}>
                     {font.name}
                   </span>
-                  <span className="block text-[7px] font-medium uppercase tracking-[0.16em] text-slate-400 sm:text-[8px] md:text-[10px]">
+                  <span className="block text-[8px] font-medium uppercase tracking-[0.16em] text-slate-500 sm:text-[9px] md:text-[11px]">
                     {font.description}
                   </span>
                 </div>
@@ -103,13 +103,13 @@ const Fonts = ({ onNext, onBack, data, setData }) => {
           <button
             onClick={handleContinue}
             disabled={!data.font}
-            className={`flex w-full items-center justify-center gap-3 rounded-2xl py-3 text-base font-black transition-all duration-500 md:w-48 ${
+            className={`flex w-full items-center justify-center rounded-2xl py-3 text-base font-black transition-all duration-500 md:w-48 ${
               data.font
                 ? 'brand-button-primary hover:scale-[1.02] shadow-pink-500/30'
                 : 'cursor-not-allowed bg-slate-200 text-slate-400 opacity-60 shadow-none'
             }`}
           >
-            Continue <span>-&gt;</span>
+            Continue
           </button>
         </div>
       </div>

@@ -72,10 +72,6 @@ export async function POST(request: NextRequest) {
       return jsonNoStore({ error: 'Business name is required.' }, { status: 400 });
     }
 
-    if (!slogan.trim()) {
-      return jsonNoStore({ error: 'Slogan is required.' }, { status: 400 });
-    }
-
     if (industryId === undefined || industryId === null) {
       return jsonNoStore({ error: 'Industry selection is required.' }, { status: 400 });
     }

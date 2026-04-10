@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import {
-  ArrowRight,
   CheckCircle2,
   Download,
   ImagePlus,
@@ -185,11 +184,10 @@ export default function HowItWorksPage() {
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
-                href="/create"
+                href="/create?fresh=1"
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950 px-6 py-3 text-sm font-bold text-white transition-all hover:bg-slate-800"
               >
                 Start Creating
-                <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
                 href="/"
@@ -361,11 +359,10 @@ export default function HowItWorksPage() {
 
             <div className="flex flex-col gap-3 sm:flex-row">
               <Link
-                href="/create"
+                href="/create?fresh=1"
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-bold text-slate-950 transition-all hover:bg-slate-100"
               >
                 Start Creating
-                <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
                 href="/"

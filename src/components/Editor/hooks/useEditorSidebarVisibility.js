@@ -2,10 +2,15 @@
 
 import { useEffect } from 'react';
 
-export function useEditorSidebarVisibility({ setSidebarOpen, shouldShowDesktopSidebar }) {
+export function useEditorSidebarVisibility({ isMobileViewport = false, setSidebarOpen, shouldShowDesktopSidebar }) {
   useEffect(() => {
     if (!shouldShowDesktopSidebar) {
       setSidebarOpen(false);
+      return;
     }
-  }, [setSidebarOpen, shouldShowDesktopSidebar]);
+
+    if (!isMobileViewport) {
+      setSidebarOpen(true);
+    }
+  }, [isMobileViewport, setSidebarOpen, shouldShowDesktopSidebar]);
 }

@@ -1,1 +1,1 @@
-export * from './logoLibraryRepository';
+export * from './myDesignsRepository';

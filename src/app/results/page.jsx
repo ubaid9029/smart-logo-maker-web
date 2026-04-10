@@ -9,6 +9,7 @@ import DownloadDialog from '../../components/DownloadDialog';
 import FloatingNotice from '../../components/MainComponents/FloatingNotice';
 import { EDITOR_FONT_FAMILIES } from '../../components/Editor/editorConstants';
 import {
+  buildWatermarkedSvgMarkup,
   buildPdfBlobFromJpegBytes,
   canvasToBlob,
   getDownloadBaseName,
@@ -18,6 +19,13 @@ import {
 import { buildEditableLogoPayload, buildLogoCardSvg } from '../../lib/logoSvg';
 import { openEditorWindowWithPayload, saveTemporaryEditorPayload } from '../../lib/editorPayloadStorage';
 import { loadGeneratedResultsSnapshot, saveGeneratedResultsSnapshot } from '../../lib/generatedResultsStorage';
+import {
+  BRAND_WATERMARK_OPACITY,
+  BRAND_WATERMARK_OVERLAY_INSET,
+  BRAND_WATERMARK_OVERLAY_SCALE,
+  BRAND_WATERMARK_PATTERN_STYLE,
+  BRAND_WATERMARK_ROTATION,
+} from '../../lib/watermarkConfig';
 import {
   getLogoLibraryUpgradeMessage,
   isAuthRequiredError,
@@ -90,6 +98,14 @@ const getNameIconAsset = (item) => {
   return item?.name_icon || null;
 };
 
+const hasEditableGraphicLayer = (editablePayload) => (
+  Array.isArray(editablePayload?.logoItems) &&
+  editablePayload.logoItems.some((item) => (
+    (typeof item?.imageUrl === 'string' && item.imageUrl.trim()) ||
+    (typeof item?.src === 'string' && item.src.trim())
+  ))
+);
+
 const InlineSvgPreview = ({ svgMarkup, alt }) => {
   if (!svgMarkup) return null;
   return (
@@ -146,7 +162,7 @@ const ResultsPage = () => {
 
     const syncUserFromServer = async () => {
       try {
-        const response = await fetch('/auth/session', {
+        const response = await fetch('/api/auth/session', {
           credentials: 'include',
           cache: 'no-store',
         });
@@ -266,6 +282,7 @@ const ResultsPage = () => {
         editablePayload,
         previewDataUrl: null,
         fallbackUrl,
+        editorImageUrl: hasEditableGraphicLayer(editablePayload) ? fallbackUrl : '',
         favoriteId: getFavoriteLogoKey({ id: item?.id || index + 1, businessName }),
       };
     });
@@ -331,7 +348,7 @@ const ResultsPage = () => {
 
   const handleEditOnCanva = (design) => {
     const payloadKey = `logo-edit-${editScopeKey}-${design.id}`;
-    const imageParam = design.fallbackUrl || '';
+    const imageParam = design.editorImageUrl || '';
 
     if (typeof window !== 'undefined') {
       saveTemporaryEditorPayload(payloadKey, design.editablePayload || null);
@@ -353,7 +370,7 @@ const ResultsPage = () => {
       sourceContext: 'results',
       editScopeKey,
       payloadKey,
-      returnTo: '/saved',
+      returnTo: '/my-designs',
       returnMode: 'push',
     });
 
@@ -402,13 +419,15 @@ const ResultsPage = () => {
     setDownloadingFormat(format);
 
     try {
+      const exportSvgMarkup = await buildWatermarkedSvgMarkup(design.svgMarkup);
+
       if (format === 'svg') {
-        triggerBlobDownload(new Blob([design.svgMarkup], { type: 'image/svg+xml;charset=utf-8' }), `${safeBaseName}.svg`);
+        triggerBlobDownload(new Blob([exportSvgMarkup], { type: 'image/svg+xml;charset=utf-8' }), `${safeBaseName}.svg`);
         setDownloadDesign(null);
         return;
       }
 
-      const { canvas, width, height } = await renderSvgToCanvas(design.svgMarkup, 4);
+      const { canvas, width, height } = await renderSvgToCanvas(exportSvgMarkup, 4);
 
       if (format === 'png') {
         const blob = await canvasToBlob(canvas, 'image/png');
@@ -529,7 +548,18 @@ const ResultsPage = () => {
                     No preview
                   </div>
                 )}
-                <div className="absolute inset-0 hidden items-end justify-center bg-black/20 pb-4 opacity-0 transition-opacity group-hover:opacity-100 sm:flex sm:pb-6">
+                <div className="pointer-events-none absolute inset-0 z-[1] overflow-hidden">
+                  <div
+                    className="absolute"
+                    style={{
+                      ...BRAND_WATERMARK_PATTERN_STYLE,
+                      inset: BRAND_WATERMARK_OVERLAY_INSET,
+                      opacity: BRAND_WATERMARK_OPACITY,
+                      transform: `rotate(${BRAND_WATERMARK_ROTATION}deg) scale(${BRAND_WATERMARK_OVERLAY_SCALE})`,
+                    }}
+                  />
+                </div>
+                <div className="absolute inset-0 z-10 hidden items-end justify-center bg-black/20 pb-4 opacity-0 transition-opacity group-hover:opacity-100 sm:flex sm:pb-6">
                   <div className="flex w-full justify-center gap-2 px-2">
                     <button
                       onClick={() => void handleToggleFavorite(design)}

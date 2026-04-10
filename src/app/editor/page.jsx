@@ -46,6 +46,7 @@ import {
   getCanvasItemDisplayLabel,
   getCollectionNameByType,
   getOrderedCanvasItems,
+  getTextBlockMetrics,
   getTextMetrics,
   isBackgroundCanvasItem,
   isValidHexColor,
@@ -92,9 +93,9 @@ function ToolbarIconButton({ active = false, children, className = '', ...props 
   return (
     <button
       {...props}
-      className={`relative flex h-7 w-7 shrink-0 items-center justify-center rounded-md border transition-all ${
+      className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-all ${
         active
-          ? 'border-orange-200 bg-orange-50 text-orange-600 ring-2 ring-orange-200'
+          ? 'border-orange-200 bg-orange-50 text-orange-600 ring-2 ring-orange-200 scale-[1.04]'
           : 'border-slate-200 bg-white hover:border-orange-200 hover:bg-orange-50/70'
       } ${className}`}
     >
@@ -110,9 +111,9 @@ function ToolbarPillButton({ active = false, children, className = '', ...props 
   return (
     <button
       {...props}
-      className={`flex h-7 shrink-0 items-center gap-1 rounded-md border px-2 text-[11px] font-bold transition-all ${
+      className={`flex h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-[12px] font-bold transition-all ${
         active
-          ? 'border-orange-200 bg-orange-50 text-orange-600 ring-2 ring-orange-200'
+          ? 'border-orange-200 bg-orange-50 text-orange-600 ring-2 ring-orange-200 scale-[1.02]'
           : 'border-slate-200 bg-white hover:border-orange-200 hover:bg-orange-50/70'
       } ${className}`}
     >
@@ -123,7 +124,7 @@ function ToolbarPillButton({ active = false, children, className = '', ...props 
 
 function ToolbarCheckboxToggle({ checked, label, onChange }) {
   return (
-    <label className="flex h-7 shrink-0 items-center gap-1 rounded-md border border-slate-200 px-2 text-[10px] font-bold text-slate-700">
+    <label className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 text-[11px] font-bold text-slate-700">
       <input
         type="checkbox"
         checked={checked}
@@ -543,8 +544,10 @@ function EditorUI() {
     previewFullscreenOpen,
     setPreviewFullscreenOpen,
     previewImageUrl,
+    previewElementsImageUrl,
     hideCanvasSelectionUi,
     clipCanvasToCard,
+    renderCanvasElementsOnly,
     savingChanges,
   } = useEditorPreviewPersistence({
     designId,
@@ -592,7 +595,9 @@ function EditorUI() {
   );
   const selectedCornerRadius = Math.round(Number(selectedStyle.cornerRadius ?? 28));
   const selectedTextFontFamily = selectedItemData?.fontFamily || logoConfig.fontFamily || 'Arial';
-  const selectedTextFontSize = Math.round(Number(selectedItemData?.fontSize || 46));
+  const selectedTextFontSize = selectedCanvasItem?.type === 'text' && selectedItemData
+    ? Math.round(Number(getTextBlockMetrics(selectedItemData).fontSize || selectedItemData?.fontSize || 46))
+    : Math.round(Number(selectedItemData?.fontSize || 46));
   const selectedTextColor = normalizeHexColor(
     selectedStyle.fillColor || selectedItemData?.fill || logoConfig.textColor || '#111827',
     '#111827'
@@ -692,7 +697,7 @@ function EditorUI() {
           : '4.4rem',
       }
     : undefined;
-  useEditorSidebarVisibility({ setSidebarOpen, shouldShowDesktopSidebar });
+  useEditorSidebarVisibility({ isMobileViewport, setSidebarOpen, shouldShowDesktopSidebar });
 
   const {
     handleImageUpload,
@@ -752,6 +757,19 @@ function EditorUI() {
     setPreviewFullscreenOpen,
   });
   useModalBodyLock(previewDialogOpen || previewFullscreenOpen);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return undefined;
+    }
+
+    const shouldHideNavbar = previewDialogOpen || previewFullscreenOpen;
+    document.body.classList.toggle('editor-preview-open', shouldHideNavbar);
+
+    return () => {
+      document.body.classList.remove('editor-preview-open');
+    };
+  }, [previewDialogOpen, previewFullscreenOpen]);
 
   const editorSidebarProps = {
     activeBackgroundOpacity,
@@ -993,7 +1011,7 @@ function EditorUI() {
 
   return (
     <div
-      className="fixed inset-0 flex flex-col overflow-hidden bg-[radial-gradient(circle_at_top,#ffffff_0%,#f8fafc_48%,#eef2ff_100%)] font-sans lg:flex-row"
+      className="fixed inset-x-0 bottom-0 top-20 flex flex-col overflow-hidden bg-[radial-gradient(circle_at_top,#ffffff_0%,#f8fafc_48%,#eef2ff_100%)] font-sans lg:flex-row"
       style={{ WebkitTapHighlightColor: 'transparent' }}
     >
       <DesktopToolRail
@@ -1025,6 +1043,8 @@ function EditorUI() {
           canRedo={canRedo}
           onUndo={handleUndo}
           onRedo={handleRedo}
+          watermarkEnabled={logoConfig.watermarkEnabled !== false}
+          onToggleWatermark={(checked) => applyLogoConfigChange({ watermarkEnabled: checked })}
           onPreview={handlePreviewOpen}
           onSave={handleSaveDesign}
           onDownload={handleOpenDownloadDialog}
@@ -1056,7 +1076,7 @@ function EditorUI() {
             <button
               onClick={handleUndo}
               disabled={!canUndo}
-              className={`brand-icon-button flex h-8 w-8 items-center justify-center rounded-full bg-white/95 backdrop-blur transition-all lg:h-9 lg:w-9 ${
+              className={`brand-icon-button flex h-9 w-9 items-center justify-center rounded-full bg-white/95 backdrop-blur transition-all lg:h-10 lg:w-10 ${
                 !canUndo
                   ? 'cursor-not-allowed text-slate-300'
                   : ''
@@ -1068,7 +1088,7 @@ function EditorUI() {
             <button
               onClick={handleRedo}
               disabled={!canRedo}
-              className={`brand-icon-button flex h-8 w-8 items-center justify-center rounded-full bg-white/95 backdrop-blur transition-all lg:h-9 lg:w-9 ${
+              className={`brand-icon-button flex h-9 w-9 items-center justify-center rounded-full bg-white/95 backdrop-blur transition-all lg:h-10 lg:w-10 ${
                 !canRedo
                   ? 'cursor-not-allowed text-slate-300'
                   : ''
@@ -1077,6 +1097,15 @@ function EditorUI() {
             >
               <Redo2 size={18} />
             </button>
+            <label className="flex h-9 items-center gap-2 rounded-full border border-slate-200 bg-white/95 px-3 text-[11px] font-bold text-slate-700 backdrop-blur lg:h-10 lg:px-4 lg:text-[12px]">
+              <input
+                type="checkbox"
+                checked={logoConfig.watermarkEnabled !== false}
+                onChange={(event) => applyLogoConfigChange({ watermarkEnabled: event.target.checked })}
+                className="h-4 w-4 rounded border-slate-300 accent-orange-500"
+              />
+              <span>Watermark</span>
+            </label>
           </div>
 
           {showFloatingToolbar && (
@@ -1084,50 +1113,50 @@ function EditorUI() {
               className="absolute left-1/2 z-20 hidden w-[calc(100%-2rem)] max-w-max -translate-x-1/2 sm:w-auto lg:block"
               style={floatingToolbarOffsetStyle}
             >
-              <div className="relative overflow-x-auto overflow-y-visible rounded-[1.05rem] border border-slate-200/80 bg-white/95 px-1.5 py-1.5 shadow-xl backdrop-blur">
-                {selectedCanvasItem ? (
-                  canEditText && selectedItemData ? (
-                    <div className="flex min-w-max items-center gap-px text-slate-700">
-                      <button
-                        onClick={() => openSelectedPanel('fonts')}
-                        className={`flex h-7 shrink-0 items-center gap-1 rounded-md border px-2 text-[11px] font-bold transition-all ${
-                          activeObjectPanel === 'fonts'
-                            ? 'border-orange-200 bg-orange-50 text-orange-600 ring-2 ring-orange-200'
-                            : 'border-slate-200 bg-white hover:border-orange-200 hover:bg-orange-50/70'
-                        }`}
-                      >
-                        <span
-                          className="max-w-[116px] truncate text-left"
-                          style={{ fontFamily: selectedTextFontFamily }}
-                        >
-                          {selectedTextFontFamily}
-                        </span>
-                        <ChevronDown size={13} />
-                      </button>
-
-                      <div className="flex h-7 shrink-0 items-center rounded-md border border-slate-200 bg-white px-1">
-                        <button
-                          onClick={() => handleSelectedTextFontSizeChange(selectedTextFontSize - 2)}
-                          className="flex h-4 w-4 items-center justify-center rounded text-[11px] font-black transition-all hover:bg-slate-100"
-                          title="Decrease font size"
-                        >
-                          -
-                        </button>
+                <div className="relative overflow-x-auto overflow-y-visible rounded-[1.25rem] border border-slate-200/80 bg-white/95 px-2.5 py-2.5 shadow-xl backdrop-blur">
+                  {selectedCanvasItem ? (
+                    canEditText && selectedItemData ? (
+                      <div className="flex min-w-max items-center gap-px text-slate-700">
                         <button
                           onClick={() => openSelectedPanel('fonts')}
-                          className="min-w-[32px] px-1 text-[11px] font-black text-slate-800"
-                          title="Open font settings"
+                          className={`flex h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-[12px] font-bold transition-all ${
+                            activeObjectPanel === 'fonts'
+                              ? 'border-orange-200 bg-orange-50 text-orange-600 ring-2 ring-orange-200'
+                              : 'border-slate-200 bg-white hover:border-orange-200 hover:bg-orange-50/70'
+                          }`}
                         >
-                          {selectedTextFontSize}
+                          <span
+                            className="max-w-[116px] truncate text-left"
+                            style={{ fontFamily: selectedTextFontFamily }}
+                          >
+                            {selectedTextFontFamily}
+                          </span>
+                          <ChevronDown size={14} />
                         </button>
-                        <button
-                          onClick={() => handleSelectedTextFontSizeChange(selectedTextFontSize + 2)}
-                          className="flex h-4 w-4 items-center justify-center rounded text-[11px] font-black transition-all hover:bg-slate-100"
-                          title="Increase font size"
-                        >
-                          +
-                        </button>
-                      </div>
+
+                        <div className="flex h-10 shrink-0 items-center rounded-xl border border-slate-200 bg-white px-1.5">
+                          <button
+                            onClick={() => handleSelectedTextFontSizeChange(selectedTextFontSize - 2)}
+                            className="flex h-7 w-7 items-center justify-center rounded-lg text-[12px] font-black transition-all hover:bg-slate-100"
+                            title="Decrease font size"
+                          >
+                            -
+                          </button>
+                          <button
+                            onClick={() => openSelectedPanel('fonts')}
+                            className="min-w-[34px] px-1.5 text-[12px] font-black text-slate-800"
+                            title="Open font settings"
+                          >
+                            {selectedTextFontSize}
+                          </button>
+                          <button
+                            onClick={() => handleSelectedTextFontSizeChange(selectedTextFontSize + 2)}
+                            className="flex h-7 w-7 items-center justify-center rounded-lg text-[12px] font-black transition-all hover:bg-slate-100"
+                            title="Increase font size"
+                          >
+                            +
+                          </button>
+                        </div>
 
                       <ToolbarDivider />
 
@@ -1143,49 +1172,49 @@ function EditorUI() {
                       </ToolbarIconButton>
                       <ToolbarDivider />
 
-                      <ToolbarIconButton
-                        onClick={() => handleToggleSelectedTextFontStyle('bold')}
-                        active={isBoldActive}
-                        title="Bold"
-                      >
-                        <Bold size={16} />
-                      </ToolbarIconButton>
+                        <ToolbarIconButton
+                          onClick={() => handleToggleSelectedTextFontStyle('bold')}
+                          active={isBoldActive}
+                          title="Bold"
+                        >
+                          <Bold size={18} />
+                        </ToolbarIconButton>
                       <ToolbarDivider />
 
-                      <ToolbarIconButton
-                        onClick={() => handleToggleSelectedTextFontStyle('italic')}
-                        active={isItalicActive}
-                        title="Italic"
-                      >
-                        <Italic size={16} />
-                      </ToolbarIconButton>
+                        <ToolbarIconButton
+                          onClick={() => handleToggleSelectedTextFontStyle('italic')}
+                          active={isItalicActive}
+                          title="Italic"
+                        >
+                          <Italic size={18} />
+                        </ToolbarIconButton>
                       <ToolbarDivider />
 
-                      <ToolbarIconButton
-                        onClick={() => handleSelectedTextAlignChange(nextTextAlign)}
-                        title={`Alignment: ${selectedTextAlign}. Click for ${nextTextAlign}.`}
-                      >
-                        <CurrentAlignIcon size={15} />
-                      </ToolbarIconButton>
+                        <ToolbarIconButton
+                          onClick={() => handleSelectedTextAlignChange(nextTextAlign)}
+                          title={`Alignment: ${selectedTextAlign}. Click for ${nextTextAlign}.`}
+                        >
+                          <CurrentAlignIcon size={17} />
+                        </ToolbarIconButton>
                       <ToolbarDivider />
 
-                      <ToolbarIconButton
-                        onClick={() => toggleToolbarPopover('opacity')}
-                        active={activeToolbarPopover === 'opacity'}
-                        title="Transparency"
-                      >
-                        <Grid3x3 size={15} />
-                      </ToolbarIconButton>
+                        <ToolbarIconButton
+                          onClick={() => toggleToolbarPopover('opacity')}
+                          active={activeToolbarPopover === 'opacity'}
+                          title="Transparency"
+                        >
+                          <Grid3x3 size={17} />
+                        </ToolbarIconButton>
 
                       <ToolbarDivider />
 
-                      <ToolbarPillButton
-                        onClick={() => openSelectedPanel('3D')}
-                        active={activeObjectPanel === '3D'}
-                      >
-                        <Sparkles size={13} />
-                        <span>3D</span>
-                      </ToolbarPillButton>
+                        <ToolbarPillButton
+                          onClick={() => openSelectedPanel('3D')}
+                          active={activeObjectPanel === '3D'}
+                        >
+                          <Sparkles size={14} />
+                          <span>3D</span>
+                        </ToolbarPillButton>
                       <ToolbarDivider />
 
                       <ToolbarPillButton
@@ -1206,24 +1235,24 @@ function EditorUI() {
 
                       <ToolbarDivider />
 
-                      <button
-                        onClick={handleDuplicateSelected}
-                        className="brand-button-outline flex h-7 shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[10px]"
-                      >
-                        <Copy size={14} />
-                      </button>
+                        <button
+                          onClick={handleDuplicateSelected}
+                          className="brand-button-outline flex h-10 shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-[12px]"
+                        >
+                          <Copy size={16} />
+                        </button>
 
                       <ToolbarDivider />
 
-                      <button
-                        onClick={handleDeleteSelected}
-                        className="brand-button-outline flex h-7 shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[10px]"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  ) : isStylableLogoSelection ? (
-                    <div className="flex min-w-max items-center gap-px text-slate-700">
+                        <button
+                          onClick={handleDeleteSelected}
+                          className="brand-button-outline flex h-10 shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-[12px]"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ) : isStylableLogoSelection ? (
+                      <div className="flex min-w-max items-center gap-px text-slate-700">
                       <ToolbarIconButton
                         onClick={() => openSelectedPanel('colors')}
                         active={activeObjectPanel === 'colors'}
@@ -1309,18 +1338,18 @@ function EditorUI() {
 
                       <button
                         onClick={handleDuplicateSelected}
-                        className="brand-button-outline flex h-7 shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[10px]"
+                        className="brand-button-outline flex h-8 shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-[11px]"
                       >
-                        <Copy size={14} />
+                        <Copy size={15} />
                       </button>
 
                       <ToolbarDivider />
 
                       <button
                         onClick={handleDeleteSelected}
-                        className="brand-button-outline flex h-7 shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[10px]"
+                        className="brand-button-outline flex h-8 shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-[11px]"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={15} />
                       </button>
                     </div>
                   ) : isRasterImageSelection ? (
@@ -1549,8 +1578,10 @@ function EditorUI() {
             previewDialogOpen={previewDialogOpen}
             setPreviewDialogOpen={setPreviewDialogOpen}
             previewImageUrl={previewImageUrl}
+            previewElementsImageUrl={previewElementsImageUrl}
             setPreviewFullscreenOpen={setPreviewFullscreenOpen}
             previewFullscreenOpen={previewFullscreenOpen}
+            watermarkEnabled={logoConfig.watermarkEnabled !== false}
           />
 
           <MobileBottomPanel
@@ -1576,6 +1607,7 @@ function EditorUI() {
                 zoom={canvasZoom}
                 hideSelectionUi={hideCanvasSelectionUi}
                 clipContentToCard={clipCanvasToCard}
+                renderElementsOnly={renderCanvasElementsOnly}
                 inlineTextEditRequest={inlineTextEditRequest}
                 onTextEditCommit={handleInlineTextEdit}
               />

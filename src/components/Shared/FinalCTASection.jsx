@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { motion } from "framer-motion";
-import { HiArrowRight } from "react-icons/hi2";
 import { FaCheckCircle } from "react-icons/fa";
 
 const featureBadges = ["Free to Start", "No Credit Card", "Instant Access"];
@@ -44,18 +44,21 @@ export default function FinalCTASection() {
         </p>
 
         <div className="mb-14 flex justify-center">
-          <motion.button
+          <motion.div
             whileHover={{
               scale: 1.05,
               boxShadow: "0 0 40px rgba(255, 0, 122, 0.4)",
             }}
             whileTap={{ scale: 0.98 }}
-            className="group relative flex items-center gap-3 overflow-hidden rounded-full bg-linear-to-r from-[#FF5C00] via-[#FF007A] to-[#C400FF] px-10 py-4 text-lg font-bold transition-all duration-300"
           >
-            <span className="absolute inset-0 h-full w-full bg-white/10 opacity-0 transition-opacity group-hover:opacity-100" />
-            Get Started Now
-            <HiArrowRight className="text-xl transition-transform group-hover:translate-x-1" />
-          </motion.button>
+            <Link
+              href="/create?fresh=1"
+              className="group relative flex items-center overflow-hidden rounded-full bg-linear-to-r from-[#FF5C00] via-[#FF007A] to-[#C400FF] px-10 py-4 text-lg font-bold transition-all duration-300"
+            >
+              <span className="absolute inset-0 h-full w-full bg-white/10 opacity-0 transition-opacity group-hover:opacity-100" />
+              <span className="relative z-10">Get Started Now</span>
+            </Link>
+          </motion.div>
         </div>
 
         <div className="mb-20 flex flex-wrap justify-center gap-8 text-[14px] font-bold uppercase tracking-widest text-gray-300">

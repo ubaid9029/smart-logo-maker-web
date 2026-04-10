@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Download, Eye, Redo2, Save, Undo2 } from 'lucide-react';
+import { Download, Eye, Loader2, Redo2, Save, Undo2 } from 'lucide-react';
 
 export function DesktopToolRail({
   editorTools,
@@ -20,7 +20,7 @@ export function DesktopToolRail({
               key={tool.id}
               onClick={() => onToolSelect(tool.id)}
               title={tool.label}
-              className={`brand-icon-button flex min-h-[88px] w-full flex-col items-center justify-center gap-2 rounded-[1.55rem] px-2 py-3 transition-all ${
+              className={`brand-icon-button flex min-h-[88px] w-full flex-col items-center justify-center gap-2 rounded-[1.55rem] px-2 py-3 transition-all ${isActive ? 'scale-[1.03]' : ''} ${
                 isActive
                   ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200'
                   : ''
@@ -43,6 +43,8 @@ export function MobileHeader({
   canRedo,
   onUndo,
   onRedo,
+  watermarkEnabled,
+  onToggleWatermark,
   onPreview,
   onSave,
   onDownload,
@@ -77,6 +79,15 @@ export function MobileHeader({
           >
             <Redo2 size={18} />
           </button>
+          <label className="flex h-10 items-center gap-2 rounded-xl bg-gray-50 px-3 text-[11px] font-bold text-slate-700">
+            <input
+              type="checkbox"
+              checked={watermarkEnabled !== false}
+              onChange={(event) => onToggleWatermark?.(event.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 accent-orange-500"
+            />
+            <span>Watermark</span>
+          </label>
         </div>
         <h1 className="min-w-0 flex-1 text-center text-lg font-black tracking-tight text-slate-900">
           Logo Maker
@@ -98,8 +109,9 @@ export function MobileHeader({
                 : 'bg-gray-50 text-gray-600'
             }`}
             title={savingChanges ? 'Saving...' : 'Save Design'}
+            aria-busy={savingChanges ? 'true' : 'false'}
           >
-            <Save size={18} />
+            {savingChanges ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
           </button>
           <button
             onClick={onDownload}
@@ -157,7 +169,7 @@ export function MobileBottomPanel({
                   onClick={() => onToolSelect(tool.id)}
                   title={tool.label}
                   aria-label={tool.label}
-                  className={`relative flex min-h-[46px] min-w-[52px] flex-1 items-center justify-center rounded-2xl px-1.5 py-1.5 transition-all ${
+                  className={`relative flex min-h-[46px] min-w-[52px] flex-1 items-center justify-center rounded-2xl px-1.5 py-1.5 transition-all ${isActive ? 'scale-[1.06]' : ''} ${
                     isActive
                       ? 'bg-white text-[#0f172a] shadow-md'
                       : 'text-white/88'
@@ -203,8 +215,9 @@ export function DesktopActionDock({
           disabled={!canSave || savingChanges}
           className={`brand-icon-button flex h-12 w-12 items-center justify-center rounded-full transition-all ${!canSave || savingChanges ? 'cursor-not-allowed opacity-60' : ''}`}
           title={savingChanges ? 'Saving...' : 'Save Design'}
+          aria-busy={savingChanges ? 'true' : 'false'}
         >
-          <Save size={15} />
+          {savingChanges ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
         </button>
         <button
           onClick={onDownload}

@@ -58,7 +58,7 @@ const Category = ({ onNext, onBack, data, setData }) => {
           <h1 className="mb-2 text-2xl font-black leading-tight tracking-tight text-[#1A1A1A] md:text-4xl">
             Choose Your Industry
           </h1>
-          <p className="px-4 text-xs font-medium text-slate-500 md:text-sm">Select the category that best fits your brand</p>
+          <p className="px-4 text-xs font-medium leading-relaxed text-slate-600 md:text-sm">Select the category that best fits your brand</p>
         </div>
 
         <div className="mx-auto grid w-full max-w-[760px] flex-1 grid-cols-3 gap-2 md:grid-cols-3 lg:grid-cols-4 md:gap-2.5">
@@ -79,7 +79,7 @@ const Category = ({ onNext, onBack, data, setData }) => {
                 <div className={`${item.color} mb-1 rounded-lg p-1.5 text-white shadow-lg md:mb-2 md:p-2`}>
                   <IconComponent className="h-3 w-3 md:h-4.5 md:w-4.5" />
                 </div>
-                <span className={`text-center text-[7px] font-bold leading-snug sm:text-[7.5px] md:text-[10px] ${isSelected ? 'text-black' : 'text-slate-600'}`}>
+                <span className={`text-center text-[9px] font-bold leading-snug sm:text-[10px] md:text-[12px] ${isSelected ? 'text-black' : 'text-slate-600'}`}>
                   {item.name}
                 </span>
 
@@ -109,7 +109,7 @@ const Category = ({ onNext, onBack, data, setData }) => {
                 : 'cursor-not-allowed bg-slate-200 opacity-60'
             }`}
           >
-            Continue -&gt;
+            Continue
           </button>
         </div>
       </div>
