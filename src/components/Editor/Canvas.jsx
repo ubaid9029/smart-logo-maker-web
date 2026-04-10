@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Group, Image as KonvaImage, Layer, Line, Path as KonvaPath, Rect, Shape as KonvaShape, Stage, Text, Transformer } from 'react-konva';
 import useImage from 'use-image';
-import { applySvgPresentationToMarkup, clampTransformToCard, getEditorTextValue, getOrderedCanvasItems, getTextBlockMetrics, getTextTypography, isBackgroundCanvasItem, syncCanvasLayerOrder } from './editorUtils';
+import { applySvgPresentationToMarkup, clampTransformToCard, getEditorTextValue, getOrderedCanvasItems, getTextBlockMetrics, getTextTypography, isBackgroundCanvasItem, isCanvasItemLocked, syncCanvasLayerOrder } from './editorUtils';
 import { CARD_CORNER_RADIUS } from './editorConstants';
 import {
   BRAND_WATERMARK_OPACITY,
@@ -843,6 +843,7 @@ function LogoNode({
   setCursor,
   registerNode,
 }) {
+  const isLocked = isCanvasItemLocked(item);
   const transform = item.transform || {
     x: Number(item.x || 0),
     y: Number(item.y || 0),
@@ -984,7 +985,7 @@ function LogoNode({
       scaleX={actualScaleX}
       scaleY={actualScaleY}
       rotation={transform.rotation || 0}
-      draggable
+      draggable={!isLocked}
       onClick={(event) => onSelect(event)}
       onTap={(event) => onSelect(event)}
       onDragStart={(event) => {
@@ -1007,16 +1008,25 @@ function LogoNode({
         setCursor('grab');
         onNodeDragEnd?.(event, item, 'logo', getTransformPayload(event));
       }}
-      onTransformStart={() => setCursor('grabbing')}
+      onTransformStart={() => {
+        if (!isLocked) {
+          setCursor('grabbing');
+        }
+      }}
       onTransform={(event) => {
-        onTransformPreview?.(event, item, 'logo');
+        if (!isLocked) {
+          onTransformPreview?.(event, item, 'logo');
+        }
       }}
       onTransformEnd={(event) => {
+        if (isLocked) {
+          return;
+        }
         setCursor('grab');
         onTransformFinish?.();
         onTransformChange(getTransformPayload(event));
       }}
-      onMouseEnter={() => setCursor('grab')}
+      onMouseEnter={() => setCursor(isLocked ? 'not-allowed' : 'grab')}
       onMouseLeave={() => {
         if (!selected) {
           setCursor('default');
@@ -1183,6 +1193,7 @@ function TextNode({
   setCursor,
   registerNode,
 }) {
+  const isLocked = isCanvasItemLocked(item);
   const [fontRenderVersion, setFontRenderVersion] = useState(0);
   const transform = item.transform || {
     x: Number(item.x || 0),
@@ -1260,16 +1271,20 @@ function TextNode({
       scaleX={actualScaleX}
       scaleY={actualScaleY}
       rotation={transform.rotation || 0}
-      draggable={!isInlineEditing}
+      draggable={!isInlineEditing && !isLocked}
       onClick={(event) => onSelect(event)}
       onTap={(event) => onSelect(event)}
       onDblClick={(event) => {
         onSelect(event);
-        onStartInlineEdit?.(item.id);
+        if (!isLocked) {
+          onStartInlineEdit?.(item.id);
+        }
       }}
       onDblTap={(event) => {
         onSelect(event);
-        onStartInlineEdit?.(item.id);
+        if (!isLocked) {
+          onStartInlineEdit?.(item.id);
+        }
       }}
       onDragStart={(event) => {
         onSelect(event);
@@ -1291,16 +1306,25 @@ function TextNode({
         setCursor('grab');
         onNodeDragEnd?.(event, item, 'text', getTransformPayload(event));
       }}
-      onTransformStart={() => setCursor('grabbing')}
+      onTransformStart={() => {
+        if (!isLocked) {
+          setCursor('grabbing');
+        }
+      }}
       onTransform={(event) => {
-        onTransformPreview?.(event, item, 'text');
+        if (!isLocked) {
+          onTransformPreview?.(event, item, 'text');
+        }
       }}
       onTransformEnd={(event) => {
+        if (isLocked) {
+          return;
+        }
         setCursor('grab');
         onTransformFinish?.();
         onTransformChange(getTransformPayload(event));
       }}
-      onMouseEnter={() => setCursor('grab')}
+      onMouseEnter={() => setCursor(isLocked ? 'not-allowed' : 'grab')}
       onMouseLeave={() => {
         if (!selected) {
           setCursor('default');
@@ -1366,6 +1390,7 @@ export default function Canvas({
   clearSelectionToken = 0,
   stageRef: externalStageRef = null,
   zoom = 1,
+  hasLockedSelection = false,
   hideSelectionUi = false,
   clipContentToCard = false,
   renderElementsOnly = false,
@@ -1432,6 +1457,16 @@ export default function Canvas({
     ? textItems.find((item) => item.id === inlineEditor.id) || null
     : null;
   const selectionUiHidden = hideSelectionUi || Boolean(inlineEditor);
+  const canvasSelectionIncludesLockedItem = useMemo(
+    () => selectedItems.some((entry) => {
+      const sourceItem = entry.type === 'logo'
+        ? logoItems.find((item) => item.id === entry.id)
+        : textItems.find((item) => item.id === entry.id);
+
+      return isCanvasItemLocked(sourceItem);
+    }),
+    [logoItems, selectedItems, textItems]
+  );
   const inlineEditorTheme = useMemo(
     () => getInlineEditorTheme(inlineEditorLayout?.color),
     [inlineEditorLayout?.color]
@@ -1486,6 +1521,10 @@ export default function Canvas({
       return;
     }
 
+    if (isCanvasItemLocked(targetItem)) {
+      return;
+    }
+
     const currentValue = getTextRenderValue(targetItem);
     setInlineEditor((previousValue) => {
       if (previousValue?.id && previousValue.id !== itemId) {
@@ -1508,7 +1547,7 @@ export default function Canvas({
       return;
     }
 
-    if (selectionUiHidden) {
+    if (selectionUiHidden || hasLockedSelection || canvasSelectionIncludesLockedItem) {
       transformerRef.current.nodes([]);
       transformerRef.current.getLayer()?.batchDraw();
       return;
@@ -1518,7 +1557,7 @@ export default function Canvas({
     const node = key ? nodeMapRef.current[key] : null;
     transformerRef.current.nodes(node ? [node] : []);
     transformerRef.current.getLayer()?.batchDraw();
-  }, [selectionUiHidden, selectedItems, logoItems, textItems]);
+  }, [canvasSelectionIncludesLockedItem, hasLockedSelection, selectionUiHidden, selectedItems, logoItems, textItems]);
 
   useEffect(() => {
     if (typeof onSelectionChange === 'function') {
@@ -1849,7 +1888,7 @@ export default function Canvas({
             y: node?.y() ?? sourceItem?.transform?.y ?? 0,
           },
         };
-      }).filter((entry) => entry.item),
+      }).filter((entry) => entry.item && !isCanvasItemLocked(entry.item)),
     };
   };
 

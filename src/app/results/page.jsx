@@ -37,6 +37,7 @@ import {
 } from '../../lib/favoriteLogosRepository';
 import { getFavoriteLogoKey, subscribeFavoriteLogos } from '../../lib/favoriteLogosStorage';
 import { hasCreateDraft } from '../../lib/logoResumeStorage';
+import { readAuthSession } from '../../lib/authSession';
 import { createClient } from '../../lib/supabaseClient';
 
 const INDUSTRY_LABELS = {
@@ -162,11 +163,7 @@ const ResultsPage = () => {
 
     const syncUserFromServer = async () => {
       try {
-        const response = await fetch('/api/auth/session', {
-          credentials: 'include',
-          cache: 'no-store',
-        });
-        const payload = await response.json();
+        const payload = await readAuthSession();
         const nextUser = payload?.user || null;
         setAuthUser(nextUser);
         return nextUser;

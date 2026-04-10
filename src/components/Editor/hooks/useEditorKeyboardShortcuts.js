@@ -46,6 +46,7 @@ export function useEditorKeyboardShortcuts({
   handleRedo,
   handleSaveDesign,
   handleUndo,
+  hasLockedSelection,
   isMobileViewport,
   previewDialogOpen,
   previewFullscreenOpen,
@@ -164,7 +165,7 @@ export function useEditorKeyboardShortcuts({
 
       // Quick duplicate shortcut (requested): press "D" when something is selected.
       // Keep this disabled while typing in inputs/textareas/contenteditable.
-      if (!modifierPressed && selectedCanvasItemsCount && (event.key === 'd' || event.key === 'D')) {
+      if (!modifierPressed && selectedCanvasItemsCount && !hasLockedSelection && (event.key === 'd' || event.key === 'D')) {
         event.preventDefault();
         handleDuplicateSelected();
         return;
@@ -178,6 +179,10 @@ export function useEditorKeyboardShortcuts({
         }
 
         if (event.key === 'x' || event.key === 'X') {
+          if (hasLockedSelection) {
+            event.preventDefault();
+            return;
+          }
           event.preventDefault();
           handleCopySelected();
           handleDeleteSelected();
@@ -191,6 +196,10 @@ export function useEditorKeyboardShortcuts({
         }
 
         if (event.key === 'd' || event.key === 'D') {
+          if (hasLockedSelection) {
+            event.preventDefault();
+            return;
+          }
           event.preventDefault();
           handleDuplicateSelected();
           return;
@@ -237,6 +246,10 @@ export function useEditorKeyboardShortcuts({
         return;
       }
 
+      if (hasLockedSelection) {
+        return;
+      }
+
       if (event.key === 'Delete' || event.key === 'Backspace') {
         event.preventDefault();
         handleDeleteSelected();
@@ -270,6 +283,7 @@ export function useEditorKeyboardShortcuts({
     handlePasteClipboard,
     handleRedo,
     handleUndo,
+    hasLockedSelection,
     selectedCanvasItemsCount,
     setCanvasZoom,
   ]);

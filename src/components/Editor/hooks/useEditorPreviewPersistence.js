@@ -12,6 +12,7 @@ import {
   renderDataUrlToCanvas,
   triggerBlobDownload,
 } from '../../../lib/downloadAssets';
+import { readAuthSession } from '../../../lib/authSession';
 import { saveTemporaryEditorPayload } from '../../../lib/editorPayloadStorage';
 import {
   getLogoLibraryUpgradeMessage,
@@ -291,11 +292,7 @@ export function useEditorPreviewPersistence({
 
   const ensureSignedIn = useCallback(async () => {
     try {
-      const response = await fetch('/api/auth/session', {
-        credentials: 'include',
-        cache: 'no-store',
-      });
-      const payload = await response.json();
+      const payload = await readAuthSession();
 
       if (payload?.user) {
         return true;

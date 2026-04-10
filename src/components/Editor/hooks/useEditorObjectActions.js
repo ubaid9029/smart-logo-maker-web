@@ -8,6 +8,7 @@ import {
   clampTransformToCard,
   extractTextTemplate,
   getCanvasLayerKey,
+  isCanvasItemLocked,
   getPreferredTextTemplateSource,
   getTextMetrics,
   moveCanvasLayers,
@@ -38,6 +39,14 @@ export function useEditorObjectActions({
   const closeEditDialog = useCallback(() => {
     setEditDialog(EMPTY_EDIT_DIALOG);
   }, [setEditDialog]);
+
+  const hasLockedSelection = selectedCanvasItems.some((selection) => {
+    const sourceItem = selection.type === 'logo'
+      ? (logoConfig.logoItems || []).find((item) => item.id === selection.id)
+      : (logoConfig.textItems || []).find((item) => item.id === selection.id);
+
+    return isCanvasItemLocked(sourceItem);
+  });
 
   const getResolvedTextProps = useCallback((item) => {
     const fallbackTemplate = extractTextTemplate(logoConfig.textTemplate || {}, {
@@ -143,6 +152,10 @@ export function useEditorObjectActions({
       const targetItem = targetCollection.find((item) => item.id === safeItemId);
 
       if (!targetItem) {
+        return prev;
+      }
+
+      if (isCanvasItemLocked(targetItem)) {
         return prev;
       }
 
@@ -253,8 +266,12 @@ export function useEditorObjectActions({
   }, [applyLogoConfigChange, selectedItemKeySet]);
 
   const updateSelectedElements = useCallback((updater) => {
+    if (hasLockedSelection) {
+      return;
+    }
+
     applySelectionUpdates(updater, { syncTextTemplate: false });
-  }, [applySelectionUpdates]);
+  }, [applySelectionUpdates, hasLockedSelection]);
 
   const updateSelectedTextElements = useCallback((updater) => {
     if (!canEditText) {
@@ -499,6 +516,10 @@ export function useEditorObjectActions({
           return item;
         }
 
+        if (isCanvasItemLocked(item)) {
+          return item;
+        }
+
         const currentTransform = item.transform || {};
         const baseMetrics = getBaseItemMetrics(selectedCanvasItem.type, item);
         const lockAspectRatio = Boolean(item.style?.lockAspectRatio);
@@ -558,7 +579,7 @@ export function useEditorObjectActions({
   }, [applyLogoConfigChange, getBaseItemMetrics, selectedCanvasItem, selectedCanvasItems.length]);
 
   const handleMoveSelectedLayers = useCallback((direction) => {
-    if (!selectedItemKeySet.size) {
+    if (!selectedItemKeySet.size || hasLockedSelection) {
       return;
     }
 
@@ -574,10 +595,10 @@ export function useEditorObjectActions({
         layerOrder: nextLayerOrder,
       };
     });
-  }, [applyLogoConfigChange, selectedItemKeySet]);
+  }, [applyLogoConfigChange, hasLockedSelection, selectedItemKeySet]);
 
   const handleDuplicateSelected = useCallback(() => {
-    if (!selectedCanvasItems.length) {
+    if (!selectedCanvasItems.length || hasLockedSelection) {
       return;
     }
 
@@ -650,6 +671,7 @@ export function useEditorObjectActions({
     });
   }, [
     applyLogoConfigChange,
+    hasLockedSelection,
     selectedCanvasItems,
     selectedCanvasItemRef,
     setCanvasSelectionOverride,
@@ -658,7 +680,7 @@ export function useEditorObjectActions({
   ]);
 
   const handleDeleteSelected = useCallback(() => {
-    if (!selectedItemKeySet.size) {
+    if (!selectedItemKeySet.size || hasLockedSelection) {
       return;
     }
 
@@ -670,7 +692,7 @@ export function useEditorObjectActions({
         .filter((key) => !selectedItemKeySet.has(key)),
     }));
     clearCanvasSelection();
-  }, [applyLogoConfigChange, clearCanvasSelection, selectedItemKeySet]);
+  }, [applyLogoConfigChange, clearCanvasSelection, hasLockedSelection, selectedItemKeySet]);
 
   const handleCopySelected = useCallback(() => {
     if (!selectedCanvasItems.length) {
@@ -766,6 +788,10 @@ export function useEditorObjectActions({
       return;
     }
 
+    if (isCanvasItemLocked(targetItem)) {
+      return;
+    }
+
     setEditDialog({
       open: true,
       type: 'text',
@@ -794,6 +820,58 @@ export function useEditorObjectActions({
     commitTextValueChange(itemId, nextValue);
   }, [commitTextValueChange]);
 
+  const handleToggleSelectedLock = useCallback((forcedLockedState) => {
+    if (!selectedItemKeySet.size) {
+      return;
+    }
+
+    applyLogoConfigChange((prev) => {
+      const resolveNextLocked = (item) => (
+        typeof forcedLockedState === 'boolean' ? forcedLockedState : !isCanvasItemLocked(item)
+      );
+
+      return {
+        ...prev,
+        logoItems: (prev.logoItems || []).map((item) => (
+          selectedItemKeySet.has(`logo:${item.id}`)
+            ? { ...item, locked: resolveNextLocked(item) }
+            : item
+        )),
+        textItems: (prev.textItems || []).map((item) => (
+          selectedItemKeySet.has(`text:${item.id}`)
+            ? { ...item, locked: resolveNextLocked(item) }
+            : item
+        )),
+      };
+    });
+  }, [applyLogoConfigChange, selectedItemKeySet]);
+
+  const handleToggleLayerLock = useCallback((layerKey, forcedLockedState) => {
+    const [type, id] = String(layerKey || '').split(':');
+    if (!type || !id) {
+      return;
+    }
+
+    applyLogoConfigChange((prev) => {
+      const collectionName = type === 'logo' ? 'logoItems' : type === 'text' ? 'textItems' : null;
+      if (!collectionName) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        [collectionName]: (prev[collectionName] || []).map((item) => (
+          item.id === id
+            ? {
+                ...item,
+                locked: typeof forcedLockedState === 'boolean' ? forcedLockedState : !isCanvasItemLocked(item),
+              }
+            : item
+        )),
+      };
+    });
+  }, [applyLogoConfigChange]);
+
   const handleToggleSelectedItemBackground = useCallback((shouldSetAsBackground) => {
     if (!selectedCanvasItem || selectedCanvasItem.type !== 'logo') {
       return;
@@ -801,6 +879,10 @@ export function useEditorObjectActions({
 
     const targetItem = (logoConfig.logoItems || []).find((item) => item.id === selectedCanvasItem.id);
     if (!targetItem) {
+      return;
+    }
+
+    if (isCanvasItemLocked(targetItem)) {
       return;
     }
 
@@ -858,6 +940,9 @@ export function useEditorObjectActions({
     if (selectedCanvasItem?.type === 'logo') {
       const targetItem = (logoConfig.logoItems || []).find((item) => item.id === selectedCanvasItem.id);
       if (targetItem?.isBackground) {
+        if (isCanvasItemLocked(targetItem)) {
+          return;
+        }
         handleToggleSelectedItemBackground(false);
         return;
       }
@@ -923,8 +1008,11 @@ export function useEditorObjectActions({
     handleEditSelectedText,
     handleSaveEditedText,
     handleInlineTextEdit,
+    handleToggleSelectedLock,
+    handleToggleLayerLock,
     handleToggleSelectedItemBackground,
     handleSetSelectedShapeAsBackground,
     handleBringBackgroundShapeToCanvas,
+    hasLockedSelection,
   };
 }

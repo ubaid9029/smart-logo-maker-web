@@ -36,6 +36,18 @@ export const getCanvasLayerKey = (type, id) => {
 };
 
 export const isBackgroundCanvasItem = (item) => Boolean(item?.isBackground);
+export const isCanvasItemLocked = (item) => Boolean(item?.locked);
+
+export const getCanvasItemByLayerKey = (logoItems = [], textItems = [], layerKey = '') => {
+  const [type, id] = String(layerKey || '').split(':');
+  const sourceItems = type === 'logo'
+    ? (Array.isArray(logoItems) ? logoItems : [])
+    : type === 'text'
+      ? (Array.isArray(textItems) ? textItems : [])
+      : [];
+
+  return sourceItems.find((item) => item?.id === id) || null;
+};
 
 const toTitleCase = (value = '') => value
   .split(/\s+/)

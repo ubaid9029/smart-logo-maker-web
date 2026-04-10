@@ -22,6 +22,8 @@ import {
   GripVertical,
   Italic,
   Images,
+  Lock,
+  LockOpen,
   Maximize2,
   Menu,
   Minimize2,
@@ -161,53 +163,76 @@ function mobileContextButtonClass(isActive = false, extraClass = '') {
 }
 
 function LayerPanelRow({
+  dragOverLayerKey,
   draggedLayerKey,
   handleReorderLayerFromPanel,
   handleSelectLayerFromPanel,
+  handleToggleLayerLock,
   layer,
-  layerView,
   selectedLayerKey,
+  setDragOverLayerKey,
   setDraggedLayerKey,
   visibleLayerItems,
 }) {
   return (
-    <button
+    <div
       key={layer.key}
-      type="button"
-      draggable={visibleLayerItems.length > 1}
+      role="button"
+      tabIndex={0}
+      draggable={visibleLayerItems.length > 1 && !layer.locked}
       onClick={() => handleSelectLayerFromPanel(layer.key)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          handleSelectLayerFromPanel(layer.key);
+        }
+      }}
       onDragStart={() => {
-        if (visibleLayerItems.length > 1) {
+        if (visibleLayerItems.length > 1 && !layer.locked) {
           setDraggedLayerKey(layer.key);
         }
       }}
       onDragOver={(event) => {
         if (visibleLayerItems.length > 1) {
           event.preventDefault();
+          if (draggedLayerKey && draggedLayerKey !== layer.key && !layer.locked) {
+            setDragOverLayerKey(layer.key);
+          }
+        }
+      }}
+      onDragLeave={() => {
+        if (dragOverLayerKey === layer.key) {
+          setDragOverLayerKey(null);
         }
       }}
       onDrop={(event) => {
         event.preventDefault();
-        if (draggedLayerKey && visibleLayerItems.length > 1) {
+        if (draggedLayerKey && visibleLayerItems.length > 1 && !layer.locked) {
           handleReorderLayerFromPanel(
             draggedLayerKey,
             layer.key,
             visibleLayerItems.map((entry) => entry.key)
           );
         }
+        setDragOverLayerKey(null);
         setDraggedLayerKey(null);
       }}
-      onDragEnd={() => setDraggedLayerKey(null)}
+      onDragEnd={() => {
+        setDragOverLayerKey(null);
+        setDraggedLayerKey(null);
+      }}
       className={`flex w-full items-center gap-3 rounded-[1.45rem] border px-4 py-3 text-left transition-all ${
         layer.isSelected
           ? 'border-orange-300 bg-orange-50 ring-2 ring-orange-100'
+          : dragOverLayerKey === layer.key
+            ? 'border-emerald-300 bg-emerald-50 ring-2 ring-emerald-100'
           : draggedLayerKey === layer.key
             ? 'border-slate-300 bg-slate-100'
             : 'border-slate-200 bg-slate-50 hover:bg-white'
       }`}
     >
       <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white ${
-        visibleLayerItems.length > 1 ? 'text-slate-500' : 'text-slate-300'
+        visibleLayerItems.length > 1 && !layer.locked ? 'text-slate-500' : 'text-slate-300'
       }`}>
         <GripVertical size={18} />
       </div>
@@ -216,11 +241,37 @@ function LayerPanelRow({
         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
           <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-slate-500">{layer.type}</span>
           {layer.isBackground ? <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] text-sky-700">Background</span> : null}
+          {layer.locked ? <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] text-white">Locked</span> : null}
           <span className="rounded-full bg-white px-2 py-0.5 text-[10px] text-slate-500">{layer.orderLabel}</span>
           {layer.key === selectedLayerKey ? <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[10px] text-orange-600">Selected</span> : null}
         </div>
+        {dragOverLayerKey === layer.key && draggedLayerKey !== layer.key ? (
+          <p className="mt-2 text-[11px] font-semibold text-emerald-700">
+            Drop here to place the dragged layer above this one.
+          </p>
+        ) : layer.locked ? (
+          <p className="mt-2 text-[11px] font-semibold text-slate-500">
+            Unlock this layer to move or edit it.
+          </p>
+        ) : null}
       </div>
-    </button>
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          handleToggleLayerLock(layer.key, !layer.locked);
+        }}
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-all ${
+          layer.locked
+            ? 'border-slate-900 bg-slate-900 text-white'
+            : 'border-slate-200 bg-white text-slate-600 hover:border-orange-200 hover:text-orange-600'
+        }`}
+        aria-label={layer.locked ? 'Unlock layer' : 'Lock layer'}
+        title={layer.locked ? 'Unlock layer' : 'Lock layer'}
+      >
+        {layer.locked ? <Lock size={16} /> : <LockOpen size={16} />}
+      </button>
+    </div>
   );
 }
 
@@ -248,6 +299,7 @@ export function EditorSidebarContent(props) {
     canEditText,
     canSendBackward,
     canSendToBack,
+    hasLockedSelection,
     colorSwatches,
     customColorValue,
     designPalettes,
@@ -274,6 +326,8 @@ export function EditorSidebarContent(props) {
     handleSelectedOpacityChange,
     handleSelectedTextFontChange,
     handleSelectedTextFontStyleChange,
+    handleToggleLayerLock,
+    handleToggleSelectedLock,
     isControlsContext,
     canDuplicate,
     canSetSelectedShapeAsBackground,
@@ -288,6 +342,7 @@ export function EditorSidebarContent(props) {
     selectedCanvasItem,
     selectedAdvancedMetrics,
     selectedItemData,
+    selectedItemLocked,
     selectedLayerKey,
     selectedStyle,
     handleReorderLayerFromPanel,
@@ -309,9 +364,13 @@ export function EditorSidebarContent(props) {
   const [positionView, setPositionView] = useState('arrange');
   const [layerView, setLayerView] = useState('all');
   const [draggedLayerKey, setDraggedLayerKey] = useState(null);
+  const [dragOverLayerKey, setDragOverLayerKey] = useState(null);
   const visibleLayerItems = (layerPanelItems || []).filter((layer) => (
     layerView === 'overlapping' ? layer.overlapsSelected : true
   ));
+  const selectionEditingDisabled = Boolean(hasLockedSelection || selectedItemLocked);
+  const shouldUnlockSelection = Boolean(hasLockedSelection);
+  const selectionRatioLabel = shouldUnlockSelection ? 'Unlock Ratio' : 'Lock Ratio';
   const selectedItemIsShape = selectedItemData?.kind === 'shape' || selectedItemData?.type === 'shape';
   const canRoundSelectedShape = Boolean(
     selectedItemIsShape &&
@@ -333,7 +392,10 @@ export function EditorSidebarContent(props) {
     canSendBackward,
     canSendToBack,
     handleMoveSelectedLayers,
-  });
+  }).map((action) => ({
+    ...action,
+    disabled: selectionEditingDisabled || action.disabled,
+  }));
   const desktopArrangeActions = layerMoveActions.map((action) => {
     const Icon = action.icon;
 
@@ -365,10 +427,13 @@ export function EditorSidebarContent(props) {
       title={label}
       aria-label={label}
       onClick={onClick}
+      disabled={selectionEditingDisabled}
       className={`flex h-[62px] w-[86px] items-center justify-center rounded-[1.35rem] transition-all ${
-        tone === 'accent'
-          ? 'bg-orange-50 text-orange-600 hover:bg-orange-100'
-          : 'bg-slate-100/90 text-slate-700 hover:bg-slate-200/80'
+        selectionEditingDisabled
+          ? 'cursor-not-allowed bg-slate-100 text-slate-300'
+          : tone === 'accent'
+            ? 'bg-orange-50 text-orange-600 hover:bg-orange-100'
+            : 'bg-slate-100/90 text-slate-700 hover:bg-slate-200/80'
       }`}
     >
       {icon}
@@ -381,6 +446,36 @@ export function EditorSidebarContent(props) {
         if (activeObjectPanel === 'positioning') {
           return (
             <div className="space-y-1">
+              <div className={`rounded-[0.95rem] border p-2.5 shadow-sm ${
+                selectionEditingDisabled
+                  ? 'border-amber-200 bg-amber-50'
+                  : 'border-slate-100 bg-white'
+              }`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">
+                      Lock
+                    </p>
+                    <p className="mt-1 text-[11px] font-semibold text-slate-500">
+                      {selectionEditingDisabled
+                        ? 'Layer locked hai. Unlock karke phir move ya edit karo.'
+                        : 'Layer ko freeze karne ke liye lock on kar do.'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleSelectedLock(!shouldUnlockSelection)}
+                    className={`flex h-10 items-center gap-2 rounded-xl border px-3 text-[11px] font-black uppercase tracking-[0.12em] ${
+                      selectionEditingDisabled
+                        ? 'border-slate-900 bg-slate-900 text-white'
+                        : 'border-slate-200 bg-white text-slate-700'
+                    }`}
+                  >
+                    {selectionEditingDisabled ? <Lock size={14} /> : <LockOpen size={14} />}
+                    <span>{selectionEditingDisabled ? 'Unlock' : 'Lock'}</span>
+                  </button>
+                </div>
+              </div>
               <div className="rounded-[0.95rem] border border-slate-100 bg-white p-2.5 shadow-sm">
                 <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">
                   Layer
@@ -388,36 +483,36 @@ export function EditorSidebarContent(props) {
                 <div className="mt-2 grid grid-cols-2 gap-1">
                   <button
                     onClick={() => handleMoveSelectedLayers('back')}
-                    disabled={!canSendToBack}
+                    disabled={selectionEditingDisabled || !canSendToBack}
                     className={`rounded-[0.85rem] border px-2 py-2 text-[9px] font-black uppercase ${
-                      !canSendToBack ? 'cursor-not-allowed border-slate-100 text-slate-300' : 'border-slate-200 bg-white text-slate-700'
+                      selectionEditingDisabled || !canSendToBack ? 'cursor-not-allowed border-slate-100 text-slate-300' : 'border-slate-200 bg-white text-slate-700'
                     }`}
                   >
                     To Back
                   </button>
                   <button
                     onClick={() => handleMoveSelectedLayers('backward')}
-                    disabled={!canSendBackward}
+                    disabled={selectionEditingDisabled || !canSendBackward}
                     className={`rounded-[0.85rem] border px-2 py-2 text-[9px] font-black uppercase ${
-                      !canSendBackward ? 'cursor-not-allowed border-slate-100 text-slate-300' : 'border-slate-200 bg-white text-slate-700'
+                      selectionEditingDisabled || !canSendBackward ? 'cursor-not-allowed border-slate-100 text-slate-300' : 'border-slate-200 bg-white text-slate-700'
                     }`}
                   >
                     Backward
                   </button>
                   <button
                     onClick={() => handleMoveSelectedLayers('forward')}
-                    disabled={!canBringForward}
+                    disabled={selectionEditingDisabled || !canBringForward}
                     className={`rounded-[0.85rem] border px-2 py-2 text-[9px] font-black uppercase ${
-                      !canBringForward ? 'cursor-not-allowed border-slate-100 text-slate-300' : 'border-slate-200 bg-white text-slate-700'
+                      selectionEditingDisabled || !canBringForward ? 'cursor-not-allowed border-slate-100 text-slate-300' : 'border-slate-200 bg-white text-slate-700'
                     }`}
                   >
                     Forward
                   </button>
                   <button
                     onClick={() => handleMoveSelectedLayers('front')}
-                    disabled={!canBringToFront}
+                    disabled={selectionEditingDisabled || !canBringToFront}
                     className={`rounded-[0.85rem] border px-2 py-2 text-[9px] font-black uppercase ${
-                      !canBringToFront ? 'cursor-not-allowed border-slate-100 text-slate-300' : 'border-slate-200 bg-white text-slate-700'
+                      selectionEditingDisabled || !canBringToFront ? 'cursor-not-allowed border-slate-100 text-slate-300' : 'border-slate-200 bg-white text-slate-700'
                     }`}
                   >
                     To Front
@@ -430,13 +525,44 @@ export function EditorSidebarContent(props) {
 
         return (
           <div className="space-y-1">
+            <div className={`rounded-[0.95rem] border p-2.5 shadow-sm ${
+              selectionEditingDisabled
+                ? 'border-amber-200 bg-amber-50'
+                : 'border-slate-100 bg-white'
+            }`}>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">Lock</p>
+                  <p className="mt-1 text-[11px] font-semibold text-slate-500">
+                    {selectionEditingDisabled
+                      ? 'Locked layer abhi editable nahi hai.'
+                      : 'Lock karke accidental move aur edit ko rok sakte ho.'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleToggleSelectedLock(!shouldUnlockSelection)}
+                  className={`flex h-10 items-center gap-2 rounded-xl border px-3 text-[11px] font-black uppercase tracking-[0.12em] ${
+                    selectionEditingDisabled
+                      ? 'border-slate-900 bg-slate-900 text-white'
+                      : 'border-slate-200 bg-white text-slate-700'
+                  }`}
+                >
+                  {selectionEditingDisabled ? <Lock size={14} /> : <LockOpen size={14} />}
+                  <span>{selectionEditingDisabled ? 'Unlock' : 'Lock'}</span>
+                </button>
+              </div>
+            </div>
             <div className="rounded-[0.95rem] border border-slate-100 bg-white p-2.5 shadow-sm">
               <div className="grid grid-cols-3 gap-1">
                 <div />
                 <button
                   title="Move Up"
                   onClick={() => handleNudge(0, -movementStep)}
-                  className="flex h-8 items-center justify-center rounded-[1rem] bg-slate-100 text-slate-700 transition-all hover:bg-slate-200"
+                  disabled={selectionEditingDisabled}
+                  className={`flex h-8 items-center justify-center rounded-[1rem] transition-all ${
+                    selectionEditingDisabled ? 'cursor-not-allowed bg-slate-100 text-slate-300' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
                 >
                   <ArrowUp size={14} />
                 </button>
@@ -444,21 +570,30 @@ export function EditorSidebarContent(props) {
                 <button
                   title="Move Left"
                   onClick={() => handleNudge(-movementStep, 0)}
-                  className="flex h-8 items-center justify-center rounded-[1rem] bg-slate-100 text-slate-700 transition-all hover:bg-slate-200"
+                  disabled={selectionEditingDisabled}
+                  className={`flex h-8 items-center justify-center rounded-[1rem] transition-all ${
+                    selectionEditingDisabled ? 'cursor-not-allowed bg-slate-100 text-slate-300' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
                 >
                   <ArrowLeft size={14} />
                 </button>
                 <button
                   title="Center Horizontally"
                   onClick={() => handleCenter('x')}
-                  className="flex h-8 items-center justify-center rounded-[1rem] bg-orange-50 text-orange-600 transition-all hover:bg-orange-100"
+                  disabled={selectionEditingDisabled}
+                  className={`flex h-8 items-center justify-center rounded-[1rem] transition-all ${
+                    selectionEditingDisabled ? 'cursor-not-allowed bg-slate-100 text-slate-300' : 'bg-orange-50 text-orange-600 hover:bg-orange-100'
+                  }`}
                 >
                   <AlignHorizontalJustifyCenter size={14} />
                 </button>
                 <button
                   title="Move Right"
                   onClick={() => handleNudge(movementStep, 0)}
-                  className="flex h-8 items-center justify-center rounded-[1rem] bg-slate-100 text-slate-700 transition-all hover:bg-slate-200"
+                  disabled={selectionEditingDisabled}
+                  className={`flex h-8 items-center justify-center rounded-[1rem] transition-all ${
+                    selectionEditingDisabled ? 'cursor-not-allowed bg-slate-100 text-slate-300' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
                 >
                   <ArrowRight size={14} />
                 </button>
@@ -466,14 +601,20 @@ export function EditorSidebarContent(props) {
                 <button
                   title="Move Down"
                   onClick={() => handleNudge(0, movementStep)}
-                  className="flex h-8 items-center justify-center rounded-[1rem] bg-slate-100 text-slate-700 transition-all hover:bg-slate-200"
+                  disabled={selectionEditingDisabled}
+                  className={`flex h-8 items-center justify-center rounded-[1rem] transition-all ${
+                    selectionEditingDisabled ? 'cursor-not-allowed bg-slate-100 text-slate-300' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
                 >
                   <ArrowDown size={14} />
                 </button>
                 <button
                   title="Center Vertically"
                   onClick={() => handleCenter('y')}
-                  className="flex h-8 items-center justify-center rounded-[1rem] bg-orange-50 text-orange-600 transition-all hover:bg-orange-100"
+                  disabled={selectionEditingDisabled}
+                  className={`flex h-8 items-center justify-center rounded-[1rem] transition-all ${
+                    selectionEditingDisabled ? 'cursor-not-allowed bg-slate-100 text-slate-300' : 'bg-orange-50 text-orange-600 hover:bg-orange-100'
+                  }`}
                 >
                   <AlignVerticalJustifyCenter size={14} />
                 </button>
@@ -567,19 +708,39 @@ export function EditorSidebarContent(props) {
                         {arrangeSecondaryFields.slice(0, 2).map((field) => (
                           <AdvancedNumberField
                             key={field.key}
+                            disabled={selectionEditingDisabled}
                             label={field.label}
                             value={field.value}
                             onChange={(event) => handleSingleSelectedNumericChange(field.key, event.target.value)}
                           />
                         ))}
                       </div>
-                      <div className="mx-auto max-w-[148px]">
-                        <AdvancedNumberField
-                          key={arrangeSecondaryFields[2].key}
-                          label={arrangeSecondaryFields[2].label}
-                          value={arrangeSecondaryFields[2].value}
-                          onChange={(event) => handleSingleSelectedNumericChange(arrangeSecondaryFields[2].key, event.target.value)}
-                        />
+                      <div className="mx-auto grid max-w-[320px] grid-cols-2 gap-2">
+                        <div className="min-w-0">
+                          <AdvancedNumberField
+                            key={arrangeSecondaryFields[2].key}
+                            disabled={selectionEditingDisabled}
+                            label={arrangeSecondaryFields[2].label}
+                            value={arrangeSecondaryFields[2].value}
+                            onChange={(event) => handleSingleSelectedNumericChange(arrangeSecondaryFields[2].key, event.target.value)}
+                          />
+                        </div>
+                        <label className="flex flex-col gap-2">
+                          <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">Ratio</span>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleSelectedLock(!shouldUnlockSelection)}
+                            className={`flex h-10 w-full items-center justify-center rounded-xl border transition-all ${
+                              selectionEditingDisabled
+                                ? 'border-slate-900 bg-slate-900 text-white'
+                                : 'border-slate-200 bg-white text-slate-700 hover:border-orange-200 hover:text-orange-600'
+                            }`}
+                            title={selectionRatioLabel}
+                            aria-label={selectionRatioLabel}
+                          >
+                            {selectionEditingDisabled ? <Lock size={15} /> : <LockOpen size={15} />}
+                          </button>
+                        </label>
                       </div>
                     </div>
                   </div>
@@ -598,18 +759,20 @@ export function EditorSidebarContent(props) {
                     <p className="px-1 text-[11px] font-semibold text-slate-500">
                       {layerView === 'overlapping'
                         ? 'Showing layers that overlap with the selected item.'
-                        : 'Drag any row to reorder your full layer stack.'}
+                        : 'Drag any unlocked row to reorder your full layer stack. Locked rows stay fixed until unlocked.'}
                     </p>
                     <div className="mt-2 space-y-2">
                       {visibleLayerItems.map((layer) => (
                         <LayerPanelRow
                           key={layer.key}
+                          dragOverLayerKey={dragOverLayerKey}
                           draggedLayerKey={draggedLayerKey}
                           handleReorderLayerFromPanel={handleReorderLayerFromPanel}
                           handleSelectLayerFromPanel={handleSelectLayerFromPanel}
+                          handleToggleLayerLock={handleToggleLayerLock}
                           layer={layer}
-                          layerView={layerView}
                           selectedLayerKey={selectedLayerKey}
+                          setDragOverLayerKey={setDragOverLayerKey}
                           setDraggedLayerKey={setDraggedLayerKey}
                           visibleLayerItems={visibleLayerItems}
                         />
@@ -1780,12 +1943,14 @@ export function EditorMobileContextBar(props) {
     canSendBackward,
     canSendToBack,
     canSetSelectedShapeAsBackground,
+    hasLockedSelection,
     handleBackgroundOptionSelect,
     handleDeleteSelected,
     handleDuplicateSelected,
     handleMoveSelectedLayers,
     handleSelectedTextAlignChange,
     handleSelectedTextFontSizeChange,
+    handleToggleSelectedLock,
     handleToggleSelectedTextFontStyle,
     handleToggleSelectedItemBackground,
     handleSetSelectedShapeAsBackground,
@@ -1797,6 +1962,7 @@ export function EditorMobileContextBar(props) {
     objectPanels,
     selectedCanvasItem,
     selectedItemData,
+    selectedItemLocked,
     selectedStyle,
     selectedTextAlign,
     selectedTextColor,
@@ -1808,6 +1974,7 @@ export function EditorMobileContextBar(props) {
 
   const renderMobileContextBar = () => {
     if (selectedCanvasItem) {
+      const selectionLocked = Boolean(hasLockedSelection || selectedItemLocked);
       const nextTextAlign = selectedTextAlign === 'left'
         ? 'center'
         : selectedTextAlign === 'center'
@@ -1901,6 +2068,13 @@ export function EditorMobileContextBar(props) {
                 >
                   Positioning
                 </button>
+                <button
+                  onClick={() => handleToggleSelectedLock(selectionLocked ? false : true)}
+                  className={mobileContextButtonClass(selectionLocked, 'min-w-[72px] gap-1')}
+                >
+                  {selectionLocked ? <Lock size={12} /> : <LockOpen size={12} />}
+                  <span>{selectionLocked ? 'Unlock' : 'Lock'}</span>
+                </button>
                 {canDuplicate ? (
                   <button onClick={handleDuplicateSelected} className={mobileContextButtonClass(false, 'w-8 gap-0 px-0')}>
                     <Copy size={13} />
@@ -1957,6 +2131,13 @@ export function EditorMobileContextBar(props) {
                 >
                   Positioning
                 </button>
+                <button
+                  onClick={() => handleToggleSelectedLock(selectionLocked ? false : true)}
+                  className={mobileContextButtonClass(selectionLocked, 'min-w-[72px] gap-1')}
+                >
+                  {selectionLocked ? <Lock size={12} /> : <LockOpen size={12} />}
+                  <span>{selectionLocked ? 'Unlock' : 'Lock'}</span>
+                </button>
                 {canSetSelectedShapeAsBackground ? (
                   <button
                     onClick={() => handleToggleSelectedItemBackground(!isSelectedItemBackground)}
@@ -1994,6 +2175,13 @@ export function EditorMobileContextBar(props) {
                 >
                   Positioning
                 </button>
+                <button
+                  onClick={() => handleToggleSelectedLock(selectionLocked ? false : true)}
+                  className={mobileContextButtonClass(selectionLocked, 'min-w-[72px] gap-1')}
+                >
+                  {selectionLocked ? <Lock size={12} /> : <LockOpen size={12} />}
+                  <span>{selectionLocked ? 'Unlock' : 'Lock'}</span>
+                </button>
                 {canSetSelectedShapeAsBackground ? (
                   <button
                     onClick={() => handleToggleSelectedItemBackground(!isSelectedItemBackground)}
@@ -2012,15 +2200,24 @@ export function EditorMobileContextBar(props) {
                 </button>
               </>
             ) : (
-              objectPanels.map((panel) => (
+              <>
+                {objectPanels.map((panel) => (
+                  <button
+                    key={panel}
+                    onClick={() => setActiveObjectPanel(panel)}
+                    className={mobileContextButtonClass(activeObjectPanel === panel, 'min-w-[72px]')}
+                  >
+                    {MOBILE_PANEL_LABELS[panel] || panel.toUpperCase()}
+                  </button>
+                ))}
                 <button
-                  key={panel}
-                  onClick={() => setActiveObjectPanel(panel)}
-                  className={mobileContextButtonClass(activeObjectPanel === panel, 'min-w-[72px]')}
+                  onClick={() => handleToggleSelectedLock(selectionLocked ? false : true)}
+                  className={mobileContextButtonClass(selectionLocked, 'min-w-[72px] gap-1')}
                 >
-                  {MOBILE_PANEL_LABELS[panel] || panel.toUpperCase()}
+                  {selectionLocked ? <Lock size={12} /> : <LockOpen size={12} />}
+                  <span>{selectionLocked ? 'Unlock' : 'Lock'}</span>
                 </button>
-              ))
+              </>
             )}
           </div>
         </div>

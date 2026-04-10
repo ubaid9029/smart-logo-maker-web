@@ -43,12 +43,14 @@ import {
   buildInitialPresent,
   canMoveCanvasLayers,
   getCanvasLayerKey,
+  getCanvasItemByLayerKey,
   getCanvasItemDisplayLabel,
   getCollectionNameByType,
   getOrderedCanvasItems,
   getTextBlockMetrics,
   getTextMetrics,
   isBackgroundCanvasItem,
+  isCanvasItemLocked,
   isValidHexColor,
   normalizeHexColor,
   syncCanvasLayerOrder,
@@ -415,6 +417,14 @@ function EditorUI() {
       .filter(Boolean),
     [selectedCanvasItems]
   );
+  const hasLockedSelection = useMemo(
+    () => selectedCanvasLayerKeys.some((layerKey) => isCanvasItemLocked(
+      getCanvasItemByLayerKey(logoConfig.logoItems || [], logoConfig.textItems || [], layerKey)
+    )),
+    [logoConfig.logoItems, logoConfig.textItems, selectedCanvasLayerKeys]
+  );
+  const selectedLayerKey = getCanvasLayerKey(selectedCanvasItem?.type, selectedCanvasItem?.id);
+  const selectedItemLocked = Boolean(selectedItemData && isCanvasItemLocked(selectedItemData));
   const orderedCanvasItems = useMemo(
     () => getOrderedCanvasItems(logoConfig.logoItems || [], logoConfig.textItems || [], canvasLayerOrder),
     [canvasLayerOrder, logoConfig.logoItems, logoConfig.textItems]
@@ -475,6 +485,7 @@ function EditorUI() {
           type,
           id: item.id,
           label,
+          locked: isCanvasItemLocked(item),
           isBackground: Boolean(item.isBackground),
           isSelected: key === getCanvasLayerKey(selectedCanvasItem?.type, selectedCanvasItem?.id),
           overlapsSelected: selectedBounds ? key === getCanvasLayerKey(selectedCanvasItem?.type, selectedCanvasItem?.id) || intersects(bounds, selectedBounds) : true,
@@ -507,9 +518,12 @@ function EditorUI() {
     handleEditSelectedText,
     handleSaveEditedText,
     handleInlineTextEdit,
+    handleToggleSelectedLock,
+    handleToggleLayerLock,
     handleToggleSelectedItemBackground,
     handleSetSelectedShapeAsBackground,
     handleBringBackgroundShapeToCanvas,
+    hasLockedSelection: hasLockedSelectionFromActions,
   } = useEditorObjectActions({
     applyLogoConfigChange,
     canEditSingleText,
@@ -744,6 +758,7 @@ function EditorUI() {
     handleRedo,
     handleSaveDesign,
     handleUndo,
+    hasLockedSelection: hasLockedSelection || hasLockedSelectionFromActions,
     isMobileViewport,
     previewDialogOpen,
     previewFullscreenOpen,
@@ -822,6 +837,7 @@ function EditorUI() {
     canSendBackward,
     canBringToFront,
     canSendToBack,
+    hasLockedSelection,
     layerPanelItems,
     handleNudge,
     handleResetSelectedTransform,
@@ -845,7 +861,8 @@ function EditorUI() {
     selectedAdvancedMetrics,
     selectedItemData,
     selectedStyle,
-    selectedLayerKey: getCanvasLayerKey(selectedCanvasItem?.type, selectedCanvasItem?.id),
+    selectedItemLocked,
+    selectedLayerKey,
     setActiveObjectPanel,
     setCustomColorValue,
     setDialogBaseColor,
@@ -857,6 +874,8 @@ function EditorUI() {
     setGradientType,
     textureLibraryImages,
     updateSelectedItemStyle,
+    handleToggleSelectedLock,
+    handleToggleLayerLock,
   };
 
   const handleSelectLayerFromPanel = useCallback((layerKey) => {
@@ -896,6 +915,12 @@ function EditorUI() {
       return;
     }
 
+    const draggedItem = getCanvasItemByLayerKey(logoConfig.logoItems || [], logoConfig.textItems || [], draggedKey);
+    const targetItem = getCanvasItemByLayerKey(logoConfig.logoItems || [], logoConfig.textItems || [], targetKey);
+    if (isCanvasItemLocked(draggedItem) || isCanvasItemLocked(targetItem)) {
+      return;
+    }
+
     const nextDisplayOrder = [...displayOrderKeys];
     const draggedIndex = nextDisplayOrder.indexOf(draggedKey);
     const targetIndex = nextDisplayOrder.indexOf(targetKey);
@@ -921,7 +946,7 @@ function EditorUI() {
         layerOrder: [...nextFullDisplayOrder].reverse(),
       };
     });
-  }, [applyLogoConfigChange]);
+  }, [applyLogoConfigChange, logoConfig.logoItems, logoConfig.textItems]);
 
   editorSidebarProps.handleSelectLayerFromPanel = handleSelectLayerFromPanel;
   editorSidebarProps.handleReorderLayerFromPanel = handleReorderLayerFromPanel;
@@ -959,6 +984,8 @@ function EditorUI() {
       selectedTextFontFamily={selectedTextFontFamily}
       selectedTextFontSize={selectedTextFontSize}
       selectedTextColor={selectedTextColor}
+      selectedItemLocked={selectedItemLocked}
+      hasLockedSelection={hasLockedSelection}
       isBoldActive={isBoldActive}
       isItalicActive={isItalicActive}
       selectedTextAlign={selectedTextAlign}
@@ -969,6 +996,7 @@ function EditorUI() {
       handleSelectedTextFontSizeChange={handleSelectedTextFontSizeChange}
       handleToggleSelectedTextFontStyle={handleToggleSelectedTextFontStyle}
       handleSelectedTextAlignChange={handleSelectedTextAlignChange}
+      handleToggleSelectedLock={handleToggleSelectedLock}
       handleBringBackgroundShapeToCanvas={handleBringBackgroundShapeToCanvas}
       handleToggleSelectedItemBackground={handleToggleSelectedItemBackground}
       handleSetSelectedShapeAsBackground={handleSetSelectedShapeAsBackground}
@@ -1605,6 +1633,7 @@ function EditorUI() {
                 clearSelectionToken={canvasClearSelectionToken}
                 stageRef={stageRef}
                 zoom={canvasZoom}
+                hasLockedSelection={hasLockedSelection}
                 hideSelectionUi={hideCanvasSelectionUi}
                 clipContentToCard={clipCanvasToCard}
                 renderElementsOnly={renderCanvasElementsOnly}
