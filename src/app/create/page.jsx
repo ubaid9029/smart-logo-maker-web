@@ -92,8 +92,9 @@ function CreateFlowContent({
   };
 
   return (
-    <div className="h-[100dvh] overflow-hidden bg-white">
-      <div className="fixed left-0 top-16 z-40 w-full border-b border-gray-50 bg-white/80 px-3 py-2.5 backdrop-blur-md md:top-20 md:px-6 md:py-3.5">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-white">
+      {/* Progress bar — fixed at top */}
+      <div className="flex-shrink-0 z-40 w-full border-b border-gray-50 bg-white/90 px-3 py-2.5 backdrop-blur-md md:px-6 md:py-3.5">
         <div className="mx-auto max-w-4xl">
           <div className="mb-2 flex items-center justify-between px-1">
             <span className="text-sm font-bold text-slate-700">Step {step} of {totalSteps}</span>
@@ -118,13 +119,14 @@ function CreateFlowContent({
         </div>
       </div>
 
-      <div className="mx-auto flex h-full max-w-5xl flex-col px-3 pb-[10px] pt-[6.6rem] md:px-5 md:pt-[8.1rem]">
+      {/* Main content — fills remaining height, each step controls its own scroll */}
+      <div className="flex flex-1 flex-col overflow-hidden mx-auto w-full max-w-5xl px-3 md:px-5">
         {showMissingResultsNotice && (
-          <div className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 shadow-sm">
+          <div className="mb-3 flex-shrink-0 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 shadow-sm">
             Previous results were no longer available, so we returned you to Create.
           </div>
         )}
-        <div className="mt-1 min-h-0 flex-1 overflow-hidden transition-opacity duration-500 md:mt-2">
+        <div className="flex flex-1 flex-col overflow-hidden transition-opacity duration-500">
           {step === 1 && (
             <BusinessInfo onNext={nextStep} data={formData} setData={setFormData} />
           )}

@@ -81,9 +81,9 @@ const PREVIEW_SURFACE_OPTIONS = [
     mockupAlt: 'Billboard mockup',
     overlay: {
       left: '18%',
-      top: '15%',
+      top: '19%',
       width: '72%',
-      rotation: '7deg',
+      rotation: '11deg',
       mode: 'direct',
       imageClassName: 'object-contain mix-blend-multiply drop-shadow-[0_12px_22px_rgba(15,23,42,0.22)]',
     },
@@ -351,9 +351,8 @@ export function EditorOverlays({
                             setDialogSelectedColor(safeColor);
                             setCustomColorValue(safeColor);
                           }}
-                          className={`mx-auto h-8 w-8 rounded-full border-[3px] transition-all sm:h-9 sm:w-9 ${
-                            isSelected ? 'scale-105 ring-2 ring-orange-300 border-black' : 'border-black/80'
-                          }`}
+                          className={`mx-auto h-8 w-8 rounded-full border-[3px] transition-all sm:h-9 sm:w-9 ${isSelected ? 'scale-105 ring-2 ring-orange-300 border-black' : 'border-black/80'
+                            }`}
                           style={{ backgroundColor: safeColor }}
                         />
                       );
@@ -373,9 +372,8 @@ export function EditorOverlays({
                               setDialogSelectedColor(shade);
                               setCustomColorValue(shade);
                             }}
-                            className={`h-8 w-8 rounded-full border-[3px] transition-all sm:h-9 sm:w-9 ${
-                              isSelected ? 'ring-2 ring-orange-300 border-black scale-105' : 'border-black/70'
-                            }`}
+                            className={`h-8 w-8 rounded-full border-[3px] transition-all sm:h-9 sm:w-9 ${isSelected ? 'ring-2 ring-orange-300 border-black scale-105' : 'border-black/70'
+                              }`}
                             style={{ backgroundColor: shade }}
                           />
                         );
@@ -485,21 +483,19 @@ export function EditorOverlays({
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <button
                       onClick={() => setGradientType('linear')}
-                      className={`brand-chip-button px-4 py-2 text-sm transition-all ${
-                        gradientType === 'linear'
-                          ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200'
-                          : ''
-                      }`}
+                      className={`brand-chip-button px-4 py-2 text-sm transition-all ${gradientType === 'linear'
+                        ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200'
+                        : ''
+                        }`}
                     >
                       Linear
                     </button>
                     <button
                       onClick={() => setGradientType('radial')}
-                      className={`brand-chip-button px-4 py-2 text-sm transition-all ${
-                        gradientType === 'radial'
-                          ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200'
-                          : ''
-                      }`}
+                      className={`brand-chip-button px-4 py-2 text-sm transition-all ${gradientType === 'radial'
+                        ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200'
+                        : ''
+                        }`}
                     >
                       Radial
                     </button>
@@ -519,11 +515,10 @@ export function EditorOverlays({
                             <button
                               key={option.id}
                               onClick={() => setGradientDirection(option.id)}
-                              className={`brand-icon-button flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
-                                isActive
-                                  ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200'
-                                  : ''
-                              }`}
+                              className={`brand-icon-button flex h-10 w-10 items-center justify-center rounded-xl transition-all ${isActive
+                                ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200'
+                                : ''
+                                }`}
                               title={option.label}
                             >
                               <Icon size={17} />
@@ -607,9 +602,8 @@ export function EditorOverlays({
                             setGradientDialogSelectedColor(safeColor);
                             setGradientCustomColorValue(safeColor);
                           }}
-                          className={`mx-auto h-9 w-9 rounded-full border-[3px] transition-all sm:h-10 sm:w-10 ${
-                            isSelected ? 'scale-105 ring-2 ring-orange-300 border-black' : 'border-black/80'
-                          }`}
+                          className={`mx-auto h-9 w-9 rounded-full border-[3px] transition-all sm:h-10 sm:w-10 ${isSelected ? 'scale-105 ring-2 ring-orange-300 border-black' : 'border-black/80'
+                            }`}
                           style={{ backgroundColor: safeColor }}
                         />
                       );
@@ -630,9 +624,8 @@ export function EditorOverlays({
                               setGradientDialogSelectedColor(shade);
                               setGradientCustomColorValue(shade);
                             }}
-                            className={`h-9 w-9 rounded-full border-[3px] transition-all sm:h-10 sm:w-10 ${
-                              isSelected ? 'ring-2 ring-orange-300 border-black scale-105' : 'border-black/70'
-                            }`}
+                            className={`h-9 w-9 rounded-full border-[3px] transition-all sm:h-10 sm:w-10 ${isSelected ? 'ring-2 ring-orange-300 border-black scale-105' : 'border-black/70'
+                              }`}
                             style={{ backgroundColor: shade }}
                           />
                         );
@@ -755,11 +748,10 @@ export function EditorOverlays({
                   <button
                     key={option.id}
                     onClick={() => setActivePreviewSurfaceId(option.id)}
-                    className={`rounded-xl px-3 py-1.5 text-[11px] font-bold transition-all sm:text-xs ${
-                      isActive
-                        ? 'bg-[#ff6b00] text-white shadow-[0_10px_24px_rgba(255,107,0,0.28)]'
-                        : 'border border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:text-[#ff6b00]'
-                    }`}
+                    className={`rounded-xl px-3 py-1.5 text-[11px] font-bold transition-all sm:text-xs ${isActive
+                      ? 'bg-[#ff6b00] text-white shadow-[0_10px_24px_rgba(255,107,0,0.28)]'
+                      : 'border border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:text-[#ff6b00]'
+                      }`}
                   >
                     {option.label}
                   </button>
@@ -818,11 +810,10 @@ export function EditorOverlays({
                       <button
                         key={`fullscreen-${option.id}`}
                         onClick={() => setActivePreviewSurfaceId(option.id)}
-                        className={`rounded-xl px-3 py-1.5 text-[11px] font-bold transition-all sm:text-xs ${
-                          isActive
-                            ? 'bg-[#ff6b00] text-white shadow-[0_10px_24px_rgba(255,107,0,0.28)]'
-                            : 'border border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:text-[#ff6b00]'
-                        }`}
+                        className={`rounded-xl px-3 py-1.5 text-[11px] font-bold transition-all sm:text-xs ${isActive
+                          ? 'bg-[#ff6b00] text-white shadow-[0_10px_24px_rgba(255,107,0,0.28)]'
+                          : 'border border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:text-[#ff6b00]'
+                          }`}
                       >
                         {option.label}
                       </button>

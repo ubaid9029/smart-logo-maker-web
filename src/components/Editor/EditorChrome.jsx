@@ -9,7 +9,7 @@ export function DesktopToolRail({
   onToolSelect,
 }) {
   return (
-    <aside className="hidden w-[114px] shrink-0 border-r border-gray-100 bg-white lg:flex lg:flex-col lg:items-start lg:px-2 lg:py-6">
+    <aside className="hidden w-[114px] shrink-0  h-full overflow-y-auto scroll-smooth border-r border-gray-100 bg-white shadow-[0_0_15px_-5px_rgba(0,0,0,0.05)] z-20 lg:flex lg:flex-col lg:items-center lg:px-1 lg:py-4">
       <div className="flex w-full flex-col items-stretch gap-4">
         {editorTools.map((tool) => {
           const Icon = tool.icon;
@@ -20,11 +20,10 @@ export function DesktopToolRail({
               key={tool.id}
               onClick={() => onToolSelect(tool.id)}
               title={tool.label}
-              className={`brand-icon-button flex min-h-[88px] w-full flex-col items-center justify-center gap-2 rounded-[1.55rem] px-2 py-3 transition-all ${isActive ? 'scale-[1.03]' : ''} ${
-                isActive
-                  ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200'
-                  : ''
-              }`}
+              className={`brand-icon-button flex min-h-[88px] w-full flex-col items-center justify-center gap-2 rounded-[1.55rem] px-2 py-3 transition-all ${isActive ? 'scale-[1.03]' : ''} ${isActive
+                ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200'
+                : ''
+                }`}
             >
               <Icon size={19} />
               <span className="max-w-full px-1 text-center text-[9px] font-black uppercase leading-[1.1] tracking-[0.08em]">
@@ -58,11 +57,10 @@ export function MobileHeader({
           <button
             onClick={onUndo}
             disabled={!canUndo}
-            className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
-              !canUndo
-                ? 'cursor-not-allowed bg-gray-50 text-slate-400'
-                : 'bg-gray-50 text-gray-600'
-            }`}
+            className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all ${!canUndo
+              ? 'cursor-not-allowed bg-gray-50 text-slate-400'
+              : 'bg-gray-50 text-gray-600'
+              }`}
             title="Undo"
           >
             <Undo2 size={18} />
@@ -70,11 +68,10 @@ export function MobileHeader({
           <button
             onClick={onRedo}
             disabled={!canRedo}
-            className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
-              !canRedo
-                ? 'cursor-not-allowed bg-gray-50 text-slate-400'
-                : 'bg-gray-50 text-gray-600'
-            }`}
+            className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all ${!canRedo
+              ? 'cursor-not-allowed bg-gray-50 text-slate-400'
+              : 'bg-gray-50 text-gray-600'
+              }`}
             title="Redo"
           >
             <Redo2 size={18} />
@@ -103,11 +100,10 @@ export function MobileHeader({
           <button
             onClick={onSave}
             disabled={!canSave || savingChanges}
-            className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
-              !canSave || savingChanges
-                ? 'cursor-not-allowed bg-gray-50 text-slate-400'
-                : 'bg-gray-50 text-gray-600'
-            }`}
+            className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all ${!canSave || savingChanges
+              ? 'cursor-not-allowed bg-gray-50 text-slate-400'
+              : 'bg-gray-50 text-gray-600'
+              }`}
             title={savingChanges ? 'Saving...' : 'Save Design'}
             aria-busy={savingChanges ? 'true' : 'false'}
           >
@@ -169,11 +165,10 @@ export function MobileBottomPanel({
                   onClick={() => onToolSelect(tool.id)}
                   title={tool.label}
                   aria-label={tool.label}
-                  className={`relative flex min-h-[46px] min-w-[52px] flex-1 items-center justify-center rounded-2xl px-1.5 py-1.5 transition-all ${isActive ? 'scale-[1.06]' : ''} ${
-                    isActive
-                      ? 'bg-white text-[#0f172a] shadow-md'
-                      : 'text-white/88'
-                  }`}
+                  className={`relative flex min-h-[46px] min-w-[52px] flex-1 items-center justify-center rounded-2xl px-1.5 py-1.5 transition-all ${isActive ? 'scale-[1.06]' : ''} ${isActive
+                    ? 'bg-white text-[#0f172a] shadow-md'
+                    : 'text-white/88'
+                    }`}
                 >
                   {isActive ? (
                     <span className="absolute left-1/2 top-1.5 h-1 w-5 -translate-x-1/2 rounded-full bg-[#F59E0B]" />

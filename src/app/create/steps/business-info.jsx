@@ -43,8 +43,8 @@ const BusinessInfo = ({ onNext, data, setData }) => {
   }, [submitBusinessInfo]);
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-3xl flex-col animate-in fade-in slide-in-from-bottom-4 duration-700 px-2 md:px-3">
-      <div className="flex min-h-0 flex-1 flex-col justify-center">
+    <div className="mx-auto w-full max-w-3xl animate-in fade-in slide-in-from-bottom-4 duration-700 px-2 md:px-3">
+      <div className="flex flex-col justify-center py-6 md:py-8">
         <div className="mb-3 text-center md:mb-5">
           <h1 className="mb-2 text-2xl font-black leading-tight tracking-tight text-[#1A1A1A] md:text-4xl lg:text-5xl">
             Let&apos;s Get Started
@@ -91,11 +91,10 @@ const BusinessInfo = ({ onNext, data, setData }) => {
             <button
               type="submit"
               disabled={!isFormValid}
-              className={`flex w-full items-center justify-center rounded-2xl py-3.5 text-lg font-black transition-all duration-500 md:w-56 md:py-4 md:text-xl ${
-                isFormValid
+              className={`flex w-full items-center justify-center rounded-2xl py-3.5 text-lg font-black transition-all duration-500 md:w-56 md:py-4 md:text-xl ${isFormValid
                   ? "brand-button-primary hover:scale-[1.01] shadow-pink-500/30"
                   : "cursor-not-allowed bg-slate-200 text-slate-400 opacity-90"
-              }`}
+                }`}
             >
               Continue
             </button>

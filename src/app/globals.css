@@ -36,7 +36,7 @@ input[type="range"],
 input[type="button"],
 input[type="submit"],
 input[type="reset"],
-details > summary,
+details>summary,
 .cursor-pointer {
   cursor: pointer !important;
 }
@@ -213,6 +213,7 @@ iframe {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
@@ -240,6 +241,7 @@ iframe {
   }
 
   @media (max-width: 767px) {
+
     .brand-button-primary,
     .brand-button-secondary,
     .brand-button-outline,

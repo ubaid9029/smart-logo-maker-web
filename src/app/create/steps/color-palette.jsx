@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { Check, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -72,14 +72,52 @@ const ColorPalette = ({ onBack, data, setData }) => {
   }, [data.color, handleGenerate, isLoading]);
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-4xl flex-col animate-in fade-in slide-in-from-bottom-6 duration-700 px-2 md:px-3">
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div className="mb-2 flex flex-col items-center text-center pt-1 md:mb-3 md:pt-1.5">
-          <h1 className="mb-2 text-2xl font-black tracking-tight text-[#1A1A1A] md:text-4xl">Choose Your Colors</h1>
-          <p className="max-w-lg px-2 text-xs font-medium leading-relaxed text-slate-600 md:text-sm">Select a color scheme that matches your brand personality</p>
+    <div className="flex flex-col h-full w-full animate-in fade-in slide-in-from-bottom-6 duration-700">
+      {/* ── FIXED TOP: Heading + Buttons ── */}
+      <div className="flex-shrink-0 bg-white/95 backdrop-blur-md pb-4 pt-6 md:pb-5 md:pt-8 w-full max-w-5xl mx-auto px-2 md:px-3">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between w-full">
+          <div className="text-center md:text-left mb-3 md:mb-0">
+            <h1 className="mb-1 text-2xl font-black leading-tight tracking-tight text-[#1A1A1A] md:text-3xl">
+              Choose Your Colors
+            </h1>
+            <p className="text-xs font-medium leading-relaxed text-slate-600 md:text-sm">
+              Select a color scheme that matches your brand personality
+            </p>
+          </div>
+          <div className="flex flex-row items-center justify-center gap-2 md:gap-3 w-full md:w-auto">
+            <button
+              onClick={onBack}
+              className="brand-button-outline w-1/2 md:w-auto rounded-2xl py-2.5 px-6 text-sm font-bold"
+            >
+              Go Back
+            </button>
+            <button
+              onClick={handleGenerate}
+              disabled={!data.color || isLoading}
+              className={`w-1/2 md:w-auto flex items-center justify-center gap-2 rounded-2xl py-2.5 px-6 text-sm font-black transition-all duration-300 ${data.color && !isLoading
+                ? 'brand-button-primary hover:scale-[1.02] shadow-pink-500/30'
+                : 'cursor-not-allowed bg-slate-200 opacity-60'
+                }`}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="animate-spin" size={16} />
+                  <span>Generating...</span>
+                </>
+              ) : "Generate Logo"}
+            </button>
+          </div>
         </div>
+      </div>
 
-        <div className="mx-auto mt-3 grid w-full max-w-[880px] flex-1 grid-cols-2 gap-x-2 gap-y-1.5 lg:grid-cols-3 md:mt-4 md:gap-x-2.5 md:gap-y-2">
+      {/* ── SCROLLABLE GRID ── */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden pb-6 px-2 md:px-3 w-full max-w-5xl mx-auto pt-2">
+        {submissionError && (
+          <div className="mb-4 text-center text-sm font-medium text-red-500 rounded-lg bg-red-50 py-2 border border-red-100">
+            {submissionError}
+          </div>
+        )}
+        <div className="mx-auto grid w-full flex-1 grid-cols-2 gap-x-2 gap-y-1.5 lg:grid-cols-3 md:gap-x-2.5 md:gap-y-2">
           {palettes.map((palette) => {
             const isSelected = data.color === palette.name;
 
@@ -87,11 +125,10 @@ const ColorPalette = ({ onBack, data, setData }) => {
               <button
                 key={palette.id}
                 onClick={() => handleSelect(palette)}
-                className={`relative flex h-[104px] flex-col items-center justify-between gap-1.5 rounded-[1rem] border-2 px-2.5 py-2.5 transition-all duration-500 ease-out sm:h-[122px] md:h-[162px] md:rounded-[1.15rem] md:px-4 md:py-4 ${
-                  isSelected
-                    ? 'z-10 scale-[1.03] border-pink-300 bg-white shadow-2xl'
-                    : 'border-transparent bg-white/60 hover:bg-white hover:shadow-md'
-                }`}
+                className={`relative flex h-[104px] flex-col items-center justify-between gap-1.5 rounded-[1rem] border-2 px-2.5 py-2.5 transition-all duration-500 ease-out sm:h-[122px] md:h-[162px] md:rounded-[1.15rem] md:px-4 md:py-4 ${isSelected
+                  ? 'z-10 scale-[1.03] border-pink-300 bg-white shadow-2xl'
+                  : 'border-transparent bg-white/60 hover:bg-white hover:shadow-md'
+                  }`}
               >
                 <div className={`h-10 w-full rounded-[0.9rem] bg-linear-to-r shadow-inner sm:h-12 md:h-[72px] ${palette.gradient}`}></div>
 
@@ -112,36 +149,6 @@ const ColorPalette = ({ onBack, data, setData }) => {
             );
           })}
         </div>
-
-        <div className="mx-auto flex w-full max-w-xl flex-col-reverse items-center justify-center gap-2 pb-[10px] pt-2 md:flex-row md:justify-center md:gap-1">
-          <button
-            onClick={onBack}
-            className="brand-button-outline w-full rounded-2xl py-3 text-sm md:w-48"
-          >
-            Go Back
-          </button>
-
-          <button
-            onClick={handleGenerate}
-            disabled={!data.color || isLoading}
-            className={`flex w-full items-center justify-center gap-3 rounded-2xl py-3 text-base font-black transition-all duration-500 md:w-48 ${
-              data.color && !isLoading
-                ? 'brand-button-primary hover:scale-[1.02] shadow-pink-500/30'
-                : 'cursor-not-allowed bg-slate-200 text-slate-400 opacity-60'
-            }`}
-          >
-            {isLoading ? (
-              <div className="flex items-center gap-2">
-                <Loader2 className="animate-spin" size={24} />
-                <span>Generating...</span>
-              </div>
-            ) : "Generate Logo"}
-          </button>
-        </div>
-
-        {submissionError && (
-          <p className="pb-4 text-sm font-medium text-red-500">{submissionError}</p>
-        )}
       </div>
     </div>
   );

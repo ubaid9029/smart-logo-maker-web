@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useCallback, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { updateFormData } from "../../../store/slices/logoSlice";
@@ -42,18 +42,42 @@ const Fonts = ({ onNext, onBack, data, setData }) => {
   }, [data.font, handleContinue]);
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-4xl flex-col animate-in fade-in slide-in-from-bottom-6 duration-700 px-2 md:px-3">
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div className="mb-2 flex flex-col items-center text-center pt-1 md:mb-3 md:pt-1.5">
-          <h1 className="mb-2 px-2 text-2xl font-black tracking-tight text-[#1A1A1A] md:text-4xl">
-            Choose Your Font
-          </h1>
-          <p className="max-w-md px-4 text-xs font-medium leading-relaxed text-slate-600 md:max-w-lg md:text-sm">
-            Select a typography style that matches your brand personality
-          </p>
+    <div className="flex flex-col h-full w-full animate-in fade-in slide-in-from-bottom-6 duration-700">
+      {/* ── FIXED TOP: Heading + Buttons ── */}
+      <div className="flex-shrink-0 bg-white/95 backdrop-blur-md pb-4 pt-6 md:pb-5 md:pt-8 w-full max-w-5xl mx-auto px-2 md:px-3">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between w-full">
+          <div className="text-center md:text-left mb-3 md:mb-0">
+            <h1 className="mb-1 text-2xl font-black leading-tight tracking-tight text-[#1A1A1A] md:text-3xl">
+              Choose Your Font
+            </h1>
+            <p className="text-xs font-medium leading-relaxed text-slate-600 md:text-sm">
+              Select a typography style that matches your brand personality
+            </p>
+          </div>
+          <div className="flex flex-row items-center justify-center gap-2 md:gap-3 w-full md:w-auto">
+            <button
+              onClick={onBack}
+              className="brand-button-outline w-1/2 md:w-auto rounded-2xl py-2.5 px-6 text-sm font-bold"
+            >
+              Go Back
+            </button>
+            <button
+              onClick={handleContinue}
+              disabled={!data.font}
+              className={`w-1/2 md:w-auto rounded-2xl py-2.5 px-8 text-sm font-black transition-all duration-300 ${data.font
+                ? 'brand-button-primary hover:scale-[1.02] shadow-pink-500/30'
+                : 'cursor-not-allowed bg-slate-200 opacity-60'
+                }`}
+            >
+              Continue
+            </button>
+          </div>
         </div>
+      </div>
 
-        <div className="mx-auto mt-3 grid w-full max-w-[860px] flex-1 grid-cols-2 gap-x-2 gap-y-1.5 sm:grid-cols-2 md:mt-4 md:grid-cols-3 md:gap-x-2.5 md:gap-y-2">
+      {/* ── SCROLLABLE GRID ── */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden pb-6 px-2 md:px-3 w-full max-w-5xl mx-auto pt-2">
+        <div className="mx-auto grid w-full flex-1 grid-cols-2 gap-x-2 gap-y-1.5 sm:grid-cols-2 md:grid-cols-3 md:gap-x-2.5 md:gap-y-2">
           {fontStyles.map((font) => {
             const isSelected = data.font === font.name;
 
@@ -61,11 +85,10 @@ const Fonts = ({ onNext, onBack, data, setData }) => {
               <button
                 key={font.id}
                 onClick={() => handleSelect(font)}
-                className={`relative flex h-[102px] flex-col items-center justify-center gap-1 rounded-[1rem] border-2 px-2.5 py-2 transition-all duration-500 ease-out sm:h-[114px] md:h-[152px] md:rounded-[1.15rem] md:px-4 md:py-3.5 ${
-                  isSelected
-                    ? 'z-10 scale-[1.02] border-pink-200 bg-white shadow-[0_20px_40px_-10px_rgba(255,0,122,0.15)] md:scale-105'
-                    : 'border-transparent bg-white/60 shadow-sm hover:border-slate-100 hover:bg-white hover:shadow-md'
-                }`}
+                className={`relative flex h-[102px] flex-col items-center justify-center gap-1 rounded-[1rem] border-2 px-2.5 py-2 transition-all duration-500 ease-out sm:h-[114px] md:h-[152px] md:rounded-[1.15rem] md:px-4 md:py-3.5 ${isSelected
+                  ? 'z-10 scale-[1.02] border-pink-200 bg-white shadow-[0_20px_40px_-10px_rgba(255,0,122,0.15)] md:scale-105'
+                  : 'border-transparent bg-white/60 shadow-sm hover:border-slate-100 hover:bg-white hover:shadow-md'
+                  }`}
               >
                 <span className={`mb-0.5 text-[18px] text-slate-900 sm:text-[20px] md:text-[27px] ${font.style}`}>
                   Aa
@@ -90,27 +113,6 @@ const Fonts = ({ onNext, onBack, data, setData }) => {
               </button>
             );
           })}
-        </div>
-
-        <div className="mx-auto flex w-full max-w-xl flex-col-reverse items-center justify-center gap-2 px-2 pb-[10px] pt-2 md:flex-row md:justify-center md:gap-1">
-          <button
-            onClick={onBack}
-            className="brand-button-outline w-full rounded-2xl py-3 text-sm md:w-48"
-          >
-            Go Back
-          </button>
-
-          <button
-            onClick={handleContinue}
-            disabled={!data.font}
-            className={`flex w-full items-center justify-center rounded-2xl py-3 text-base font-black transition-all duration-500 md:w-48 ${
-              data.font
-                ? 'brand-button-primary hover:scale-[1.02] shadow-pink-500/30'
-                : 'cursor-not-allowed bg-slate-200 text-slate-400 opacity-60 shadow-none'
-            }`}
-          >
-            Continue
-          </button>
         </div>
       </div>
     </div>
