@@ -50,8 +50,8 @@ const PREVIEW_SURFACE_OPTIONS = [
   {
     id: 'simple',
     label: 'Simple View',
-    frameClassName: 'aspect-[31/21] w-full max-w-[min(90vw,560px)]',
-    fullscreenFrameClassName: 'aspect-[31/21] w-full max-w-[min(82vw,760px)]',
+    frameClassName: 'aspect-square w-full max-w-[min(80vw,360px)]',
+    fullscreenFrameClassName: 'aspect-square w-full max-w-[min(80vh,80vw,560px)]',
     type: 'simple',
   },
   {
@@ -103,7 +103,7 @@ function PreviewSurfaceFrame({
 
   if (surface.type === 'simple') {
     return (
-      <div className={`${frameClassName} overflow-hidden rounded-[1.5rem] border border-white/10 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.28)] sm:rounded-[2rem]`}>
+      <div className={`${frameClassName} overflow-hidden rounded-none border border-white/10 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.28)]`}>
         <PreviewCardFrame
           previewImageUrl={previewImageUrl}
           alt={fullscreen ? 'Full screen edited logo preview' : 'Edited logo preview'}
