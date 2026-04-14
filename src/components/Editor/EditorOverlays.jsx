@@ -63,7 +63,7 @@ const PREVIEW_SURFACE_OPTIONS = [
     mockupSrc: '/mockups/TShirt.png',
     mockupAlt: 'T-shirt mockup',
     overlay: {
-      left: '22%',
+      left: '20%',
       top: '24%',
       width: '60%',
       rotation: '0deg',
