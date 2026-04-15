@@ -29,39 +29,39 @@ const ColorPalette = ({ onBack, data, setData }) => {
   };
 
   const handleGenerate = useCallback(async () => {
+    setSubmissionError("");
+    
     const selectedPalette = palettes.find((palette) => palette.name === data.color);
-    const selectedColorId = selectedPalette?.id || formData?.colorId;
+    const selectedColorId = selectedPalette?.id || formData?.colorId || '';
 
+    // Build payload with defaults to empty strings for missing values
     const payload = {
-      ...formData,
-      colorId: selectedColorId,
+      name: formData?.name || '',
+      slogan: formData?.slogan || '',
+      industryId: formData?.industryId || null,
+      fontId: formData?.fontId || '',
+      colorId: selectedColorId || '',
     };
 
-    if (
-      !payload.name?.trim() ||
-      payload.industryId === undefined ||
-      payload.industryId === null ||
-      !payload.fontId ||
-      !payload.colorId
-    ) {
-      setSubmissionError("Please complete business name, industry, font, and color before generating.");
-      return;
+    try {
+      // Update Redux with color if selected
+      if (selectedColorId) {
+        dispatch(updateFormData({ colorId: String(selectedColorId) }));
+      }
+      
+      // Dispatch API call
+      dispatch(generateLogosAction(payload));
+      
+      // Navigate to generating page
+      router.push('/generating');
+    } catch (error) {
+      setSubmissionError(error?.message || "Failed to generate logos. Please try again.");
     }
-
-    if (!SUPPORTED_PALETTE_IDS.has(String(payload.colorId))) {
-      setSubmissionError("This color palette is not supported right now. Please choose one of the available palettes.");
-      return;
-    }
-
-    setSubmissionError("");
-    dispatch(updateFormData({ colorId: String(payload.colorId) }));
-    router.push('/generating');
-    dispatch(generateLogosAction(payload));
   }, [data.color, dispatch, formData, router]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (event.key === 'Enter' && data.color && !isLoading) {
+      if (event.key === 'Enter' && !isLoading) {
         event.preventDefault();
         handleGenerate();
       }
@@ -74,14 +74,17 @@ const ColorPalette = ({ onBack, data, setData }) => {
   return (
     <div className="flex flex-col h-full w-full animate-in fade-in slide-in-from-bottom-6 duration-700">
       {/* ── FIXED TOP: Heading + Buttons ── */}
-      <div className="flex-shrink-0 bg-white/95 backdrop-blur-md pb-4 pt-6 md:pb-5 md:pt-8 w-full max-w-5xl mx-auto px-2 md:px-3">
+      <div className="flex-shrink-0 bg-white/95 backdrop-blur-md pb-4 pt-6 md:pb-6 md:pt-8 w-full max-w-5xl mx-auto px-2 md:px-3">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between w-full">
           <div className="text-center md:text-left mb-3 md:mb-0">
-            <h1 className="mb-1 text-2xl font-black leading-tight tracking-tight text-[#1A1A1A] md:text-3xl">
+            <h1 className="mb-1.5 text-3xl font-black leading-tight tracking-tight text-[#111827] md:text-5xl">
               Choose Your Colors
             </h1>
-            <p className="text-xs font-medium leading-relaxed text-slate-600 md:text-sm">
+            <p className="text-base md:text-xl font-semibold leading-relaxed text-slate-600">
               Select a color scheme that matches your brand personality
+            </p>
+            <p className="mt-1 text-xs md:text-sm font-medium text-slate-500">
+              Choose a palette to shape the mood, or generate with default colors.
             </p>
           </div>
           <div className="flex flex-row items-center justify-center gap-2 md:gap-3 w-full md:w-auto">
@@ -93,8 +96,8 @@ const ColorPalette = ({ onBack, data, setData }) => {
             </button>
             <button
               onClick={handleGenerate}
-              disabled={!data.color || isLoading}
-              className={`w-1/2 md:w-auto flex items-center justify-center gap-2 rounded-2xl py-2.5 px-6 text-sm font-black transition-all duration-300 ${data.color && !isLoading
+              disabled={isLoading}
+              className={`w-1/2 md:w-auto flex items-center justify-center gap-2 rounded-2xl py-2.5 px-6 text-sm font-black transition-all duration-300 ${!isLoading
                 ? 'brand-button-primary hover:scale-[1.02] shadow-pink-500/30'
                 : 'cursor-not-allowed bg-slate-200 opacity-60'
                 }`}
@@ -113,11 +116,11 @@ const ColorPalette = ({ onBack, data, setData }) => {
       {/* ── SCROLLABLE GRID ── */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden pb-6 px-2 md:px-3 w-full max-w-5xl mx-auto pt-2">
         {submissionError && (
-          <div className="mb-4 text-center text-sm font-medium text-red-500 rounded-lg bg-red-50 py-2 border border-red-100">
+          <div className="mb-4 text-center text-sm font-semibold text-red-600 rounded-xl bg-red-50 py-2.5 border border-red-100">
             {submissionError}
           </div>
         )}
-        <div className="mx-auto grid w-full flex-1 grid-cols-2 gap-x-2 gap-y-1.5 lg:grid-cols-3 md:gap-x-2.5 md:gap-y-2">
+        <div className="mx-auto grid w-full flex-1 grid-cols-1 gap-x-3 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-3 md:gap-x-3 md:gap-y-3">
           {palettes.map((palette) => {
             const isSelected = data.color === palette.name;
 
@@ -125,12 +128,12 @@ const ColorPalette = ({ onBack, data, setData }) => {
               <button
                 key={palette.id}
                 onClick={() => handleSelect(palette)}
-                className={`relative flex h-[104px] flex-col items-center justify-between gap-1.5 rounded-[1rem] border-2 px-2.5 py-2.5 transition-all duration-500 ease-out sm:h-[122px] md:h-[162px] md:rounded-[1.15rem] md:px-4 md:py-4 ${isSelected
-                  ? 'z-10 scale-[1.03] border-pink-300 bg-white shadow-2xl'
-                  : 'border-transparent bg-white/60 hover:bg-white hover:shadow-md'
+                className={`relative flex h-[132px] flex-col items-center justify-between gap-2 rounded-[1rem] border-2 px-3 py-3 transition-all duration-500 ease-out sm:h-[144px] md:h-[178px] md:rounded-[1.15rem] md:px-4 md:py-4 ${isSelected
+                  ? 'z-10 scale-[1.02] border-pink-300 bg-white shadow-[0_22px_40px_-16px_rgba(255,0,122,0.35)]'
+                  : 'border-slate-100 bg-white/85 hover:border-slate-200 hover:bg-white hover:shadow-md'
                   }`}
               >
-                <div className={`h-10 w-full rounded-[0.9rem] bg-linear-to-r shadow-inner sm:h-12 md:h-[72px] ${palette.gradient}`}></div>
+                <div className={`h-14 w-full rounded-[0.9rem] bg-linear-to-r shadow-inner sm:h-16 md:h-[78px] ${palette.gradient}`}></div>
 
                 <div className="flex w-full justify-center gap-1.5 sm:gap-2.5">
                   {palette.colors.map((colorClass, index) => (
@@ -138,7 +141,7 @@ const ColorPalette = ({ onBack, data, setData }) => {
                   ))}
                 </div>
 
-                <span className={`mb-0.5 text-[9px] font-black leading-tight sm:text-[11px] md:text-[14px] ${isSelected ? 'text-slate-900' : 'text-slate-600'}`}>{palette.name}</span>
+                <span className={`mb-0.5 text-[15px] font-black leading-tight sm:text-[16px] md:text-[18px] ${isSelected ? 'text-slate-900' : 'text-slate-700'}`}>{palette.name}</span>
 
                 {isSelected && (
                   <div className="absolute right-2 top-2 rounded-full border-2 border-white bg-linear-to-r from-[#FF5C00] to-[#FF007A] p-1.5 shadow-lg md:-right-2 md:-top-2 md:p-2">

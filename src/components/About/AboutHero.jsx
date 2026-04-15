@@ -16,7 +16,7 @@ const AboutHero = () => {
   };
 
   return (
-    <section className="mt-20 relative w-full min-h-screen bg-[#FDF2F8] p-4 flex flex-col items-center justify-center overflow-hidden">
+    <section className="mt-20 relative w-full min-h-[20vh] bg-[#FDF2F8] px-0 py-0 flex flex-col items-center justify-center overflow-hidden">
       
       {/* --- Decorative Background Shapes --- */}
       

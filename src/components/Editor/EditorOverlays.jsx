@@ -351,7 +351,7 @@ export function EditorOverlays({
                             setDialogSelectedColor(safeColor);
                             setCustomColorValue(safeColor);
                           }}
-                          className={`mx-auto h-8 w-8 rounded-full border-[3px] transition-all sm:h-9 sm:w-9 ${isSelected ? 'scale-105 ring-2 ring-orange-300 border-black' : 'border-black/80'
+                          className={`mx-auto h-8 w-8 rounded-full shadow-sm transition-all sm:h-9 sm:w-9 ${isSelected ? 'scale-105 ring-2 ring-orange-300' : ''
                             }`}
                           style={{ backgroundColor: safeColor }}
                         />
@@ -372,7 +372,7 @@ export function EditorOverlays({
                               setDialogSelectedColor(shade);
                               setCustomColorValue(shade);
                             }}
-                            className={`h-8 w-8 rounded-full border-[3px] transition-all sm:h-9 sm:w-9 ${isSelected ? 'ring-2 ring-orange-300 border-black scale-105' : 'border-black/70'
+                            className={`h-8 w-8 rounded-full shadow-sm transition-all sm:h-9 sm:w-9 ${isSelected ? 'ring-2 ring-orange-300 scale-105' : ''
                               }`}
                             style={{ backgroundColor: shade }}
                           />
@@ -461,7 +461,7 @@ export function EditorOverlays({
                 >
                   <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">Start</p>
                   <div className="mt-2 flex items-center gap-3">
-                    <span className="h-8 w-8 rounded-full border border-slate-200" style={{ backgroundColor: gradientStartColor }} />
+                    <span className="h-8 w-8 rounded-full shadow-sm" style={{ backgroundColor: gradientStartColor }} />
                     <span className="text-sm font-bold text-slate-700">{gradientStartColor}</span>
                   </div>
                 </button>
@@ -471,7 +471,7 @@ export function EditorOverlays({
                 >
                   <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">End</p>
                   <div className="mt-2 flex items-center gap-3">
-                    <span className="h-8 w-8 rounded-full border border-slate-200" style={{ backgroundColor: gradientEndColor }} />
+                    <span className="h-8 w-8 rounded-full shadow-sm" style={{ backgroundColor: gradientEndColor }} />
                     <span className="text-sm font-bold text-slate-700">{gradientEndColor}</span>
                   </div>
                 </button>
@@ -602,7 +602,7 @@ export function EditorOverlays({
                             setGradientDialogSelectedColor(safeColor);
                             setGradientCustomColorValue(safeColor);
                           }}
-                          className={`mx-auto h-9 w-9 rounded-full border-[3px] transition-all sm:h-10 sm:w-10 ${isSelected ? 'scale-105 ring-2 ring-orange-300 border-black' : 'border-black/80'
+                          className={`mx-auto h-9 w-9 rounded-full shadow-sm transition-all sm:h-10 sm:w-10 ${isSelected ? 'scale-105 ring-2 ring-orange-300' : ''
                             }`}
                           style={{ backgroundColor: safeColor }}
                         />
@@ -624,7 +624,7 @@ export function EditorOverlays({
                               setGradientDialogSelectedColor(shade);
                               setGradientCustomColorValue(shade);
                             }}
-                            className={`h-9 w-9 rounded-full border-[3px] transition-all sm:h-10 sm:w-10 ${isSelected ? 'ring-2 ring-orange-300 border-black scale-105' : 'border-black/70'
+                            className={`h-9 w-9 rounded-full shadow-sm transition-all sm:h-10 sm:w-10 ${isSelected ? 'ring-2 ring-orange-300 scale-105' : ''
                               }`}
                             style={{ backgroundColor: shade }}
                           />

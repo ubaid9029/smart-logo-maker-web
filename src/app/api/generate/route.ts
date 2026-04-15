@@ -1,6 +1,9 @@
 import { NextResponse, NextRequest } from 'next/server';
 
 const SUPPORTED_COLOR_IDS = new Set(['1', '2', '3', '4', '5', '6']);
+const DEFAULT_INDUSTRY_ID = 23;
+const DEFAULT_FONT_ID = '1';
+const DEFAULT_COLOR_ID = '1';
 const NO_STORE_HEADERS = {
   'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
   Pragma: 'no-cache',
@@ -64,24 +67,12 @@ export async function POST(request: NextRequest) {
 
     const name = typeof body.name === 'string' ? body.name : '';
     const slogan = typeof body.slogan === 'string' ? body.slogan : '';
-    const industryId = body.industryId;
-    const fontId = body.fontId;
-    const colorId = body.colorId;
+    const industryId = body.industryId ?? DEFAULT_INDUSTRY_ID;
+    const fontId = body.fontId || DEFAULT_FONT_ID;
+    const colorId = body.colorId || DEFAULT_COLOR_ID;
 
     if (!name.trim()) {
       return jsonNoStore({ error: 'Business name is required.' }, { status: 400 });
-    }
-
-    if (industryId === undefined || industryId === null) {
-      return jsonNoStore({ error: 'Industry selection is required.' }, { status: 400 });
-    }
-
-    if (!fontId) {
-      return jsonNoStore({ error: 'Font selection is required.' }, { status: 400 });
-    }
-
-    if (!colorId) {
-      return jsonNoStore({ error: 'Color selection is required.' }, { status: 400 });
     }
 
     if (!SUPPORTED_COLOR_IDS.has(String(colorId))) {

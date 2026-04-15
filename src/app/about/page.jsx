@@ -7,12 +7,12 @@ import NumbersSection from "../../components/About/NumberSection.jsx";
 
 export default function AboutPage() {
   return (
-    <>
+    <main className="content-shell-boxed">
       <AboutHero />
       <OurStory />
       <ProblemSolution />
       <WhyChoose />
       <NumbersSection />
-    </>
+    </main>
   );
 }

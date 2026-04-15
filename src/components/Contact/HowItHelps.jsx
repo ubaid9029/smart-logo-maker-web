@@ -56,7 +56,7 @@ const HowIthelps = () => {
   };
 
   return (
-    <div className="relative min-h-screen w-full bg-[#03030b] text-white flex flex-col items-center justify-center py-20 px-6 overflow-hidden">
+    <div className="relative w-full bg-[#03030b] text-white flex flex-col items-center justify-center py-12 md:py-16 px-4 sm:px-6 overflow-hidden">
 
       {/* Background Effects */}
       <div className="absolute inset-0 opacity-[0.30]" style={{ backgroundImage: `linear-gradient(#1e293b 1px, transparent 1px), linear-gradient(90deg, #1e293b 1px, transparent 1px)`, backgroundSize: '40px 40px' }}></div>
@@ -66,7 +66,7 @@ const HowIthelps = () => {
 
       {/* Header Section with Animation */}
       <motion.div 
-        className="relative z-10 max-w-3xl w-full text-center mb-16"
+        className="relative z-10 max-w-3xl w-full text-center mb-10 md:mb-12"
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.5 }}
@@ -129,7 +129,7 @@ const HowIthelps = () => {
 
       {/* Trust Badge */}
       <motion.div 
-        className="mt-16 flex items-center gap-2 text-gray-500 text-sm"
+        className="mt-10 md:mt-12 flex items-center gap-2 text-gray-500 text-sm"
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 1 }}
         viewport={{ once: true }}

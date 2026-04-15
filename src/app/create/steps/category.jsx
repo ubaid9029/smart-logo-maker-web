@@ -14,7 +14,7 @@ import {
   Truck, Wrench, Stethoscope, Gem, Crown, Mountain,
   Waves, Palette, Rocket, TreePine, Fish, Bird,
   Cat, Scale, Mic, Radio, Store, Home, Monitor,
-  Clapperboard, GraduationCap, Headphones,
+  Clapperboard, GraduationCap, Headphones, Search,
 } from 'lucide-react';
 
 // Visual mapping for the top 20 API icons
@@ -121,6 +121,7 @@ const Category = ({ onNext, onBack, data, setData }) => {
   const [mainIndustries, setMainIndustries] = useState([]);
   const [otherIndustries, setOtherIndustries] = useState([]);
   const [othersLoaded, setOthersLoaded] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const fetchIndustries = async () => {
     try {
@@ -204,10 +205,14 @@ const Category = ({ onNext, onBack, data, setData }) => {
   };
 
   const handleContinue = useCallback(() => {
-    if (!data?.category || !data?.industry) return;
     dispatch(updateFormData({ industryId: data.industry }));
     onNext();
   }, [data, dispatch, onNext]);
+
+  const handleSkip = useCallback(() => {
+    setData({ ...data, category: '', industry: null });
+    onNext();
+  }, [data, onNext, setData]);
 
   useEffect(() => {
     const fn = (e) => {
@@ -224,41 +229,73 @@ const Category = ({ onNext, onBack, data, setData }) => {
     }, 50);
   };
 
-  const visibleOthers = otherIndustries.slice(0, othersLoaded);
-  const hasMore = othersLoaded < otherIndustries.length;
+  const normalizedSearchTerm = searchTerm.trim().toLowerCase();
+  const filteredMainIndustries = normalizedSearchTerm
+    ? mainIndustries.filter((item) => item.name.toLowerCase().includes(normalizedSearchTerm))
+    : mainIndustries;
+  const filteredOtherIndustries = normalizedSearchTerm
+    ? otherIndustries.filter((item) => item.name.toLowerCase().includes(normalizedSearchTerm))
+    : otherIndustries;
+  const visibleOthers = normalizedSearchTerm
+    ? filteredOtherIndustries
+    : filteredOtherIndustries.slice(0, othersLoaded);
+  const hasMore = !normalizedSearchTerm && othersLoaded < filteredOtherIndustries.length;
   const isOtherSelected = data?.industry && !mainIndustries.find(m => m.id === data.industry);
-  const allItems = [...mainIndustries, ...visibleOthers];
+  const allItems = [...filteredMainIndustries, ...visibleOthers];
 
-  const GRID = "grid w-full grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 md:gap-2.5";
+  const GRID = "grid w-full grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 md:gap-3";
 
   return (
     <div className="flex flex-col h-full w-full animate-in fade-in slide-in-from-bottom-6 duration-700">
 
       {/* ── FIXED TOP: Heading + Buttons (never scrolls) ── */}
-      <div className="flex-shrink-0 bg-white/95 backdrop-blur-md pb-4 pt-6 md:pb-5 md:pt-8 w-full max-w-6xl mx-auto px-2 md:px-3">
+      <div className="flex-shrink-0 bg-white/95 backdrop-blur-md pb-4 pt-6 md:pb-6 md:pt-8 w-full max-w-6xl mx-auto px-2 md:px-3">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between w-full">
           <div className="text-center md:text-left mb-3 md:mb-0">
-            <h1 className="mb-1 text-2xl font-black leading-tight tracking-tight text-[#1A1A1A] md:text-3xl">
+            <h1 className="mb-1.5 text-3xl font-black leading-tight tracking-tight text-[#111827] md:text-5xl">
               Choose Your Industry
             </h1>
-            <p className="text-xs font-medium leading-relaxed text-slate-600 md:text-sm">
+            <p className="text-base md:text-xl font-semibold leading-relaxed text-slate-600">
               Select the category that best fits your brand
+            </p>
+            <p className="mt-1 text-xs md:text-sm font-medium text-slate-500">
+              Tip: Pick one industry for best results, or skip to use a default style.
             </p>
           </div>
           <div className="flex flex-row items-center justify-center gap-2 md:gap-3 w-full md:w-auto">
             <button onClick={onBack} className="brand-button-outline w-1/2 md:w-auto rounded-2xl py-2.5 px-6 text-sm font-bold">
               Go Back
             </button>
-            <button
-              onClick={handleContinue}
-              disabled={!data?.category}
-              className={`w-1/2 md:w-auto rounded-2xl py-2.5 px-8 text-sm font-black transition-all duration-300 ${data?.category
-                ? 'brand-button-primary hover:scale-[1.02] shadow-pink-500/30'
-                : 'cursor-not-allowed bg-slate-200 opacity-60'
-              }`}
-            >
-              Continue
-            </button>
+            {data?.category ? (
+              <button
+                onClick={handleContinue}
+                className="w-1/2 md:w-auto rounded-2xl py-2.5 px-8 text-sm font-black transition-all duration-300 brand-button-primary hover:scale-[1.02] shadow-pink-500/30"
+              >
+                Continue
+              </button>
+            ) : (
+              <button
+                onClick={handleSkip}
+                className="w-1/2 md:w-auto rounded-2xl py-2.5 px-8 text-sm font-black transition-all duration-300 brand-button-secondary"
+              >
+                Skip
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-4 w-full">
+          <label htmlFor="industry-search" className="sr-only">Search industry</label>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+            <input
+              id="industry-search"
+              type="text"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Search industry..."
+              className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-12 pr-4 text-base font-medium text-slate-700 outline-none transition-all focus:border-pink-300 focus:ring-4 focus:ring-pink-500/10"
+            />
           </div>
         </div>
       </div>
@@ -268,7 +305,7 @@ const Category = ({ onNext, onBack, data, setData }) => {
         {loading ? (
           <div className={GRID}>
             {[...Array(21)].map((_, i) => (
-              <div key={i} className="min-h-[90px] sm:min-h-[100px] md:min-h-[120px] rounded-[0.95rem] md:rounded-[1.15rem] bg-slate-100 animate-pulse border-2 border-transparent" />
+              <div key={i} className="min-h-[112px] sm:min-h-[124px] md:min-h-[136px] rounded-[1rem] md:rounded-[1.15rem] bg-slate-100 animate-pulse border-2 border-transparent" />
             ))}
           </div>
         ) : (
@@ -280,15 +317,15 @@ const Category = ({ onNext, onBack, data, setData }) => {
                 <button
                   key={item.id}
                   onClick={() => handleSelect(item)}
-                  className={`relative flex min-h-[90px] sm:min-h-[100px] md:min-h-[120px] flex-col items-center justify-center rounded-[0.95rem] border-2 p-2 transition-all duration-300 md:rounded-[1.15rem] md:p-3 ${isSelected
-                    ? 'z-10 scale-105 border-pink-400 bg-white shadow-2xl'
-                    : 'border-transparent bg-white/70 hover:border-slate-200 hover:bg-white hover:shadow-md'
+                  className={`relative flex min-h-[112px] sm:min-h-[124px] md:min-h-[136px] flex-col items-center justify-center rounded-[1rem] border-2 p-2.5 transition-all duration-300 md:rounded-[1.15rem] md:p-3 ${isSelected
+                    ? 'z-10 scale-[1.02] border-pink-300 bg-white shadow-[0_18px_35px_-15px_rgba(255,0,122,0.35)]'
+                    : 'border-slate-100 bg-white/85 hover:border-slate-200 hover:bg-white hover:shadow-md'
                   }`}
                 >
-                  <div className={`${item.color} mb-1.5 rounded-lg p-2 text-white shadow-lg md:mb-2.5 md:p-3`}>
-                    <IconComponent className="h-6 w-6 md:h-8 md:w-8" />
+                  <div className={`${item.color} mb-2 rounded-xl p-2.5 text-white shadow-lg md:mb-2.5 md:p-3`}>
+                    <IconComponent className="h-6 w-6 md:h-7 md:w-7" />
                   </div>
-                  <span className={`text-center text-[10px] font-bold leading-snug sm:text-[11px] md:text-[14px] ${isSelected ? 'text-black' : 'text-slate-600'}`}>
+                  <span className={`text-center text-[12px] font-bold leading-snug sm:text-[13px] md:text-[15px] ${isSelected ? 'text-slate-900' : 'text-slate-700'}`}>
                     {item.name}
                   </span>
                   {isSelected && (
@@ -304,12 +341,12 @@ const Category = ({ onNext, onBack, data, setData }) => {
             {hasMore && (
               <button
                 onClick={loadMore}
-                className={`relative flex min-h-[90px] sm:min-h-[100px] md:min-h-[120px] flex-col items-center justify-center rounded-[0.95rem] border-2 border-dashed p-2 transition-all duration-300 md:rounded-[1.15rem] md:p-3 border-slate-300 bg-slate-50/50 hover:border-pink-300 hover:bg-pink-50/30 hover:shadow-md`}
+                className={`relative flex min-h-[112px] sm:min-h-[124px] md:min-h-[136px] flex-col items-center justify-center rounded-[1rem] border-2 border-dashed p-2.5 transition-all duration-300 md:rounded-[1.15rem] md:p-3 border-slate-300 bg-slate-50/60 hover:border-pink-300 hover:bg-pink-50/30 hover:shadow-md`}
               >
                 <div className={`mb-1.5 rounded-lg p-2 shadow-sm md:mb-2.5 md:p-3 bg-gradient-to-br from-pink-500 to-orange-400 text-white`}>
                   <ChevronDown className="h-6 w-6 md:h-8 md:w-8" />
                 </div>
-                <span className={`text-center text-[10px] font-bold leading-snug sm:text-[11px] md:text-[14px] text-pink-600`}>
+                <span className={`text-center text-[12px] font-bold leading-snug sm:text-[13px] md:text-[15px] text-pink-600`}>
                   {othersLoaded === 0 ? 'Others' : 'Load More'}
                 </span>
               </button>

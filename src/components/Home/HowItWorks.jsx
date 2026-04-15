@@ -1,11 +1,11 @@
 'use client';
 import { motion } from 'framer-motion';
-import { 
-  HiOutlineSearch, 
-  HiOutlinePencilAlt, 
-  HiOutlineColorSwatch, 
-  HiOutlineSparkles, 
-  HiOutlineDownload 
+import {
+  HiOutlineSearch,
+  HiOutlinePencilAlt,
+  HiOutlineColorSwatch,
+  HiOutlineSparkles,
+  HiOutlineDownload
 } from 'react-icons/hi';
 
 const steps = [
@@ -20,15 +20,15 @@ const HowItWorks = () => {
   return (
     <section id="how-it-works" className="py-24 bg-white relative overflow-hidden font-sans">
       {/* Grid Background */}
-      <div className="absolute inset-0 z-0 opacity-[0.5]" 
-           style={{ 
-             backgroundImage: `linear-gradient(#e5e7eb 1px, transparent 1px), linear-gradient(90deg, #e5e7eb 1px, transparent 1px)`, 
-             backgroundSize: '40px 40px' 
-           }}>
+      <div className="absolute inset-0 z-0 opacity-[0.5]"
+        style={{
+          backgroundImage: `linear-gradient(#e5e7eb 1px, transparent 1px), linear-gradient(90deg, #e5e7eb 1px, transparent 1px)`,
+          backgroundSize: '40px 40px'
+        }}>
       </div>
 
       <div className="max-w-7xl mx-auto px-6 relative z-10">
-        
+
         {/* Header Section */}
         <div className="text-center mb-24">
           <motion.span
@@ -39,7 +39,7 @@ const HowItWorks = () => {
           >
             SIMPLE PROCESS
           </motion.span>
-          <motion.h2 
+          <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -56,7 +56,7 @@ const HowItWorks = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-12 lg:gap-6 relative">
           {steps.map((step, index) => (
             <div key={index} className="flex flex-col items-center text-center relative">
-              
+
               {/* --- 1. SOLID GRADIENT ANIMATED LINE --- */}
               {index < steps.length - 1 && (
                 <div className="hidden lg:block absolute top-12 left-[55%] w-[70%] z-0">
@@ -64,12 +64,12 @@ const HowItWorks = () => {
                     initial={{ scaleX: 0 }}
                     whileInView={{ scaleX: 1 }}
                     viewport={{ once: true }}
-                    transition={{ 
-                        duration: 0.8, 
-                        delay: 1.0 + (index * 0.2), 
-                        ease: "circOut" 
+                    transition={{
+                      duration: 0.8,
+                      delay: 1.0 + (index * 0.2),
+                      ease: "circOut"
                     }}
-                    style={{ originX: 0 }} 
+                    style={{ originX: 0 }}
                     className="h-1 w-full bg-linear-to-r from-[#ff5c01] via-[#ff007a] to-[#c400ff] rounded-full opacity-60"
                   />
                 </div>
@@ -77,26 +77,26 @@ const HowItWorks = () => {
 
               {/* Step Indicator (Circle) */}
               <div className="relative mb-10 z-10">
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, scale: 0 }}
                   whileInView={{ opacity: 1, scale: 1 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.5, delay: index * 0.2 }}
-                  
+
                   // --- 2. DIAGONAL HOVER MOVEMENT ---
-                  whileHover={{ 
+                  whileHover={{
                     y: -15,         // Top side movement (negative value means up)
                     rotate: 12,    // Slight tilt
-                    scale: 1.08,    
+                    scale: 1.08,
                     transition: { type: "spring", stiffness: 400, damping: 20 }
                   }}
                   className="w-24 h-24 rounded-full bg-linear-to-br from-[#ff5c01] via-[#ff007a] to-[#c400ff] flex items-center justify-center text-white text-[28px] font-black shadow-2xl shadow-pink-200/60 cursor-pointer"
                 >
                   {step.id}
                 </motion.div>
-                
+
                 {/* Floating Icon Badge */}
-                <motion.div 
+                <motion.div
                   initial={{ scale: 0 }}
                   whileInView={{ scale: 1 }}
                   viewport={{ once: true }}

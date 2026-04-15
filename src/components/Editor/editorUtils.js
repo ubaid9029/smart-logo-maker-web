@@ -333,6 +333,87 @@ export const getRadialGradientCss = (angle, startColor, endColor) => {
   return `radial-gradient(circle at ${x}% ${y}%, ${startColor} 0%, ${endColor} 70%)`;
 };
 
+export const normalizeFillGradient = (fillGradient, fallback = null) => {
+  if (!fillGradient || typeof fillGradient !== 'object') {
+    return fallback;
+  }
+
+  const type = fillGradient.type === 'radial'
+    ? 'radial'
+    : fillGradient.type === 'linear'
+      ? 'linear'
+      : null;
+
+  if (!type) {
+    return fallback;
+  }
+
+  return {
+    type,
+    startColor: normalizeHexColor(fillGradient.startColor || '#000000', '#000000'),
+    endColor: normalizeHexColor(fillGradient.endColor || '#64748B', '#64748B'),
+    direction: fillGradient.direction || 'down',
+    radialAngle: Number(fillGradient.radialAngle ?? 225),
+  };
+};
+
+const getSvgLinearGradientVector = (direction = 'down') => {
+  switch (direction) {
+    case 'up':
+      return { x1: '0%', y1: '100%', x2: '0%', y2: '0%' };
+    case 'left':
+      return { x1: '100%', y1: '0%', x2: '0%', y2: '0%' };
+    case 'right':
+      return { x1: '0%', y1: '0%', x2: '100%', y2: '0%' };
+    case 'down':
+    default:
+      return { x1: '0%', y1: '0%', x2: '0%', y2: '100%' };
+  }
+};
+
+const getSvgRadialGradientVector = (angle = 225) => {
+  const safeAngle = Number(angle || 0);
+  const radians = (safeAngle * Math.PI) / 180;
+  const fx = 50 + Math.cos(radians) * 38;
+  const fy = 50 + Math.sin(radians) * 38;
+
+  return {
+    cx: '50%',
+    cy: '50%',
+    fx: `${fx}%`,
+    fy: `${fy}%`,
+    r: '70%',
+  };
+};
+
+const buildSvgFillGradientMarkup = (fillGradient, gradientId) => {
+  const normalizedGradient = normalizeFillGradient(fillGradient);
+
+  if (!normalizedGradient) {
+    return '';
+  }
+
+  if (normalizedGradient.type === 'linear') {
+    const vector = getSvgLinearGradientVector(normalizedGradient.direction);
+
+    return `
+      <linearGradient id="${gradientId}" x1="${vector.x1}" y1="${vector.y1}" x2="${vector.x2}" y2="${vector.y2}">
+        <stop offset="0%" stop-color="${normalizedGradient.startColor}" />
+        <stop offset="100%" stop-color="${normalizedGradient.endColor}" />
+      </linearGradient>
+    `.trim();
+  }
+
+  const vector = getSvgRadialGradientVector(normalizedGradient.radialAngle);
+
+  return `
+    <radialGradient id="${gradientId}" cx="${vector.cx}" cy="${vector.cy}" fx="${vector.fx}" fy="${vector.fy}" r="${vector.r}">
+      <stop offset="0%" stop-color="${normalizedGradient.startColor}" />
+      <stop offset="100%" stop-color="${normalizedGradient.endColor}" />
+    </radialGradient>
+  `.trim();
+};
+
 export const getCombinedTextValue = (businessValue, sloganValue) => {
   const safeBusiness = (businessValue || '').trim();
   const safeSlogan = (sloganValue || '').trim();
@@ -792,13 +873,19 @@ export const applySvgPresentationToMarkup = (svgMarkup, style = {}) => {
     return null;
   }
 
-  const hasFillOverride = Boolean(style.applyColorOverrides && style.fillColor);
+  const fillGradient = normalizeFillGradient(style.fillGradient);
+  const gradientId = 'editor-fill-gradient';
+  const fillOverrideValue = fillGradient
+    ? `url(#${gradientId})`
+    : style.fillColor || null;
+  const hasFillOverride = Boolean(style.applyColorOverrides && fillOverrideValue);
   const hasOutline = Number(style.outlineWidth || 0) > 0 && Boolean(style.outlineColor);
-  const strokeOverrideColor = hasOutline
+  const strokeOverrideValue = hasOutline
     ? style.outlineColor
-    : (hasFillOverride ? style.fillColor : null);
+    : (hasFillOverride ? fillOverrideValue : null);
 
   let nextMarkup = svgMarkup
+    .replace(/<defs\b[^>]*data-editor-fill-gradient="true"[^>]*>[\s\S]*?<\/defs>/gi, '')
     .replace(/\spaint-order="[^"]*"/gi, '')
     .replace(/\scolor="[^"]*"/gi, '')
     .replace(/\sstyle="([^"]*)"/gi, (_match, styleValue) => {
@@ -814,11 +901,11 @@ export const applySvgPresentationToMarkup = (svgMarkup, style = {}) => {
     });
 
   if (hasFillOverride) {
-    nextMarkup = nextMarkup.replace(/\sfill="(?!none)[^"]*"/gi, ` fill="${style.fillColor}"`);
+    nextMarkup = nextMarkup.replace(/\sfill="(?!none)[^"]*"/gi, ` fill="${fillOverrideValue}"`);
   }
 
-  if (strokeOverrideColor) {
-    nextMarkup = nextMarkup.replace(/\sstroke="(?!none)[^"]*"/gi, ` stroke="${strokeOverrideColor}"`);
+  if (strokeOverrideValue) {
+    nextMarkup = nextMarkup.replace(/\sstroke="(?!none)[^"]*"/gi, ` stroke="${strokeOverrideValue}"`);
   }
 
   if (hasOutline) {
@@ -845,11 +932,11 @@ export const applySvgPresentationToMarkup = (svgMarkup, style = {}) => {
       });
     const nextAttrs = [
       baseAttrs.trim(),
-      hasFillOverride ? `fill="${style.fillColor}"` : '',
-      strokeOverrideColor ? `stroke="${strokeOverrideColor}"` : '',
+      hasFillOverride ? `fill="${fillOverrideValue}"` : '',
+      strokeOverrideValue ? `stroke="${strokeOverrideValue}"` : '',
       hasOutline ? `stroke-width="${Number(style.outlineWidth)}"` : '',
       hasOutline ? 'paint-order="stroke fill"' : '',
-      hasFillOverride ? `color="${style.fillColor}"` : '',
+      hasFillOverride && !fillGradient ? `color="${style.fillColor}"` : '',
     ].filter(Boolean).join(' ');
 
     return `<svg ${nextAttrs}>`;
@@ -859,6 +946,14 @@ export const applySvgPresentationToMarkup = (svgMarkup, style = {}) => {
     nextMarkup = nextMarkup.replace(
       /<(g|text)\b([^>]*)>/gi,
       `<$1$2 stroke="${style.outlineColor}" stroke-width="${Number(style.outlineWidth)}" paint-order="stroke fill">`
+    );
+  }
+
+  if (fillGradient) {
+    const gradientMarkup = buildSvgFillGradientMarkup(fillGradient, gradientId);
+    nextMarkup = nextMarkup.replace(
+      /<svg\b[^>]*>/i,
+      (match) => `${match}<defs data-editor-fill-gradient="true">${gradientMarkup}</defs>`
     );
   }
 
@@ -944,6 +1039,7 @@ export const clampTransformToCard = (type, item, transform) => {
 
 export const buildDefaultItemStyle = (fillColor = '#111827') => ({
   fillColor,
+  fillGradient: null,
   outlineColor: '#111827',
   outlineWidth: 0,
   applyColorOverrides: false,

@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Group, Image as KonvaImage, Layer, Line, Path as KonvaPath, Rect, Shape as KonvaShape, Stage, Text, Transformer } from 'react-konva';
 import useImage from 'use-image';
-import { applySvgPresentationToMarkup, clampTransformToCard, getEditorTextValue, getOrderedCanvasItems, getTextBlockMetrics, getTextTypography, isBackgroundCanvasItem, isCanvasItemLocked, syncCanvasLayerOrder } from './editorUtils';
+import { applySvgPresentationToMarkup, clampTransformToCard, getEditorTextValue, getOrderedCanvasItems, getTextBlockMetrics, getTextTypography, isBackgroundCanvasItem, isCanvasItemLocked, normalizeFillGradient, syncCanvasLayerOrder } from './editorUtils';
 import { CARD_CORNER_RADIUS } from './editorConstants';
 import {
   BRAND_WATERMARK_OPACITY,
@@ -542,6 +542,82 @@ const getBackgroundFillProps = (bgColor, bgFill, width, height) => {
   return { fill: bgColor || '#FFFFFF' };
 };
 
+const mapGradientFillProps = (gradientProps = {}, target = 'fill') => {
+  if (target === 'stroke') {
+    return Object.entries(gradientProps).reduce((result, [key, value]) => {
+      const mappedKey = key.replace(/^fill/, 'stroke');
+      result[mappedKey] = value;
+      return result;
+    }, {});
+  }
+
+  return gradientProps;
+};
+
+const getNodeGradientProps = (fillGradient, width, height, target = 'fill') => {
+  const normalizedGradient = normalizeFillGradient(fillGradient);
+
+  if (!normalizedGradient) {
+    return null;
+  }
+
+  const gradientProps = normalizedGradient.type === 'linear'
+    ? (() => {
+        const [x0, y0, x1, y1] = getLinearGradientPoints(normalizedGradient.direction, width, height);
+        return {
+          fillLinearGradientStartPoint: { x: x0, y: y0 },
+          fillLinearGradientEndPoint: { x: x1, y: y1 },
+          fillLinearGradientColorStops: [
+            0,
+            normalizedGradient.startColor,
+            1,
+            normalizedGradient.endColor,
+          ],
+        };
+      })()
+    : (() => {
+        const radial = getRadialGradientPoints(normalizedGradient.radialAngle, width, height);
+        return {
+          fillRadialGradientStartPoint: { x: radial.start[0], y: radial.start[1] },
+          fillRadialGradientEndPoint: { x: radial.end[0], y: radial.end[1] },
+          fillRadialGradientStartRadius: radial.startRadius,
+          fillRadialGradientEndRadius: radial.endRadius,
+          fillRadialGradientColorStops: [
+            0,
+            normalizedGradient.startColor,
+            1,
+            normalizedGradient.endColor,
+          ],
+        };
+      })();
+
+  return mapGradientFillProps(gradientProps, target);
+};
+
+const getNodeFillProps = (fillColor, fillGradient, width, height) => {
+  const gradientProps = getNodeGradientProps(fillGradient, width, height, 'fill');
+
+  if (gradientProps) {
+    return gradientProps;
+  }
+
+  return fillColor && fillColor !== 'transparent'
+    ? { fill: fillColor }
+    : { fillEnabled: false };
+};
+
+const getNodeStrokeProps = (strokeColor, strokeGradient, width, height) => {
+  const gradientProps = getNodeGradientProps(strokeGradient, width, height, 'stroke');
+
+  if (gradientProps) {
+    return gradientProps;
+  }
+
+  return strokeColor
+    ? { stroke: strokeColor }
+    : { strokeEnabled: false };
+};
+
 const getBackgroundShapeGeometry = (shapeType, cardX, cardY, cardWidth, cardHeight, options = {}) => {
   const centerX = cardX + (cardWidth / 2);
   const centerY = cardY + (cardHeight / 2);
@@ -709,18 +785,21 @@ const traceBackgroundShapePath = (context, geometry) => {
 function ShapeGeometryNode({
   geometry,
   fillColor,
+  fillGradient,
   strokeColor,
   strokeWidth = 4,
   opacity = 1,
   nodeName,
+  gradientWidth = 0,
+  gradientHeight = 0,
 }) {
   if (!geometry) {
     return null;
   }
 
-  const fillProps = fillColor && fillColor !== 'transparent'
-    ? { fill: fillColor }
-    : { fillEnabled: false };
+  const resolvedGradientWidth = gradientWidth || geometry.width || 0;
+  const resolvedGradientHeight = gradientHeight || geometry.height || 0;
+  const fillProps = getNodeFillProps(fillColor, fillGradient, resolvedGradientWidth, resolvedGradientHeight);
 
   if (geometry.kind === 'rect') {
     return (
@@ -808,10 +887,13 @@ function BackgroundDecoration({
         <ShapeGeometryNode
           geometry={geometry}
           fillColor={fillColor}
+          fillGradient={null}
           strokeColor={stroke}
           strokeWidth={strokeWidth}
           opacity={opacity}
           nodeName="card-background"
+          gradientWidth={width}
+          gradientHeight={height}
         />
       </Group>
     );
@@ -822,10 +904,13 @@ function BackgroundDecoration({
     <ShapeGeometryNode
       geometry={geometry}
       fillColor={fillColor}
+      fillGradient={null}
       strokeColor={stroke}
       strokeWidth={strokeWidth}
       opacity={opacity}
       nodeName="card-background"
+      gradientWidth={cardWidth}
+      gradientHeight={cardHeight}
     />
   );
 }
@@ -854,6 +939,7 @@ function LogoNode({
   const isLineNode = item.kind === 'line' || item.type === 'line';
   const isShapeNode = item.kind === 'shape' || item.type === 'shape';
   const outlineWidth = Math.max(0, Number(item.style?.outlineWidth || 0));
+  const fillGradient = normalizeFillGradient(item.style?.fillGradient);
   const decodedSvgMarkup = useMemo(
     () => decodeSvgDataUri(item.imageUrl || item.src || ''),
     [item.imageUrl, item.src]
@@ -874,11 +960,12 @@ function LogoNode({
     const nextSvgMarkup = applySvgPresentationToMarkup(decodedSvgMarkup, {
       ...item.style,
       fillColor: item.style?.fillColor || undefined,
+      fillGradient,
       outlineColor: item.style?.outlineColor || undefined,
       outlineWidth,
     });
     return nextSvgMarkup || decodedSvgMarkup;
-  }, [decodedSvgMarkup, isLineNode, isShapeNode, item.style, outlineWidth]);
+  }, [decodedSvgMarkup, fillGradient, isLineNode, isShapeNode, item.style, outlineWidth]);
   const styledImageUrl = useMemo(() => {
     if (styledSvgMarkup) {
       return encodeSvgBase64DataUri(styledSvgMarkup);
@@ -1067,7 +1154,12 @@ function LogoNode({
             )}
             <Line
               points={item.points || [0, imageHeight / 2, imageWidth, imageHeight / 2]}
-              stroke={item.style?.fillColor || item.stroke || item.style?.outlineColor || '#475569'}
+              {...getNodeStrokeProps(
+                item.style?.fillColor || item.stroke || item.style?.outlineColor || '#475569',
+                fillGradient,
+                imageWidth,
+                imageHeight
+              )}
               strokeWidth={Number(item.strokeWidth || 2)}
               hitStrokeWidth={Math.max(20, Number(item.strokeWidth || 2) + 16)}
               opacity={item.opacity ?? 1}
@@ -1098,9 +1190,12 @@ function LogoNode({
                 { cornerRadius: item.style?.cornerRadius }
               )}
               fillColor={item.style?.fillColor || '#F8FAFC'}
+              fillGradient={fillGradient}
               strokeColor={item.style?.outlineColor || '#111827'}
               strokeWidth={Math.max(1, Number(item.style?.outlineWidth || 4))}
               opacity={nodeOpacity}
+              gradientWidth={imageWidth}
+              gradientHeight={imageHeight}
             />
           </>
         ) : (
@@ -1207,6 +1302,7 @@ function TextNode({
   const [svgTextImage] = useImage(shouldRenderSvgText ? item.svgDataUri : '');
   const transform3d = get3dTransforms(item.style);
   const nodeOpacity = Math.max(0.05, Math.min(1, Number(item.opacity ?? 1)));
+  const fillGradient = normalizeFillGradient(item.style?.fillGradient);
   const typography = getTextTypography(item, { fontFamily, fontSize });
   const resolvedFontFamily = typography.fontFamily;
   const actualScaleX = transform.scaleX || 1;
@@ -1366,7 +1462,12 @@ function TextNode({
             fontFamily={resolvedFontFamily}
             fontStyle={typography.konvaFontStyle}
             lineHeight={typography.lineHeight || undefined}
-            fill={item.style?.fillColor || item.fill || textColor || '#1F2937'}
+            {...getNodeFillProps(
+              item.style?.fillColor || item.fill || textColor || '#1F2937',
+              fillGradient,
+              blockWidth,
+              blockHeight
+            )}
             stroke={Number(item.style?.outlineWidth || 0) > 0 ? item.style?.outlineColor || '#111827' : undefined}
             strokeWidth={Number(item.style?.outlineWidth || 0)}
             align={item.align || "center"}

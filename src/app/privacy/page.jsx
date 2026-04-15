@@ -6,11 +6,11 @@ import PrivacyHero from "../../components/Privacy/PrivacyHero";
 
 export default function PrivacyPage() {
   return (
-    <>
+    <main className="content-shell-boxed">
       <Hero />
       <PrivacyHero />
       <Testimonials />
       <FinalCTA />
-    </>
+    </main>
   );
 }

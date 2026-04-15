@@ -27,7 +27,7 @@ const Hero = () => {
   }, []);
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-white pt-20">
+    <section className="relative flex items-center justify-center overflow-hidden bg-white pt-20 pb-10 md:pb-12">
 
       {/* 1. BACKGROUND IMAGE*/}
       <div className="absolute inset-0 z-0 pointer-events-none select-none overflow-hidden">

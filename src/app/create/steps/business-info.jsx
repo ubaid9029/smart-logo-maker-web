@@ -43,13 +43,13 @@ const BusinessInfo = ({ onNext, data, setData }) => {
   }, [submitBusinessInfo]);
 
   return (
-    <div className="mx-auto w-full max-w-3xl animate-in fade-in slide-in-from-bottom-4 duration-700 px-2 md:px-3">
+    <div className="mx-auto w-full max-w-4xl animate-in fade-in slide-in-from-bottom-4 duration-700 px-2 md:px-3">
       <div className="flex flex-col justify-center py-6 md:py-8">
-        <div className="mb-3 text-center md:mb-5">
-          <h1 className="mb-2 text-2xl font-black leading-tight tracking-tight text-[#1A1A1A] md:text-4xl lg:text-5xl">
+        <div className="mb-4 text-center md:mb-6">
+          <h1 className="mb-2 text-3xl font-black leading-tight tracking-tight text-[#1A1A1A] md:text-4xl lg:text-5xl">
             Let&apos;s Get Started
           </h1>
-          <p className="mx-auto max-w-xl px-2 text-sm font-medium leading-relaxed text-slate-600 md:text-base lg:text-lg">
+          <p className="mx-auto max-w-2xl px-2 text-sm md:text-base font-medium leading-relaxed text-slate-600">
             Tell us about your business to create the perfect logo
           </p>
         </div>

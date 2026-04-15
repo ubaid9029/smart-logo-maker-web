@@ -7,9 +7,9 @@ export default function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer aria-label="Site footer" className="border-t border-gray-800/50 bg-[#121a31] pb-10 pt-20 text-white">
+    <footer aria-label="Site footer" className="border-t border-gray-800/50 bg-[#121a31] pb-10 pt-12 sm:pt-14 md:pt-16 text-white">
       <div className="mx-auto max-w-7xl px-6 md:px-12">
-        <div className="mb-16 grid grid-cols-1 gap-12 md:grid-cols-12">
+        <div className="mb-10 sm:mb-12 md:mb-14 grid grid-cols-1 gap-8 sm:gap-10 md:grid-cols-12">
           <div className="md:col-span-4">
             <div className="flex items-center gap-2">
               <Image src="/logos/logo2.svg" alt="Smart Logo Maker" width={120} height={120} className="h-30 w-30" />

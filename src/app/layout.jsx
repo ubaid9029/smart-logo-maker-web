@@ -1,7 +1,14 @@
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import ConditionalLayout from "../components/MainComponents/ConditionalLayout";
 import { Providers } from "./providers";
-import ClientPersistGate from "../components/ClientPersistGate"; // Nayi file
+import ClientPersistGate from "../components/ClientPersistGate";
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-plus-jakarta',
+});
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 const siteTitle = "Smart Logo Maker";
@@ -44,8 +51,8 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" className={`${plusJakartaSans.variable}`}>
+      <body className="font-sans antialiased">
         <Providers>
           <ClientPersistGate>
             <ConditionalLayout>

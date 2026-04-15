@@ -5,7 +5,7 @@ import Footer from "./Footer";
 
 export default function ConditionalLayout({ children }) {
   const pathname = usePathname();
-  
+
   const isAuthRoute = pathname.startsWith("/auth");
   const isCreateRoute = pathname.startsWith("/create");
   const isGeneratingRoute = pathname.startsWith("/generating");
@@ -18,7 +18,7 @@ export default function ConditionalLayout({ children }) {
   const hideFooterOnly = isEditorRoute;
 
   return (
-    <>
+    <div className="flex min-h-screen flex-col">
       <a
         href="#main-content"
         className="skip-link sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-full focus:bg-slate-950 focus:px-5 focus:py-3 focus:text-sm focus:font-bold focus:text-white focus:shadow-xl"
@@ -28,21 +28,28 @@ export default function ConditionalLayout({ children }) {
 
       {/* Navbar: hidden only on auth routes */}
       {!isAuthRoute && (
-        <div className="app-navbar-shell">
+        <div className="app-navbar-shell flex-none">
           <Navbar minimal={isCreateRoute || isGeneratingRoute || isResultRoute || isEditorRoute} />
         </div>
       )}
 
-      <main id="main-content" tabIndex={-1}>{children}</main>
+      {/* Main content expands to push footer to the bottom */}
+        <main id="main-content" tabIndex={-1} className="flex-1 w-full flex flex-col bg-[#fffaf7]">
+          {children}
+      </main>
 
-      {/* Footer: Auth, Create, aur Editor par hide hoga */}
-      {!isAuthRoute && !isCreateRoute && !hideFooterOnly && !isGeneratingRoute && !isResultRoute && <Footer />}
+      {/* Footer stays at the bottom */}
+      {!isAuthRoute && !isCreateRoute && !hideFooterOnly && !isGeneratingRoute && !isResultRoute && (
+        <div className="flex-none">
+          <Footer />
+        </div>
+      )}
 
       <style jsx global>{`
         body.editor-preview-open .app-navbar-shell {
           display: none;
         }
       `}</style>
-    </>
+    </div>
   );
 }

@@ -92,12 +92,12 @@ function CreateFlowContent({
   };
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-white">
+    <div className="flex min-h-[100dvh] flex-col bg-gradient-to-b from-white to-[#fff8fb]">
       {/* Progress bar — fixed at top */}
-      <div className="flex-shrink-0 z-40 w-full border-b border-gray-50 bg-white/90 px-3 py-2.5 backdrop-blur-md md:px-6 md:py-3.5">
-        <div className="mx-auto max-w-4xl">
+      <div className="flex-shrink-0 z-40 w-full border-b border-gray-100 bg-white/92 px-3 py-2.5 backdrop-blur-md md:px-6 md:py-3.5">
+        <div className="mx-auto max-w-6xl">
           <div className="mb-2 flex items-center justify-between px-1">
-            <span className="text-sm font-bold text-slate-700">Step {step} of {totalSteps}</span>
+            <span className="text-sm md:text-base font-bold text-slate-700">Step {step} of {totalSteps}</span>
             <div className="flex items-center gap-3">
               {hasSavedDraft && (
                 <button
@@ -120,13 +120,13 @@ function CreateFlowContent({
       </div>
 
       {/* Main content — fills remaining height, each step controls its own scroll */}
-      <div className="flex flex-1 flex-col overflow-hidden mx-auto w-full max-w-5xl px-3 md:px-5">
+      <div className="flex flex-1 flex-col overflow-visible mx-auto w-full max-w-6xl px-3 md:px-5">
         {showMissingResultsNotice && (
-          <div className="mb-3 flex-shrink-0 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 shadow-sm">
+          <div className="mb-3 mt-2 flex-shrink-0 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold leading-relaxed text-amber-700 shadow-sm">
             Previous results were no longer available, so we returned you to Create.
           </div>
         )}
-        <div className="flex flex-1 flex-col overflow-hidden transition-opacity duration-500">
+        <div className="flex flex-1 flex-col overflow-visible transition-opacity duration-500">
           {step === 1 && (
             <BusinessInfo onNext={nextStep} data={formData} setData={setFormData} />
           )}

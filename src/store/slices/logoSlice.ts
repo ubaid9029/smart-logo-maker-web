@@ -46,22 +46,12 @@ export const generateLogosAction = createAsyncThunk(
   async (userData: Partial<LogoFormData> | undefined, { rejectWithValue }) => {
     try {
       const payload = {
-        name: userData?.name,
+        name: userData?.name ?? '',
         slogan: userData?.slogan ?? '',
-        industryId: userData?.industryId,
-        fontId: userData?.fontId,
-        colorId: userData?.colorId,
+        industryId: userData?.industryId ?? null,
+        fontId: userData?.fontId ?? '',
+        colorId: userData?.colorId ?? '',
       };
-
-      if (
-        !payload.name?.trim() ||
-        payload.industryId === undefined ||
-        payload.industryId === null ||
-        !payload.fontId ||
-        !payload.colorId
-      ) {
-        return rejectWithValue('Missing required business name, industry, font, or color selection.');
-      }
 
       const response = await axios.post('/api/generate', {
         ...payload,

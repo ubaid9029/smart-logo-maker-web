@@ -24,7 +24,7 @@ const ProblemSolution = () => {
   ];
 
   return (
-    <section className="relative py-24 px-6 bg-[#f8faff] overflow-hidden">
+    <section className="relative py-12 md:py-16 px-4 sm:px-6 bg-[#f8faff] overflow-hidden">
       {/* Background Grid Pattern */}
       <div 
         className="absolute top-0 right-0 w-1/3 h-1/3 opacity-10 pointer-events-none"
@@ -48,7 +48,7 @@ const ProblemSolution = () => {
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           transition={{ delay: 0.2 }}
-          className="text-gray-500 text-lg mb-16"
+          className="text-gray-500 text-lg mb-10 md:mb-12"
         >
           We&apos;re optimize problem and smart logo services
         </motion.p>

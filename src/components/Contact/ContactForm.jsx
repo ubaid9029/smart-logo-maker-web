@@ -30,15 +30,15 @@ export default function ContactForm() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8F9FD] font-sans text-slate-900 overflow-hidden">
+    <div className="bg-[#F8F9FD] font-sans text-slate-900 overflow-hidden">
 
       {/* --- HERO / CONTACT FORM SECTION --- */}
-      <section className="relative pt-32 pb-20 px-6 bg-linear-to-br from-purple-50 via-white to-blue-50">
+      <section className="relative pt-24 md:pt-28 pb-12 md:pb-14 px-4 sm:px-6 bg-linear-to-br from-purple-50 via-white to-blue-50">
         <div className="max-w-6xl mx-auto">
           
           {/* Animated Heading */}
           <motion.h1 
-            className="text-5xl font-bold text-center mb-16 bg-linear-to-r from-[#ff5c01] via-[#ff007a] to-[#c400ff] bg-clip-text text-transparent"
+            className="text-4xl md:text-5xl font-bold text-center mb-10 md:mb-12 bg-linear-to-r from-[#ff5c01] via-[#ff007a] to-[#c400ff] bg-clip-text text-transparent"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}

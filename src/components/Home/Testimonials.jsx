@@ -1,7 +1,7 @@
 'use client';
 import { motion } from 'framer-motion';
 // hi2 use karein, ye zyada stable hai
-import { HiStar } from 'react-icons/hi2'; 
+import { HiStar } from 'react-icons/hi2';
 
 const testimonials = [
   {
@@ -28,10 +28,10 @@ const Testimonials = () => {
   return (
     <section className="py-24 bg-white relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-6 relative z-10">
-        
+
         {/* Header */}
         <div className="text-center mb-16">
-          <motion.span 
+          <motion.span
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
@@ -39,7 +39,7 @@ const Testimonials = () => {
           >
             Testimonials
           </motion.span>
-          <motion.h2 
+          <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -48,7 +48,7 @@ const Testimonials = () => {
           >
             Loved by Creators
           </motion.h2>
-<p className="text-2xl text-[rgb(84,85,88)]">Join thousands of satisfied users worldwide</p>
+          <p className="text-2xl text-[rgb(84,85,88)]">Join thousands of satisfied users worldwide</p>
         </div>
 
         {/* Testimonial Cards Grid */}

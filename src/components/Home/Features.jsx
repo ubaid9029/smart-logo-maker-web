@@ -16,10 +16,17 @@ const featuresData = [
 
 const Features = () => {
   return (
-    <section id="features" className="py-24 bg-white overflow-hidden">
-      <div className="max-w-7xl mx-auto px-6">
+    <section id="features" className="relative overflow-hidden bg-white pb-24">
+      {/* Shared hero-style background gradient — continues the hero feel */}
+      <div className="pointer-events-none absolute inset-0 z-0">
+        <div className="absolute inset-0 bg-gradient-to-b from-white via-pink-50/30 to-white" />
+        <div className="absolute -left-32 top-0 h-64 w-64 rounded-full bg-orange-200/20 blur-[80px] md:h-96 md:w-96" />
+        <div className="absolute -right-32 bottom-0 h-64 w-64 rounded-full bg-purple-200/20 blur-[80px] md:h-96 md:w-96" />
+      </div>
 
-        <div className="text-center mb-20 ">
+      <div className="relative z-10 mx-auto w-full max-w-[1440px] px-6 md:px-12">
+
+        <div className="text-center mb-16 pt-4">
           <motion.span
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
@@ -30,7 +37,6 @@ const Features = () => {
           </motion.span>
           <h2 className="text-[36px] md:text-[52px] font-black text-[#0f172a] mb-6 leading-tight">
             Everything You Need
-
           </h2>
           <p className="text-gray-500 max-w-2xl mx-auto text-lg font-medium">
             Create, customize, and perfect your brand identity with our <br /> comprehensive toolkit

@@ -15,7 +15,7 @@ const stats = [
 
 export default function FinalCTASection() {
   return (
-    <section id="final-cta" className="relative overflow-hidden bg-[#0f172a] py-24 text-white">
+    <section id="final-cta" className="relative overflow-hidden bg-[#0f172a] py-12 md:py-16 text-white">
       <div className="absolute left-1/4 top-1/2 h-80 w-80 -translate-y-1/2 rounded-full bg-purple-600/20 blur-[120px]" />
       <div className="absolute right-1/4 top-1/2 h-80 w-80 -translate-y-1/2 rounded-full bg-orange-600/20 blur-[120px]" />
 
@@ -39,11 +39,11 @@ export default function FinalCTASection() {
           Ready to Create Your <br className="hidden md:block" /> Perfect Logo?
         </motion.h2>
 
-        <p className="mx-auto mb-12 max-w-2xl text-lg font-medium text-gray-400 md:text-xl">
+        <p className="mx-auto mb-8 md:mb-10 max-w-2xl text-lg font-medium text-gray-400 md:text-xl">
           Join thousands of creators and bring your brand to life today
         </p>
 
-        <div className="mb-14 flex justify-center">
+        <div className="mb-10 md:mb-12 flex justify-center">
           <motion.div
             whileHover={{
               scale: 1.05,
@@ -61,7 +61,7 @@ export default function FinalCTASection() {
           </motion.div>
         </div>
 
-        <div className="mb-20 flex flex-wrap justify-center gap-8 text-[14px] font-bold uppercase tracking-widest text-gray-300">
+        <div className="mb-12 md:mb-14 flex flex-wrap justify-center gap-6 text-[14px] font-bold uppercase tracking-widest text-gray-300">
           {featureBadges.map((feature) => (
             <span
               key={feature}
@@ -73,7 +73,7 @@ export default function FinalCTASection() {
           ))}
         </div>
 
-        <div className="mx-auto grid max-w-4xl grid-cols-1 gap-12 border-t border-gray-800/50 pt-16 md:grid-cols-3">
+        <div className="mx-auto grid max-w-4xl grid-cols-1 gap-8 border-t border-gray-800/50 pt-10 md:grid-cols-3">
           {stats.map((stat) => (
             <motion.div key={stat.label} whileHover={{ y: -5 }} className="flex flex-col items-center">
               <span className={`bg-linear-to-r ${stat.gradient} bg-clip-text text-5xl font-black text-transparent`}>

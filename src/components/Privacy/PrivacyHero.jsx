@@ -3,9 +3,9 @@ import Link from 'next/link';
 
 const PrivacyPolicy = () => {
   return (
-    <div className="min-h-screen bg-white text-gray-900 scroll-smooth">
+    <div className="bg-white text-gray-900 scroll-smooth">
       {/* Hero Section */}
-      <section className="bg-linear-to-r from-pink-100 via-purple-50 to-blue-50 py-20 px-4 text-center">
+      <section className="bg-linear-to-r from-pink-100 via-purple-50 to-blue-50 py-12 md:py-14 px-4 text-center">
         <h1 className="text-5xl font-extrabold text-gray-900 mb-4 tracking-tight">
           Privacy Policy
         </h1>
@@ -18,7 +18,7 @@ const PrivacyPolicy = () => {
       </section>
 
       {/* Content Section */}
-      <div className="container mx-auto px-4 py-12 flex flex-col md:flex-row gap-8">
+      <div className="container mx-auto px-4 py-8 md:py-10 flex flex-col md:flex-row gap-6">
         
         {/* Sidebar Navigation - Sticky */}
         <aside className="w-full md:w-1/4">

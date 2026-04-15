@@ -1,4 +1,5 @@
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { Suspense } from "react";
 
 import Hero from "../components/Home/Hero.jsx";
@@ -87,20 +88,22 @@ export default function HomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <Hero />
-      <Features />
-      <Suspense fallback={<SectionPlaceholder title="workflow" />}>
-        <Howitworks />
-      </Suspense>
-      <Suspense fallback={<SectionPlaceholder title="app preview" tone="dark" />}>
-        <AppPreview />
-      </Suspense>
-      <Suspense fallback={<SectionPlaceholder title="testimonials" />}>
-        <Testimonials />
-      </Suspense>
-      <Suspense fallback={<SectionPlaceholder title="call to action" />}>
-        <FinalCTA />
-      </Suspense>
+      <main className="w-full bg-white overflow-hidden relative">
+        <Hero />
+        <Features />
+        <Suspense fallback={<SectionPlaceholder title="workflow" />}>
+          <Howitworks />
+        </Suspense>
+        <Suspense fallback={<SectionPlaceholder title="app preview" tone="dark" />}>
+          <AppPreview />
+        </Suspense>
+        <Suspense fallback={<SectionPlaceholder title="testimonials" />}>
+          <Testimonials />
+        </Suspense>
+        <Suspense fallback={<SectionPlaceholder title="call to action" />}>
+          <FinalCTA />
+        </Suspense>
+      </main>
     </>
   );
 }

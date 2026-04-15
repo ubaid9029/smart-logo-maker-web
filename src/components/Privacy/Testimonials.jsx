@@ -26,11 +26,11 @@ const testimonials = [
 
 const Testimonials = () => {
   return (
-    <section className="py-24 bg-white relative overflow-hidden">
+    <section className="py-12 md:py-16 bg-white relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-6 relative z-10">
         
         {/* Header */}
-        <div className="text-center mb-16">
+        <div className="text-center mb-10 md:mb-12">
           <motion.span 
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}

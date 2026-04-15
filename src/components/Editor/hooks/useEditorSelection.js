@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export function useEditorSelection({ activeTool, isMobileViewport, setActiveObjectPanel, setActiveTool, setSidebarOpen }) {
   const [selectedCanvasItem, setSelectedCanvasItem] = useState(null);
@@ -8,6 +8,11 @@ export function useEditorSelection({ activeTool, isMobileViewport, setActiveObje
   const selectedCanvasItemRef = useRef(null);
   const [canvasSelectionOverride, setCanvasSelectionOverride] = useState(null);
   const [canvasClearSelectionToken, setCanvasClearSelectionToken] = useState(0);
+
+  const activeToolRef = useRef(activeTool);
+  useEffect(() => {
+    activeToolRef.current = activeTool;
+  }, [activeTool]);
 
   const handleCanvasSelectionChange = useCallback((selectionState) => {
     const nextPrimaryItem = selectionState?.primary || null;
@@ -23,11 +28,11 @@ export function useEditorSelection({ activeTool, isMobileViewport, setActiveObje
       setSidebarOpen(true);
     } else {
       setActiveObjectPanel(null);
-      if (!isMobileViewport || !activeTool) {
+      if (!activeToolRef.current) {
         setSidebarOpen(false);
       }
     }
-  }, [activeTool, isMobileViewport, setActiveObjectPanel, setActiveTool, setSidebarOpen]);
+  }, [isMobileViewport, setActiveObjectPanel, setActiveTool, setSidebarOpen]);
 
   const clearCanvasSelection = useCallback(() => {
     selectedCanvasItemRef.current = null;

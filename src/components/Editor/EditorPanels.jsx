@@ -36,6 +36,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { ColorPickerField, HexColorInput } from './ColorInputs';
+import { getLinearGradientCss, getRadialGradientCss, normalizeFillGradient } from './editorUtils';
 
 const MOBILE_PANEL_LABELS = {
   controls: 'CONTROL',
@@ -160,6 +161,30 @@ function mobileContextButtonClass(isActive = false, extraClass = '') {
       ? 'border-orange-200 bg-orange-50 text-orange-600 ring-1 ring-orange-200'
       : 'border-slate-200 bg-white text-slate-700'
   } ${extraClass}`.trim();
+}
+
+function getFillPreviewStyle(fillColor, fillGradient) {
+  const normalizedGradient = normalizeFillGradient(fillGradient);
+
+  if (normalizedGradient) {
+    return {
+      background: normalizedGradient.type === 'linear'
+        ? getLinearGradientCss(
+            normalizedGradient.direction,
+            normalizedGradient.startColor,
+            normalizedGradient.endColor
+          )
+        : getRadialGradientCss(
+            normalizedGradient.radialAngle,
+            normalizedGradient.startColor,
+            normalizedGradient.endColor
+          ),
+    };
+  }
+
+  return {
+    backgroundColor: fillColor,
+  };
 }
 
 function LayerPanelRow({
@@ -379,7 +404,36 @@ export function EditorSidebarContent(props) {
   const selectedCornerRadius = Math.round(Number(selectedStyle.cornerRadius ?? 28));
   const selectedFontFamily = selectedItemData?.fontFamily || logoConfig.fontFamily || 'Arial';
   const selectedFontStyle = String(selectedItemData?.fontStyle || 'normal').toLowerCase();
+  const selectedFillColor = normalizeHexColor(selectedStyle.fillColor || '#111827', '#111827');
+  const selectedFillGradient = normalizeFillGradient(selectedStyle.fillGradient);
   const isGradientBackgroundTab = activeBackgroundOption === 'gradient';
+  const elementFillSelectionKey = `${selectedCanvasItem?.type || 'none'}:${selectedCanvasItem?.id || 'none'}`;
+  const [elementFillDraft, setElementFillDraft] = useState(() => ({
+    selectionKey: 'none:none',
+    activeTab: 'color',
+    gradientType: 'linear',
+    gradientDirection: 'down',
+    gradientStartColor: '#111827',
+    gradientEndColor: '#64748B',
+    gradientRadialAngle: 225,
+  }));
+  const resolvedElementFillDraft = elementFillDraft.selectionKey === elementFillSelectionKey
+    ? elementFillDraft
+    : {
+        selectionKey: elementFillSelectionKey,
+        activeTab: selectedFillGradient ? 'gradient' : 'color',
+        gradientType: selectedFillGradient?.type || 'linear',
+        gradientDirection: selectedFillGradient?.direction || 'down',
+        gradientStartColor: selectedFillGradient?.startColor || selectedFillColor,
+        gradientEndColor: selectedFillGradient?.endColor || '#64748B',
+        gradientRadialAngle: Number(selectedFillGradient?.radialAngle ?? 225),
+      };
+  const activeElementFillTab = resolvedElementFillDraft.activeTab;
+  const elementGradientType = resolvedElementFillDraft.gradientType;
+  const elementGradientDirection = resolvedElementFillDraft.gradientDirection;
+  const elementGradientStartColor = resolvedElementFillDraft.gradientStartColor;
+  const elementGradientEndColor = resolvedElementFillDraft.gradientEndColor;
+  const elementGradientRadialAngle = resolvedElementFillDraft.gradientRadialAngle;
   const fontStyleOptions = [
     { id: 'normal', label: 'Regular' },
     { id: 'bold', label: 'Bold' },
@@ -413,13 +467,42 @@ export function EditorSidebarContent(props) {
     { key: 'y', label: 'Y', value: selectedAdvancedMetrics?.y ?? 0 },
     { key: 'rotation', label: 'Rotate', value: selectedAdvancedMetrics?.rotation ?? 0 },
   ];
+  const elementGradientPreviewStyle = getFillPreviewStyle(selectedFillColor, {
+    type: elementGradientType,
+    startColor: elementGradientStartColor,
+    endColor: elementGradientEndColor,
+    direction: elementGradientDirection,
+    radialAngle: elementGradientRadialAngle,
+  });
+  const updateElementFillDraft = (updates) => {
+    setElementFillDraft({
+      ...resolvedElementFillDraft,
+      ...updates,
+      selectionKey: elementFillSelectionKey,
+    });
+  };
+
   const applySelectedFillColor = (nextColor) => {
     const safeColor = normalizeHexColor(nextColor, '#111827');
     updateSelectedItemStyle(
       selectedItemIsShape
-        ? { fillColor: safeColor, outlineColor: safeColor }
-        : { fillColor: safeColor }
+        ? { fillColor: safeColor, fillGradient: null, outlineColor: safeColor }
+        : { fillColor: safeColor, fillGradient: null }
     );
+  };
+  const applySelectedGradientFill = () => {
+    const nextGradient = {
+      type: elementGradientType,
+      startColor: normalizeHexColor(elementGradientStartColor, '#111827'),
+      endColor: normalizeHexColor(elementGradientEndColor, '#64748B'),
+      direction: elementGradientDirection,
+      radialAngle: Number(elementGradientRadialAngle || 225),
+    };
+
+    updateSelectedItemStyle({
+      fillColor: nextGradient.startColor,
+      fillGradient: nextGradient,
+    });
   };
   const renderIconClusterButton = (label, icon, onClick, tone = 'default') => (
     <button
@@ -799,70 +882,314 @@ export function EditorSidebarContent(props) {
       if (isMobileViewport) {
         return (
           <div className={`space-y-2 ${!isMobileViewport && activeBackgroundOption ? 'block' : 'lg:hidden'}`}> 
-            <div className="rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
-                Fill Color
-              </p>
-              <div className="mt-2 flex items-center gap-2">
-                <ColorPickerField
-                  value={isValidHexColor(selectedStyle.fillColor) ? selectedStyle.fillColor : normalizeHexColor(selectedStyle.fillColor, '#111827')}
-                  onChange={(event) => applySelectedFillColor(event.target.value)}
-                />
-                <HexColorInput
-                  value={normalizeHexColor(selectedStyle.fillColor || '#111827', '#111827')}
-                  onValidColorChange={applySelectedFillColor}
-                  placeholder="#111827"
-                />
-              </div>
-              <div className="mt-2 flex items-center gap-0.5 overflow-x-auto pb-1">
-                {colorSwatches.map((color) => (
-                  <button
-                    key={color}
-                    title={color}
-                    onClick={() => applySelectedFillColor(color)}
-                    className={`h-7 w-7 shrink-0 rounded-full border-[3px] transition-all ${
-                      selectedStyle.fillColor === color ? 'scale-105 ring-2 ring-orange-300 border-black' : 'border-black/80'
-                    }`}
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
+            <div className="rounded-[1rem] border border-slate-100 bg-white p-1.5 shadow-sm">
+              <div className="grid grid-cols-2 gap-1 rounded-[0.9rem] bg-slate-100/90 p-1">
+                <SegmentedToggleButton active={activeElementFillTab === 'color'} onClick={() => updateElementFillDraft({ activeTab: 'color' })}>
+                  Color
+                </SegmentedToggleButton>
+                <SegmentedToggleButton active={activeElementFillTab === 'gradient'} onClick={() => updateElementFillDraft({ activeTab: 'gradient' })}>
+                  Gradient
+                </SegmentedToggleButton>
               </div>
             </div>
+
+            {activeElementFillTab === 'color' ? (
+              <div className="rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+                  Fill Color
+                </p>
+                <div className="mt-2 flex items-center gap-2">
+                  <ColorPickerField
+                    value={selectedFillColor}
+                    onChange={(event) => applySelectedFillColor(event.target.value)}
+                  />
+                  <HexColorInput
+                    value={selectedFillColor}
+                    onValidColorChange={applySelectedFillColor}
+                    placeholder="#111827"
+                  />
+                </div>
+                <div className="mt-2 flex items-center gap-1 overflow-x-auto pb-1">
+                  {colorSwatches.map((color) => (
+                    <button
+                      key={color}
+                      title={color}
+                      onClick={() => applySelectedFillColor(color)}
+                      className={`h-7 w-7 shrink-0 rounded-full shadow-sm transition-all ${
+                        selectedStyle.fillColor === color && !selectedFillGradient ? 'scale-105 ring-2 ring-orange-300' : ''
+                      }`}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
+                  <div className="h-12 rounded-[0.9rem] shadow-sm" style={elementGradientPreviewStyle} />
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <div className="rounded-[0.85rem] border border-slate-200 bg-slate-50 p-2">
+                      <p className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-500">Start</p>
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <ColorPickerField
+                          value={elementGradientStartColor}
+                          onChange={(event) => updateElementFillDraft({ gradientStartColor: normalizeHexColor(event.target.value, '#111827') })}
+                          className="h-9 w-9 rounded-[0.8rem] p-1"
+                        />
+                        <HexColorInput
+                          value={elementGradientStartColor}
+                          onValidColorChange={(nextValue) => updateElementFillDraft({ gradientStartColor: normalizeHexColor(nextValue, '#111827') })}
+                          placeholder="#111827"
+                          className="h-9 min-w-0 flex-1 rounded-[0.9rem] px-3 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="rounded-[0.85rem] border border-slate-200 bg-slate-50 p-2">
+                      <p className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-500">End</p>
+                      <div className="mt-1.5 flex items-center gap-2">
+                        <ColorPickerField
+                          value={elementGradientEndColor}
+                          onChange={(event) => updateElementFillDraft({ gradientEndColor: normalizeHexColor(event.target.value, '#64748B') })}
+                          className="h-9 w-9 rounded-[0.8rem] p-1"
+                        />
+                        <HexColorInput
+                          value={elementGradientEndColor}
+                          onValidColorChange={(nextValue) => updateElementFillDraft({ gradientEndColor: normalizeHexColor(nextValue, '#64748B') })}
+                          placeholder="#64748B"
+                          className="h-9 min-w-0 flex-1 rounded-[0.9rem] px-3 text-xs"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => updateElementFillDraft({ gradientType: 'linear' })}
+                      className={`brand-chip-button rounded-lg px-2.5 py-1.5 text-[10px] ${elementGradientType === 'linear' ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200' : ''}`}
+                    >
+                      Linear
+                    </button>
+                    <button
+                      onClick={() => updateElementFillDraft({ gradientType: 'radial' })}
+                      className={`brand-chip-button rounded-lg px-2.5 py-1.5 text-[10px] ${elementGradientType === 'radial' ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200' : ''}`}
+                    >
+                      Radial
+                    </button>
+                  </div>
+
+                  {elementGradientType === 'linear' ? (
+                    <div className="mt-2 flex items-center gap-1 overflow-x-auto">
+                      {gradientDirectionOptions.map((option) => {
+                        const Icon = option.icon;
+                        const isActive = elementGradientDirection === option.id;
+
+                        return (
+                          <button
+                            key={option.id}
+                            onClick={() => updateElementFillDraft({ gradientDirection: option.id })}
+                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.6rem] border transition-all ${
+                              isActive
+                                ? 'border-black bg-orange-50 text-orange-600 ring-2 ring-orange-200'
+                                : 'border-slate-200 bg-white text-slate-600'
+                            }`}
+                          >
+                            <Icon size={13} />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="mt-2 rounded-[0.85rem] border border-slate-200 bg-slate-50 px-3 py-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Angle</span>
+                        <span className="text-[11px] font-bold text-slate-700">{elementGradientRadialAngle} deg</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="360"
+                        step="1"
+                        value={elementGradientRadialAngle}
+                        onChange={(event) => updateElementFillDraft({ gradientRadialAngle: Number(event.target.value) })}
+                        className="mt-2 w-full accent-orange-500"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  onClick={applySelectedGradientFill}
+                  className="brand-button-outline w-full px-4 py-2 text-sm"
+                >
+                  Apply Gradient
+                </button>
+              </>
+            )}
           </div>
         );
       }
 
       return (
         <div className="space-y-4">
-          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-            <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
-              Fill Color
-            </p>
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <ColorPickerField
-                value={isValidHexColor(selectedStyle.fillColor) ? selectedStyle.fillColor : normalizeHexColor(selectedStyle.fillColor, '#111827')}
-                onChange={(event) => applySelectedFillColor(event.target.value)}
-              />
-              <HexColorInput
-                value={normalizeHexColor(selectedStyle.fillColor || '#111827', '#111827')}
-                onValidColorChange={applySelectedFillColor}
-                placeholder="#111827"
-              />
-            </div>
-            <div className="mt-4 grid grid-cols-6 gap-1">
-              {colorSwatches.map((color) => (
-                <button
-                  key={color}
-                  title={color}
-                  onClick={() => applySelectedFillColor(color)}
-                  className={`h-10 w-10 rounded-full border-[3px] transition-all ${
-                    selectedStyle.fillColor === color ? 'scale-105 ring-2 ring-orange-300 border-black' : 'border-black/80'
-                  }`}
-                  style={{ backgroundColor: color }}
-                />
-              ))}
+          <div className="rounded-3xl border border-slate-100 bg-white p-2.5 shadow-sm">
+            <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100/90 p-1">
+              <SegmentedToggleButton active={activeElementFillTab === 'color'} onClick={() => updateElementFillDraft({ activeTab: 'color' })}>
+                Color
+              </SegmentedToggleButton>
+              <SegmentedToggleButton active={activeElementFillTab === 'gradient'} onClick={() => updateElementFillDraft({ activeTab: 'gradient' })}>
+                Gradient
+              </SegmentedToggleButton>
             </div>
           </div>
+
+          {activeElementFillTab === 'color' ? (
+            <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
+                Fill Color
+              </p>
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <ColorPickerField
+                  value={selectedFillColor}
+                  onChange={(event) => applySelectedFillColor(event.target.value)}
+                />
+                <HexColorInput
+                  value={selectedFillColor}
+                  onValidColorChange={applySelectedFillColor}
+                  placeholder="#111827"
+                />
+              </div>
+              <div className="mt-4 grid grid-cols-6 gap-2">
+                {colorSwatches.map((color) => (
+                  <button
+                    key={color}
+                    title={color}
+                    onClick={() => applySelectedFillColor(color)}
+                    className={`h-10 w-10 rounded-full shadow-sm transition-all ${
+                      selectedStyle.fillColor === color && !selectedFillGradient ? 'scale-105 ring-2 ring-orange-300' : ''
+                    }`}
+                    style={{ backgroundColor: color }}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
+                    Gradient
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => updateElementFillDraft({ gradientType: 'linear' })}
+                      className={`brand-chip-button px-2.5 py-1.5 text-[10px] ${elementGradientType === 'linear' ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200' : ''}`}
+                    >
+                      Linear
+                    </button>
+                    <button
+                      onClick={() => updateElementFillDraft({ gradientType: 'radial' })}
+                      className={`brand-chip-button px-2.5 py-1.5 text-[10px] ${elementGradientType === 'radial' ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200' : ''}`}
+                    >
+                      Radial
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-3 h-16 rounded-[1rem] shadow-sm" style={elementGradientPreviewStyle} />
+              </div>
+
+              <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
+                  Colors
+                </p>
+                <div className="mt-3 space-y-2.5">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">Start</p>
+                    <div className="mt-2 flex min-w-0 items-center gap-2">
+                      <ColorPickerField
+                        value={elementGradientStartColor}
+                        onChange={(event) => updateElementFillDraft({ gradientStartColor: normalizeHexColor(event.target.value, '#111827') })}
+                        className="h-10 w-10"
+                      />
+                      <HexColorInput
+                        value={elementGradientStartColor}
+                        onValidColorChange={(nextValue) => updateElementFillDraft({ gradientStartColor: normalizeHexColor(nextValue, '#111827') })}
+                        placeholder="#111827"
+                        className="h-10 min-w-0 flex-1 px-3 text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">End</p>
+                    <div className="mt-2 flex min-w-0 items-center gap-2">
+                      <ColorPickerField
+                        value={elementGradientEndColor}
+                        onChange={(event) => updateElementFillDraft({ gradientEndColor: normalizeHexColor(event.target.value, '#64748B') })}
+                        className="h-10 w-10"
+                      />
+                      <HexColorInput
+                        value={elementGradientEndColor}
+                        onValidColorChange={(nextValue) => updateElementFillDraft({ gradientEndColor: normalizeHexColor(nextValue, '#64748B') })}
+                        placeholder="#64748B"
+                        className="h-10 min-w-0 flex-1 px-3 text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
+                  Direction
+                </p>
+                {elementGradientType === 'linear' ? (
+                  <div className="mt-3 grid grid-cols-4 gap-2">
+                    {gradientDirectionOptions.map((option) => {
+                      const Icon = option.icon;
+                      const isActive = elementGradientDirection === option.id;
+
+                      return (
+                        <button
+                          key={option.id}
+                          onClick={() => updateElementFillDraft({ gradientDirection: option.id })}
+                          title={option.label}
+                          className={`flex h-10 w-full items-center justify-center rounded-xl border transition-all ${isActive ? 'border-black bg-orange-50 text-orange-600 ring-2 ring-orange-200' : 'border-slate-200 bg-white text-slate-600'}`}
+                        >
+                          <Icon size={16} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-bold text-slate-500">Angle</span>
+                      <span className="text-sm font-bold text-slate-700">{elementGradientRadialAngle} deg</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="360"
+                      step="1"
+                      value={elementGradientRadialAngle}
+                      onChange={(event) => updateElementFillDraft({ gradientRadialAngle: Number(event.target.value) })}
+                      className="mt-2 w-full accent-orange-500"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={applySelectedGradientFill}
+                className="brand-button-outline w-full px-4 py-2 text-sm"
+              >
+                Apply Gradient
+              </button>
+            </>
+          )}
         </div>
       );
     }
@@ -1095,8 +1422,8 @@ export function EditorSidebarContent(props) {
                     key={color}
                     title={color}
                     onClick={() => updateSelectedItemStyle({ outlineColor: color })}
-                    className={`h-7 w-7 shrink-0 rounded-full border-[3px] transition-all ${
-                      selectedStyle.outlineColor === color ? 'scale-105 ring-2 ring-orange-300 border-black' : 'border-black/80'
+                    className={`h-7 w-7 shrink-0 rounded-full shadow-sm transition-all ${
+                      selectedStyle.outlineColor === color ? 'scale-105 ring-2 ring-orange-300' : ''
                     }`}
                     style={{ backgroundColor: color }}
                   />
@@ -1130,8 +1457,8 @@ export function EditorSidebarContent(props) {
                   key={color}
                   title={color}
                   onClick={() => updateSelectedItemStyle({ outlineColor: color })}
-                  className={`h-10 w-10 rounded-full border-[3px] transition-all ${
-                    selectedStyle.outlineColor === color ? 'scale-105 ring-2 ring-orange-300 border-black' : 'border-black/80'
+                  className={`h-10 w-10 rounded-full shadow-sm transition-all ${
+                    selectedStyle.outlineColor === color ? 'scale-105 ring-2 ring-orange-300' : ''
                   }`}
                   style={{ backgroundColor: color }}
                 />
@@ -1272,10 +1599,10 @@ export function EditorSidebarContent(props) {
                             setCustomColorValue(safeColor);
                             applyBackgroundColor(safeColor);
                           }}
-                          className={`h-7 w-7 shrink-0 rounded-full border-[3px] transition-all ${
+                          className={`h-7 w-7 shrink-0 rounded-full shadow-sm transition-all ${
                             dialogSelectedColor === normalizeHexColor(color, '#FFFFFF')
-                              ? 'scale-105 ring-2 ring-orange-300 border-black'
-                              : 'border-black/80'
+                              ? 'scale-105 ring-2 ring-orange-300'
+                              : ''
                           }`}
                           style={{ backgroundColor: color }}
                         />
@@ -1301,9 +1628,6 @@ export function EditorSidebarContent(props) {
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Background Layers</p>
-                        <p className="mt-1 text-xs font-semibold text-slate-500">
-                          Select any element, then use `Set As Bg` to stack multiple background layers.
-                        </p>
                       </div>
                       <span className="rounded-full bg-white px-2.5 py-1 text-xs font-black text-slate-600">
                         {backgroundLayerCount}
@@ -1349,10 +1673,10 @@ export function EditorSidebarContent(props) {
                           setCustomColorValue(safeColor);
                           applyBackgroundColor(safeColor);
                         }}
-                        className={`h-10 w-10 rounded-full border-[3px] transition-all ${
+                        className={`h-10 w-10 rounded-full shadow-sm transition-all ${
                           dialogSelectedColor === normalizeHexColor(color, '#FFFFFF')
-                            ? 'scale-105 ring-2 ring-orange-300 border-black'
-                            : 'border-black/80'
+                            ? 'scale-105 ring-2 ring-orange-300'
+                            : ''
                         }`}
                         style={{ backgroundColor: color }}
                       />
@@ -1717,10 +2041,6 @@ export function EditorSidebarContent(props) {
                 <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
                   Shape Elements
                 </p>
-                <p className="mt-2 text-sm font-medium text-slate-500">
-                  Kisi bhi shape par click karo aur woh canvas par movable element ki tarah add ho jayegi.
-                  Usay select karke `Set As Bg` se multiple background layers stack kar sakte ho.
-                </p>
                 <div className="mt-3 grid grid-cols-4 gap-2">
                   {backgroundShapeOptions.map((shapeOption) => {
                     const Icon = shapeOption.icon;
@@ -1845,13 +2165,13 @@ export function EditorSidebarContent(props) {
                 <div className="flex items-start justify-end gap-3">
                   <div className="rounded-2xl bg-white/95 px-3 py-2 shadow-sm ring-1 ring-slate-100">
                     <div className="flex items-center gap-2">
-                      {palette.colors.map((color) => (
-                        <span
-                          key={color}
-                          className="h-4 w-4 rounded-full border-2 border-white shadow-sm sm:h-5 sm:w-5"
-                          style={{ backgroundColor: color }}
-                        />
-                      ))}
+                        {palette.colors.map((color) => (
+                          <span
+                            key={color}
+                            className="h-4 w-4 rounded-full shadow-sm sm:h-5 sm:w-5"
+                            style={{ backgroundColor: color }}
+                          />
+                        ))}
                     </div>
                   </div>
                 </div>
@@ -1986,6 +2306,7 @@ export function EditorMobileContextBar(props) {
           ? AlignRight
           : AlignCenter;
       const safeFillColor = selectedTextColor || selectedStyle?.fillColor || '#111827';
+      const safeFillPreviewStyle = getFillPreviewStyle(safeFillColor, selectedStyle?.fillGradient);
 
       return (
         <div className="mb-1.5 overflow-x-auto rounded-[0.9rem] border border-slate-100 bg-white p-1.5 shadow-sm">
@@ -2023,7 +2344,7 @@ export function EditorMobileContextBar(props) {
                   onClick={() => setActiveObjectPanel('colors')}
                   className={mobileContextButtonClass(activeObjectPanel === 'colors', 'w-8 px-0')}
                 >
-                  <span className="h-3.5 w-3.5 rounded-full border-2 border-slate-300" style={{ backgroundColor: safeFillColor }} />
+                  <span className="h-3.5 w-3.5 rounded-full shadow-sm" style={safeFillPreviewStyle} />
                 </button>
                 <button
                   onClick={() => handleToggleSelectedTextFontStyle('bold')}
@@ -2090,7 +2411,7 @@ export function EditorMobileContextBar(props) {
                   onClick={() => setActiveObjectPanel('colors')}
                   className={mobileContextButtonClass(activeObjectPanel === 'colors', 'w-8 px-0')}
                 >
-                  <span className="h-3.5 w-3.5 rounded-full border-2 border-slate-300" style={{ backgroundColor: safeFillColor }} />
+                  <span className="h-3.5 w-3.5 rounded-full shadow-sm" style={safeFillPreviewStyle} />
                 </button>
                 <button
                   onClick={() => setActiveObjectPanel('outlines')}

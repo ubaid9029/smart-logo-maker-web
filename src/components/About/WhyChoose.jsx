@@ -31,7 +31,7 @@ const WhyChoose = () => {
   ];
 
   return (
-    <div className="relative min-h-screen w-full bg-[#03030b] text-white flex flex-col items-center justify-center py-20 px-6 overflow-hidden">
+    <div className="relative w-full bg-[#03030b] text-white flex flex-col items-center justify-center py-12 md:py-16 px-4 sm:px-6 overflow-hidden">
 
       {/* Background Elements */}
       <div className="absolute inset-0 opacity-[0.30]" style={{ backgroundImage: `linear-gradient(#1e293b 1px, transparent 1px), linear-gradient(90deg, #1e293b 1px, transparent 1px)`, backgroundSize: '40px 40px' }}></div>
@@ -40,7 +40,7 @@ const WhyChoose = () => {
       <div className="absolute top-[-10%] left-[-5%] w-125 h-125 bg-blue-600/20 blur-[100px] rounded-full"></div>
 
       {/* Header Section */}
-      <div className="relative z-10 max-w-3xl w-full text-center mb-16">
+      <div className="relative z-10 max-w-3xl w-full text-center mb-10 md:mb-12">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-purple-500/30 bg-purple-500/10 mb-6">
           <Sparkles size={14} className="text-purple-400" />
           <span className="text-[11px] uppercase tracking-widest text-purple-300 font-bold">

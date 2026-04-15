@@ -46,12 +46,15 @@ import {
   getCanvasItemByLayerKey,
   getCanvasItemDisplayLabel,
   getCollectionNameByType,
+  getLinearGradientCss,
   getOrderedCanvasItems,
+  getRadialGradientCss,
   getTextBlockMetrics,
   getTextMetrics,
   isBackgroundCanvasItem,
   isCanvasItemLocked,
   isValidHexColor,
+  normalizeFillGradient,
   normalizeHexColor,
   syncCanvasLayerOrder,
 } from '../../components/Editor/editorUtils';
@@ -72,6 +75,7 @@ import {
   Undo2,
   Redo2,
   Sparkles,
+  Loader2,
 } from 'lucide-react';
 import { useSelector } from 'react-redux'; // Redux check ke liye
 import { loadEditorResumeDraft } from '../../lib/logoResumeStorage';
@@ -616,6 +620,24 @@ function EditorUI() {
     selectedStyle.fillColor || selectedItemData?.fill || logoConfig.textColor || '#111827',
     '#111827'
   );
+  const selectedFillGradient = normalizeFillGradient(selectedStyle.fillGradient);
+  const selectedFillPreviewStyle = selectedFillGradient
+    ? {
+        background: selectedFillGradient.type === 'linear'
+          ? getLinearGradientCss(
+              selectedFillGradient.direction,
+              selectedFillGradient.startColor,
+              selectedFillGradient.endColor
+            )
+          : getRadialGradientCss(
+              selectedFillGradient.radialAngle,
+              selectedFillGradient.startColor,
+              selectedFillGradient.endColor
+            ),
+      }
+    : {
+        backgroundColor: selectedTextColor,
+      };
   const selectedTextFontStyle = String(selectedItemData?.fontStyle || 'normal').toLowerCase();
   const selectedTextAlign = selectedItemData?.align || 'center';
   const selectedOpacityValue = Math.max(0.05, Math.min(1, Number(selectedItemData?.opacity ?? 1)));
@@ -1194,8 +1216,8 @@ function EditorUI() {
                         title="Text color"
                       >
                         <span
-                          className="h-3.5 w-3.5 rounded-full border-2 border-slate-300"
-                          style={{ backgroundColor: selectedTextColor }}
+                          className="h-3.5 w-3.5 rounded-full shadow-sm"
+                          style={selectedFillPreviewStyle}
                         />
                       </ToolbarIconButton>
                       <ToolbarDivider />
@@ -1287,8 +1309,8 @@ function EditorUI() {
                         title="Fill color"
                       >
                         <span
-                          className="h-3.5 w-3.5 rounded-full border-2 border-slate-300"
-                          style={{ backgroundColor: normalizeHexColor(selectedStyle.fillColor || '#111827', '#111827') }}
+                          className="h-3.5 w-3.5 rounded-full shadow-sm"
+                          style={selectedFillPreviewStyle}
                         />
                       </ToolbarIconButton>
                       <ToolbarDivider />
@@ -1624,7 +1646,7 @@ function EditorUI() {
           />
 
           <div className="flex h-full w-full items-start justify-center pt-2 sm:pt-3 lg:items-center lg:pt-0">
-            <div className="h-full w-full max-w-[880px] max-h-[44vh] sm:max-h-[52vh] lg:max-h-[380px]">
+            <div className="relative h-full w-full max-w-[880px] max-h-[44vh] sm:max-h-[52vh] lg:max-h-[380px]">
               <LogoCanvas
                 config={logoConfig}
                 onConfigChange={handleCanvasConfigChange}
@@ -1640,6 +1662,15 @@ function EditorUI() {
                 inlineTextEditRequest={inlineTextEditRequest}
                 onTextEditCommit={handleInlineTextEdit}
               />
+
+              {savingChanges && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center rounded-[1.5rem] bg-slate-900/15 backdrop-blur-[2px] transition-all duration-300 sm:rounded-[2rem]">
+                  <div className="flex flex-col items-center gap-3 rounded-[1.25rem] bg-white px-6 py-5 shadow-2xl">
+                    <Loader2 size={26} className="animate-spin text-orange-500" />
+                    <p className="text-[11px] font-black uppercase tracking-[0.1em] text-slate-700">Saving Logo...</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

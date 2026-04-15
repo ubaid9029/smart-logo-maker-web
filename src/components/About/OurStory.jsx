@@ -24,7 +24,7 @@ const OurStory = () => {
   ];
 
   return (
-    <section className="relative w-full py-20 px-6 bg-[#f9faff] overflow-hidden">
+    <section className="relative w-full py-12 md:py-16 px-4 sm:px-6 bg-[#f9faff] overflow-hidden">
       {/* Background Decor */}
       <div className="absolute top-10 left-10 w-32 h-32 bg-purple-200/50 blur-3xl rounded-full" />
       <div className="absolute bottom-10 right-10 w-40 h-40 bg-blue-100/50 blur-3xl rounded-full" />
@@ -34,13 +34,13 @@ const OurStory = () => {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.8 }}
-        className="max-w-5xl mx-auto bg-white rounded-[2.5rem] shadow-sm border border-gray-100 p-8 md:p-16 relative z-10"
+        className="max-w-5xl mx-auto bg-white rounded-[2.5rem] shadow-sm border border-gray-100 p-6 md:p-12 relative z-10"
       >
         <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-12">
           Our Story
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center mb-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10 items-center mb-10 md:mb-12">
           {/* Left Side: Text Content with Staggered Entrance */}
           <div className="space-y-8">
             <motion.div

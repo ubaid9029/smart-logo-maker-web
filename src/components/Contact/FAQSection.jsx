@@ -49,11 +49,11 @@ const FAQSection = () => {
   };
 
   return (
-    <section className="min-h-screen bg-[#f8faff] py-8 md:py-12 px-6 flex flex-col items-center">
+    <section className="bg-[#f8faff] py-8 md:py-10 px-4 sm:px-6 flex flex-col items-center">
       
       {/* Header Section */}
       <motion.div 
-        className="text-center mb-10 md:mb-12" 
+        className="text-center mb-8 md:mb-10" 
         initial={{ opacity: 0, y: -20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}

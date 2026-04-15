@@ -8,7 +8,7 @@ const NumbersSection = () => {
   ];
 
   return (
-    <section className="bg-gray-50 py-20 px-4 relative overflow-hidden">
+    <section className="bg-gray-50 py-12 md:py-16 px-4 relative overflow-hidden">
       {/* Subtle Background Pattern */}
       <div className="absolute inset-0 opacity-5">
         <div className="absolute -top-10 -left-10 w-40 h-40 bg-purple-500 rounded-full blur-3xl"></div>
@@ -20,7 +20,7 @@ const NumbersSection = () => {
         <h2 className="text-5xl font-extrabold text-gray-900 mb-4 tracking-tighter">
           Numbers That <span className="bg-clip-text text-transparent bg-linear-to-r from-purple-600 to-red-500">Matter</span>
         </h2>
-        <p className="text-gray-600 text-lg mb-16 max-w-lg mx-auto">
+        <p className="text-gray-600 text-lg mb-10 md:mb-12 max-w-lg mx-auto">
           We&apos;re making a lot of noise comparing our solution.
         </p>
 

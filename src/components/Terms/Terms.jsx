@@ -9,9 +9,9 @@ const TermsOfService = () => {
         <title>Terms of Service | Smart Logo Maker</title>
       </Head>
 
-      <div className="min-h-screen bg-white text-gray-900 scroll-smooth pt-20">
+      <div className="bg-white text-gray-900 scroll-smooth pt-20">
         {/* Hero Section */}
-        <section className="bg-linear-to-r from-gray-900 via-gray-800 to-gray-900 py-20 px-4 text-center text-white">
+        <section className="bg-linear-to-r from-gray-900 via-gray-800 to-gray-900 py-12 md:py-14 px-4 text-center text-white">
           <h1 className="text-5xl font-extrabold mb-4 tracking-tight animate-fade-in-up">
             Terms of Service
           </h1>
@@ -24,7 +24,7 @@ const TermsOfService = () => {
         </section>
 
         {/* Content Section - Updated Timeline Design */}
-        <div className="container mx-auto px-4 py-16">
+        <div className="container mx-auto px-4 py-10 md:py-12">
           <div className="max-w-4xl mx-auto relative">
             
             {/* Timeline Line */}
@@ -57,7 +57,7 @@ const TermsOfService = () => {
           </div>
 
           {/* Full Width Contact Section - Animated */}
-          <div className="max-w-4xl mx-auto mt-16 group animate-fade-in-up delay-600">
+          <div className="max-w-4xl mx-auto mt-10 md:mt-12 group animate-fade-in-up delay-600">
             <div className="bg-gray-950 p-10 rounded-3xl text-white shadow-xl transition-all duration-500 group-hover:shadow-pink-500/20 group-hover:shadow-2xl group-hover:scale-[1.02]">
               <h3 className="text-3xl font-bold mb-4 text-center">Questions?</h3>
               <p className="text-gray-300 text-center mb-8 max-w-lg mx-auto leading-relaxed">
