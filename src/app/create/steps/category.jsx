@@ -201,26 +201,27 @@ const Category = ({ onNext, onBack, data, setData }) => {
   useEffect(() => { fetchIndustries(); }, []);
 
   const handleSelect = (item) => {
-    setData({ ...data, category: item.name, industry: item.id });
+    setData((currentData) => ({ ...currentData, industryId: item.id }));
   };
 
   const handleContinue = useCallback(() => {
-    dispatch(updateFormData({ industryId: data.industry }));
+    dispatch(updateFormData({ industryId: data.industryId }));
     onNext();
-  }, [data, dispatch, onNext]);
+  }, [data.industryId, dispatch, onNext]);
 
   const handleSkip = useCallback(() => {
-    setData({ ...data, category: '', industry: null });
+    setData((currentData) => ({ ...currentData, industryId: null }));
+    dispatch(updateFormData({ industryId: null }));
     onNext();
-  }, [data, onNext, setData]);
+  }, [dispatch, onNext, setData]);
 
   useEffect(() => {
     const fn = (e) => {
-      if (e.key === 'Enter' && data?.category) { e.preventDefault(); handleContinue(); }
+      if (e.key === 'Enter' && data?.industryId) { e.preventDefault(); handleContinue(); }
     };
     window.addEventListener('keydown', fn);
     return () => window.removeEventListener('keydown', fn);
-  }, [data?.category, handleContinue]);
+  }, [data?.industryId, handleContinue]);
 
   const loadMore = () => {
     setOthersLoaded(prev => prev + BATCH);
@@ -240,7 +241,6 @@ const Category = ({ onNext, onBack, data, setData }) => {
     ? filteredOtherIndustries
     : filteredOtherIndustries.slice(0, othersLoaded);
   const hasMore = !normalizedSearchTerm && othersLoaded < filteredOtherIndustries.length;
-  const isOtherSelected = data?.industry && !mainIndustries.find(m => m.id === data.industry);
   const allItems = [...filteredMainIndustries, ...visibleOthers];
 
   const GRID = "grid w-full grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 md:gap-3";
@@ -266,7 +266,7 @@ const Category = ({ onNext, onBack, data, setData }) => {
             <button onClick={onBack} className="brand-button-outline w-1/2 md:w-auto rounded-2xl py-2.5 px-6 text-sm font-bold">
               Go Back
             </button>
-            {data?.category ? (
+            {data?.industryId ? (
               <button
                 onClick={handleContinue}
                 className="w-1/2 md:w-auto rounded-2xl py-2.5 px-8 text-sm font-black transition-all duration-300 brand-button-primary hover:scale-[1.02] shadow-pink-500/30"
@@ -312,7 +312,7 @@ const Category = ({ onNext, onBack, data, setData }) => {
           <div className={GRID}>
             {allItems.map((item) => {
               const IconComponent = item.icon;
-              const isSelected = data?.category === item.name;
+              const isSelected = data?.industryId === item.id;
               return (
                 <button
                   key={item.id}

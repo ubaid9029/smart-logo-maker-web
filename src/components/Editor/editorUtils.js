@@ -5,6 +5,7 @@ import {
   EDITOR_FONT_FAMILIES,
   gradientDirectionOptions,
 } from './editorConstants';
+import { getEditorFontOption, DEFAULT_EDITOR_FONT_FAMILY } from '../../lib/editorFonts';
 
 export const waitForNextFrame = () => new Promise((resolve) => {
   if (typeof window === 'undefined') {
@@ -431,6 +432,81 @@ export const getEditorTextValue = (item = {}) => {
   }
 
   return getCombinedTextValue(item.businessValue, item.sloganValue);
+};
+
+const getPayloadPrimaryTextItem = (payload) => {
+  if (!payload || typeof payload !== 'object' || !Array.isArray(payload.textItems)) {
+    return null;
+  }
+
+  return payload.textItems.find((item) => (
+    item
+    && typeof item === 'object'
+    && (
+      typeof item.businessValue === 'string'
+      || typeof item.sloganValue === 'string'
+      || typeof item.text === 'string'
+    )
+  )) || null;
+};
+
+const getTrimmedPayloadValue = (value) => (
+  typeof value === 'string' && value.trim() ? value.trim() : ''
+);
+
+export const getPayloadBusinessValue = (payload) => {
+  const primaryTextItem = getPayloadPrimaryTextItem(payload);
+
+  return getTrimmedPayloadValue(primaryTextItem?.businessValue)
+    || getTrimmedPayloadValue(primaryTextItem?.text)
+    || getTrimmedPayloadValue(payload?.businessName)
+    || '';
+};
+
+export const getPayloadSloganValue = (payload) => {
+  const primaryTextItem = getPayloadPrimaryTextItem(payload);
+
+  return getTrimmedPayloadValue(primaryTextItem?.sloganValue)
+    || getTrimmedPayloadValue(payload?.slogan)
+    || '';
+};
+
+export const getPayloadFontFamily = (payload) => {
+  const primaryTextItem = getPayloadPrimaryTextItem(payload);
+
+  return getTrimmedPayloadValue(primaryTextItem?.fontFamily)
+    || getTrimmedPayloadValue(payload?.fontFamily)
+    || '';
+};
+
+export const getPayloadTextColor = (payload) => {
+  const primaryTextItem = getPayloadPrimaryTextItem(payload);
+
+  return getTrimmedPayloadValue(primaryTextItem?.fill)
+    || getTrimmedPayloadValue(primaryTextItem?.style?.fillColor)
+    || getTrimmedPayloadValue(payload?.textColor)
+    || '';
+};
+
+export const getPayloadBackgroundColor = (payload) => (
+  getTrimmedPayloadValue(payload?.backgroundColor)
+  || getTrimmedPayloadValue(payload?.bgColor)
+  || ''
+);
+
+export const getPayloadPrimaryImageUrl = (payload) => {
+  if (!payload || typeof payload !== 'object' || !Array.isArray(payload.logoItems)) {
+    return '';
+  }
+
+  const primaryLogoItem = payload.logoItems.find((item) => (
+    item
+    && typeof item === 'object'
+    && typeof item.imageUrl === 'string'
+    && item.imageUrl.trim()
+  ));
+
+  return getTrimmedPayloadValue(primaryLogoItem?.imageUrl);
 };
 
 export const normalizeTextFontStyleValue = (fontStyleValue) => {
@@ -1127,7 +1203,7 @@ export const buildShapeItemFromBackgroundShape = (backgroundShape = {}, options 
       ...buildDefaultItemStyle(fillColor),
       fillColor,
       outlineColor: backgroundShape.strokeColor || '#111827',
-      outlineWidth: Math.max(1, Number(backgroundShape.strokeWidth || 4)),
+      outlineWidth: Math.max(0, Number(backgroundShape.strokeWidth ?? 4)),
       applyColorOverrides: true,
     },
   };
@@ -1145,7 +1221,7 @@ export const buildBackgroundShapeFromShapeItem = (item = {}) => {
     type: safeShapeType,
     fillColor: item.style?.fillColor || '#F8FAFC',
     strokeColor: item.style?.outlineColor || '#111827',
-    strokeWidth: Math.max(1, Number(item.style?.outlineWidth || 4)),
+    strokeWidth: Math.max(0, Number(item.style?.outlineWidth ?? 4)),
     baseWidth: Number(item.baseWidth || item.width || dimensions.width),
     baseHeight: Number(item.baseHeight || item.height || dimensions.height),
     opacity: Math.max(0.05, Math.min(1, Number(item.opacity ?? 1))),
@@ -1369,12 +1445,15 @@ export const buildInitialPresent = ({
   formData,
   payload,
 }) => {
+  const fallbackFontFamily = payload?.fontFamily || EDITOR_FONT_FAMILIES[formData?.fontId] || DEFAULT_EDITOR_FONT_FAMILY;
+  const fallbackFontOption = getEditorFontOption(fallbackFontFamily);
   const fallbackTextTemplate = extractTextTemplate({
     text: initialBusinessValue,
     fontSize: 46,
     align: 'center',
     fill: urlTextColor || '#1A1A1A',
-    fontFamily: EDITOR_FONT_FAMILIES[formData?.fontId] || 'Arial',
+    fontFamily: fallbackFontFamily,
+    fontUrl: fallbackFontOption?.fontUrl || null,
     fontStyle: 'normal',
     letterSpacing: 0,
     style: buildDefaultItemStyle(urlTextColor || '#1A1A1A'),
@@ -1416,7 +1495,7 @@ export const buildInitialPresent = ({
     bgImageUrl: null,
     backgroundShape: null,
     watermarkEnabled: true,
-    fontFamily: EDITOR_FONT_FAMILIES[formData?.fontId] || 'Arial',
+    fontFamily: fallbackFontFamily,
     textColor: urlTextColor || '#1A1A1A',
     textTemplate: fallbackTextTemplate,
     logoItems: [

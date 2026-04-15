@@ -14,8 +14,6 @@ const palettes = [
   { id: "6", name: 'Elegant Gold', gradient: 'from-slate-900 to-amber-500', colors: ['bg-slate-900', 'bg-amber-700', 'bg-amber-500', 'bg-amber-200'] },
 ];
 
-const SUPPORTED_PALETTE_IDS = new Set(palettes.map((palette) => palette.id));
-
 const ColorPalette = ({ onBack, data, setData }) => {
   const router = useRouter();
   const dispatch = useDispatch();
@@ -24,15 +22,13 @@ const ColorPalette = ({ onBack, data, setData }) => {
   const isLoading = status === 'loading';
 
   const handleSelect = (palette) => {
-    setData({ ...data, color: palette.name });
+    setData((currentData) => ({ ...currentData, colorId: palette.id }));
     setSubmissionError("");
   };
 
   const handleGenerate = useCallback(async () => {
     setSubmissionError("");
-    
-    const selectedPalette = palettes.find((palette) => palette.name === data.color);
-    const selectedColorId = selectedPalette?.id || formData?.colorId || '';
+    const selectedColorId = data.colorId || formData?.colorId || '';
 
     // Build payload with defaults to empty strings for missing values
     const payload = {
@@ -57,7 +53,7 @@ const ColorPalette = ({ onBack, data, setData }) => {
     } catch (error) {
       setSubmissionError(error?.message || "Failed to generate logos. Please try again.");
     }
-  }, [data.color, dispatch, formData, router]);
+  }, [data.colorId, dispatch, formData, router]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -69,7 +65,7 @@ const ColorPalette = ({ onBack, data, setData }) => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [data.color, handleGenerate, isLoading]);
+  }, [data.colorId, handleGenerate, isLoading]);
 
   return (
     <div className="flex flex-col h-full w-full animate-in fade-in slide-in-from-bottom-6 duration-700">
@@ -122,7 +118,7 @@ const ColorPalette = ({ onBack, data, setData }) => {
         )}
         <div className="mx-auto grid w-full flex-1 grid-cols-1 gap-x-3 gap-y-2.5 sm:grid-cols-2 lg:grid-cols-3 md:gap-x-3 md:gap-y-3">
           {palettes.map((palette) => {
-            const isSelected = data.color === palette.name;
+            const isSelected = data.colorId === palette.id;
 
             return (
               <button

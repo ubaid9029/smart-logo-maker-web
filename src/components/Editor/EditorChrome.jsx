@@ -9,7 +9,7 @@ export function DesktopToolRail({
   onToolSelect,
 }) {
   return (
-    <aside className="hidden w-[114px] shrink-0  h-full overflow-y-auto scroll-smooth border-r border-gray-100 bg-white shadow-[0_0_15px_-5px_rgba(0,0,0,0.05)] z-20 lg:flex lg:flex-col lg:items-center lg:px-1 lg:py-4">
+    <aside className="hidden h-full w-[132px] shrink-0 overflow-y-auto scroll-smooth border-r border-slate-200/80 bg-white/88 z-20 lg:flex lg:flex-col lg:items-center lg:px-2.5 lg:py-4">
       <div className="flex w-full flex-col items-stretch gap-4">
         {editorTools.map((tool) => {
           const Icon = tool.icon;
@@ -20,13 +20,13 @@ export function DesktopToolRail({
               key={tool.id}
               onClick={() => onToolSelect(tool.id)}
               title={tool.label}
-              className={`brand-icon-button flex min-h-[88px] w-full flex-col items-center justify-center gap-2 rounded-[1.55rem] px-2 py-3 transition-all ${isActive ? 'scale-[1.03]' : ''} ${isActive
-                ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200'
-                : ''
+              className={`brand-icon-button flex min-h-[88px] w-full flex-col items-center justify-center gap-2 rounded-[1.45rem] px-2 py-3 text-slate-600 transition-all ${isActive ? 'scale-[1.03]' : ''} ${isActive
+                ? 'bg-slate-100 text-slate-900 ring-2 ring-slate-200'
+                : 'hover:bg-slate-50 hover:text-slate-800'
                 }`}
             >
               <Icon size={19} />
-              <span className="max-w-full px-1 text-center text-[9px] font-black uppercase leading-[1.1] tracking-[0.08em]">
+              <span className="max-w-full whitespace-nowrap px-1 text-center text-[10px] font-extrabold uppercase leading-tight tracking-[0.02em]">
                 {tool.label}
               </span>
             </button>
@@ -76,17 +76,17 @@ export function MobileHeader({
           >
             <Redo2 size={18} />
           </button>
-          <label className="flex h-10 items-center gap-2 rounded-xl bg-gray-50 px-3 text-[11px] font-bold text-slate-700">
+          <label className="flex h-10 items-center gap-2 rounded-xl bg-gray-50 px-3 text-[12px] font-semibold text-slate-700">
             <input
               type="checkbox"
               checked={watermarkEnabled !== false}
               onChange={(event) => onToggleWatermark?.(event.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 accent-orange-500"
+              className="h-4 w-4 rounded border-slate-300 accent-slate-600"
             />
             <span>Watermark</span>
           </label>
         </div>
-        <h1 className="min-w-0 flex-1 text-center text-lg font-black tracking-tight text-slate-900">
+        <h1 className="min-w-0 flex-1 text-center text-xl font-black tracking-tight text-slate-900">
           Logo Maker
         </h1>
         <div className="flex items-center gap-2">
@@ -171,7 +171,7 @@ export function MobileBottomPanel({
                     }`}
                 >
                   {isActive ? (
-                    <span className="absolute left-1/2 top-1.5 h-1 w-5 -translate-x-1/2 rounded-full bg-[#F59E0B]" />
+                    <span className="absolute left-1/2 top-1.5 h-1 w-5 -translate-x-1/2 rounded-full bg-slate-500" />
                   ) : null}
                   <Icon size={18} />
                 </button>

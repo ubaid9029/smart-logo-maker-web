@@ -337,6 +337,7 @@ export function useEditorBackgroundControls({
             ...item.style,
             applyColorOverrides: true,
             fillColor: palette.colors[index % palette.colors.length],
+            fillGradient: null,
             outlineColor: item.style?.outlineWidth > 0 ? palette.colors[(index + 2) % palette.colors.length] : item.style?.outlineColor,
           },
         };
@@ -345,6 +346,7 @@ export function useEditorBackgroundControls({
         ...item.style,
         applyColorOverrides: true,
         fillColor: palette.colors[(index + 1) % palette.colors.length],
+        fillGradient: null,
         outlineColor: item.style?.outlineWidth > 0 ? palette.colors[(index + 2) % palette.colors.length] : item.style?.outlineColor,
       })),
     }));

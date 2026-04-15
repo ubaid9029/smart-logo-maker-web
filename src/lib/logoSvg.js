@@ -28,12 +28,12 @@ const resolveSloganText = (item, options) => {
   const apiSlogan = normalizeStringValue(item?.slogan_name);
   const fallbackSlogan = normalizeStringValue(options?.slogan);
 
-  if (fallbackSlogan) {
-    return fallbackSlogan;
-  }
-
   if (apiSlogan && !isPlaceholderSlogan(apiSlogan)) {
     return apiSlogan;
+  }
+
+  if (fallbackSlogan && !isPlaceholderSlogan(fallbackSlogan)) {
+    return fallbackSlogan;
   }
 
   return '';
@@ -158,6 +158,35 @@ const getRenderableSloganSegment = (item) => {
 
   return sloganSegment;
 };
+
+export const getApiBusinessName = (item) => (
+  normalizeStringValue(item?.logo_name)
+  || normalizeStringValue(item?.company_name)
+  || normalizeStringValue(item?.business_name)
+  || normalizeStringValue(item?.brand_name)
+  || ''
+);
+
+export const getApiSloganText = (item) => {
+  const sloganText = normalizeStringValue(item?.slogan_name);
+  return sloganText && !isPlaceholderSlogan(sloganText) ? sloganText : '';
+};
+
+export const getApiTextColor = (item) => {
+  const primaryNameSegment = getPrimaryNameSegment(item);
+  return primaryNameSegment?.color || normalizeStringValue(item?.name_color) || '';
+};
+
+export const getApiFontFamily = (item) => {
+  const primaryNameSegment = getPrimaryNameSegment(item);
+  return normalizeStringValue(primaryNameSegment?.name);
+};
+
+export const hasRenderableApiLogoData = (item) => Boolean(
+  getApiBusinessName(item)
+  && normalizeStringValue(item?.background_color)
+  && getRenderableNameSegments(item).length > 0
+);
 
 const parseViewBoxSize = (viewBox = '0 0 100 100') => {
   const [x = 0, y = 0, width = 100, height = 100] = String(viewBox).split(/\s+/).map((value) => clampNumber(value, 0));

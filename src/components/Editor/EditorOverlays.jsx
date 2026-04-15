@@ -4,47 +4,6 @@ import Image from 'next/image';
 import React from 'react';
 import { Maximize2, X } from 'lucide-react';
 import { ColorPickerField, HexColorInput } from './ColorInputs';
-import {
-  BRAND_WATERMARK_OPACITY,
-  BRAND_WATERMARK_OVERLAY_INSET,
-  BRAND_WATERMARK_OVERLAY_SCALE,
-  BRAND_WATERMARK_PATTERN_STYLE,
-  BRAND_WATERMARK_ROTATION,
-} from '../../lib/watermarkConfig';
-
-function PreviewCardFrame({
-  previewImageUrl,
-  alt,
-  emptyClassName = '',
-  imageClassName = '',
-  watermarkEnabled = true,
-}) {
-  return (
-    <div className="relative h-full w-full overflow-hidden">
-      {previewImageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={previewImageUrl} alt={alt} className={`h-full w-full object-contain ${imageClassName}`.trim()} />
-      ) : (
-        <div className={`flex h-full items-center justify-center text-sm font-semibold ${emptyClassName}`.trim()}>
-          Preview unavailable
-        </div>
-      )}
-      {watermarkEnabled !== false ? (
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div
-            className="absolute"
-            style={{
-              ...BRAND_WATERMARK_PATTERN_STYLE,
-              inset: BRAND_WATERMARK_OVERLAY_INSET,
-              opacity: BRAND_WATERMARK_OPACITY,
-              transform: `rotate(${BRAND_WATERMARK_ROTATION}deg) scale(${BRAND_WATERMARK_OVERLAY_SCALE})`,
-            }}
-          />
-        </div>
-      ) : null}
-    </div>
-  );
-}
 
 const PREVIEW_SURFACE_OPTIONS = [
   {
@@ -55,38 +14,18 @@ const PREVIEW_SURFACE_OPTIONS = [
     type: 'simple',
   },
   {
-    id: 'shirt',
-    label: 'T-Shirt Mockup',
-    frameClassName: 'aspect-[742/725] w-full max-w-[min(82vw,460px)]',
-    fullscreenFrameClassName: 'aspect-[742/725] w-full max-w-[min(78vw,480px)]',
-    type: 'mockup',
-    mockupSrc: '/mockups/TShirt.png',
-    mockupAlt: 'T-shirt mockup',
-    overlay: {
-      left: '20%',
-      top: '24%',
-      width: '60%',
-      rotation: '0deg',
-      mode: 'direct',
-      imageClassName: 'object-contain mix-blend-multiply drop-shadow-[0_10px_18px_rgba(15,23,42,0.18)]',
-    },
+    id: 'business-card',
+    label: 'Business Card',
+    frameClassName: 'aspect-[5/4] w-full max-w-[min(86vw,520px)]',
+    fullscreenFrameClassName: 'aspect-[5/4] w-full max-w-[min(82vw,760px)]',
+    type: 'business-card',
   },
   {
-    id: 'billboard',
-    label: 'Billboard Mockup',
-    frameClassName: 'aspect-[853/783] w-full max-w-[min(84vw,560px)]',
-    fullscreenFrameClassName: 'aspect-[853/783] w-full max-w-[min(80vw,520px)]',
-    type: 'mockup',
-    mockupSrc: '/mockups/billboard.png?v=20260410-1',
-    mockupAlt: 'Billboard mockup',
-    overlay: {
-      left: '18%',
-      top: '19%',
-      width: '72%',
-      rotation: '11deg',
-      mode: 'direct',
-      imageClassName: 'object-contain mix-blend-multiply drop-shadow-[0_12px_22px_rgba(15,23,42,0.22)]',
-    },
+    id: 't-shirt',
+    label: 'T-Shirt Mockup',
+    frameClassName: 'aspect-square w-full max-w-[min(86vw,520px)]',
+    fullscreenFrameClassName: 'aspect-square w-full max-w-[min(82vw,760px)]',
+    type: 't-shirt',
   },
 ];
 
@@ -94,62 +33,124 @@ function PreviewSurfaceFrame({
   surface,
   previewImageUrl,
   previewElementsImageUrl,
-  watermarkEnabled,
+  previewElementsTone = 'dark',
+  previewNeedsContrastBoost = false,
   fullscreen = false,
 }) {
   const frameClassName = fullscreen
     ? surface.fullscreenFrameClassName
     : surface.frameClassName;
+  const previewAssetUrl = previewElementsImageUrl || '';
+  const useDarkSurface = previewElementsTone === 'light';
 
   if (surface.type === 'simple') {
     return (
-      <div className={`${frameClassName} overflow-hidden rounded-none border border-white/10 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.28)]`}>
-        <PreviewCardFrame
-          previewImageUrl={previewImageUrl}
-          alt={fullscreen ? 'Full screen edited logo preview' : 'Edited logo preview'}
-          emptyClassName={fullscreen ? 'min-h-[280px] text-white/70' : 'text-slate-500'}
-          watermarkEnabled={watermarkEnabled}
-        />
+      <div className={`${frameClassName} flex items-center justify-center`}>
+        {previewImageUrl ? (
+          <div className="relative h-full w-full">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={previewImageUrl}
+              alt={fullscreen ? 'Full screen edited logo preview' : 'Edited logo preview'}
+              className="h-full w-full object-contain"
+            />
+          </div>
+        ) : (
+          <div className={`flex h-full w-full items-center justify-center text-sm font-semibold ${fullscreen ? 'text-white/70' : 'text-slate-500'}`.trim()}>
+            Preview unavailable
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (surface.type === 'business-card') {
+    const visibilityPlateClassName = previewNeedsContrastBoost
+      ? (useDarkSurface ? 'bg-white/14 ring-1 ring-white/22' : 'bg-slate-900/12 ring-1 ring-slate-900/16')
+      : '';
+    const logoDepthClassName = previewNeedsContrastBoost
+      ? (useDarkSurface
+        ? 'drop-shadow-[0_0_20px_rgba(248,250,252,0.3)] drop-shadow-[0_16px_30px_rgba(15,23,42,0.4)]'
+        : 'drop-shadow-[0_0_20px_rgba(15,23,42,0.2)] drop-shadow-[0_16px_30px_rgba(15,23,42,0.28)]')
+      : (useDarkSurface ? 'drop-shadow-[0_14px_28px_rgba(255,255,255,0.12)]' : 'drop-shadow-[0_14px_28px_rgba(15,23,42,0.18)]');
+
+    return (
+      <div className={`${frameClassName} relative flex items-center justify-center`}>
+        <div
+          className="premium-frame-spin relative aspect-[1.75/1] w-[84%] rounded-[1.9rem] p-[2px]"
+          style={{
+            background: 'conic-gradient(from 45deg, rgba(255,255,255,0.5), rgba(255,255,255,0.06), rgba(255,184,107,0.55), rgba(255,255,255,0.06), rgba(255,255,255,0.5))',
+          }}
+        >
+          <div className={`premium-frame-float relative h-full w-full rounded-[1.8rem] border ${useDarkSurface ? 'border-slate-600/60 bg-[linear-gradient(145deg,#1f2937_0%,#0f172a_100%)]' : 'border-white/80 bg-[linear-gradient(145deg,#ffffff_0%,#f8fafc_100%)]'} shadow-[0_28px_70px_rgba(15,23,42,0.22)]`}>
+            <div className={`absolute inset-x-[8%] top-[14%] h-[1px] ${useDarkSurface ? 'bg-[linear-gradient(90deg,transparent,rgba(226,232,240,0.35),transparent)]' : 'bg-[linear-gradient(90deg,transparent,rgba(148,163,184,0.5),transparent)]'}`} />
+            <div className={`absolute bottom-[10%] left-[8%] h-[10%] w-[34%] rounded-full blur-md ${useDarkSurface ? 'bg-[linear-gradient(90deg,rgba(255,255,255,0.12),rgba(255,255,255,0))]' : 'bg-[linear-gradient(90deg,rgba(15,23,42,0.08),rgba(15,23,42,0))]'}`} />
+            {previewAssetUrl ? (
+              <div className="absolute inset-x-[10%] top-[14%] bottom-[20%] flex items-center justify-center">
+                {previewNeedsContrastBoost && (
+                  <div className={`absolute inset-x-[4%] inset-y-[8%] rounded-[1.15rem] ${visibilityPlateClassName}`} />
+                )}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={previewAssetUrl}
+                  alt="Business card logo preview"
+                  className={`relative max-h-full max-w-full object-contain ${logoDepthClassName}`}
+                />
+              </div>
+            ) : (
+              <div className="absolute inset-x-[10%] top-[14%] bottom-[20%] flex items-center justify-center text-sm font-semibold text-slate-500">
+                Preview unavailable
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (surface.type === 't-shirt') {
+    const tShirtLogoUrl = previewAssetUrl || previewImageUrl || '';
+    const tShirtShellClassName = 'bg-[linear-gradient(168deg,#ffffff_0%,#f2f4f7_54%,#e3e7ec_100%)] border-slate-300/75';
+    const tShirtLogoClassName = previewNeedsContrastBoost
+      ? 'drop-shadow-[0_0_20px_rgba(15,23,42,0.24)] drop-shadow-[0_16px_30px_rgba(15,23,42,0.3)]'
+      : 'drop-shadow-[0_10px_24px_rgba(15,23,42,0.2)]';
+
+    return (
+      <div className={`${frameClassName} relative flex items-center justify-center overflow-hidden rounded-[1.2rem] bg-[#6a6a6a]`}>
+        <div className="absolute inset-x-[24%] bottom-[8%] h-[9%] rounded-full bg-black/22 blur-[18px]" />
+        <div
+          className={`relative h-[90%] w-[74%] border ${tShirtShellClassName} shadow-[0_16px_28px_rgba(15,23,42,0.26)]`}
+          style={{ clipPath: 'polygon(22% 8%,35% 8%,44% 3.5%,56% 3.5%,65% 8%,78% 8%,94% 22%,86% 37%,86% 97%,14% 97%,14% 37%,6% 22%)' }}
+        >
+          <div className="absolute left-1/2 top-[4.5%] h-[9%] w-[24%] -translate-x-1/2 rounded-b-[1.2rem] border-x border-b border-slate-300/35 bg-slate-100/72" />
+          <div className="absolute inset-y-[18%] left-[18%] w-[10%] rounded-full bg-white/34 blur-md" />
+          <div className="absolute inset-y-[18%] right-[18%] w-[9%] rounded-full bg-slate-400/14 blur-md" />
+          <div className="absolute inset-x-[16%] bottom-[10%] h-[1.5px] bg-slate-300/45" />
+
+          {tShirtLogoUrl ? (
+            <div className="absolute inset-x-[24%] top-[36%] bottom-[28%] flex items-center justify-center">
+              {previewNeedsContrastBoost && (
+                <div className="absolute inset-x-[4%] inset-y-[8%] rounded-2xl bg-white/45 ring-1 ring-slate-200/80" />
+              )}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={tShirtLogoUrl}
+                alt="T-shirt logo preview"
+                className={`relative max-h-full max-w-full object-contain ${tShirtLogoClassName}`}
+              />
+            </div>
+          ) : (
+            <div className="absolute inset-x-[24%] top-[36%] bottom-[28%] flex items-center justify-center text-sm font-semibold text-slate-600">
+              Preview unavailable
+            </div>
+          )}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className={`${frameClassName} relative overflow-hidden`}>
-      <div className="relative h-full w-full overflow-hidden bg-transparent">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={surface.mockupSrc}
-          alt={surface.mockupAlt}
-          className="absolute inset-0 h-full w-full object-contain"
-        />
-        {previewImageUrl ? (
-          <div
-            className="absolute"
-            style={{
-              left: surface.overlay.left,
-              top: surface.overlay.top,
-              width: surface.overlay.width,
-              transform: `rotate(${surface.overlay.rotation})`,
-              transformOrigin: 'center center',
-            }}
-          >
-            <div className={`relative ${surface.overlay.mode === 'direct-vertical' ? 'aspect-[21/31]' : 'aspect-[31/21]'}`}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={previewElementsImageUrl || previewImageUrl}
-                alt={`${surface.mockupAlt} preview`}
-                className={`h-full w-full ${surface.overlay.imageClassName || 'object-contain'}`.trim()}
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-slate-500">
-            Preview unavailable
-          </div>
-        )}
-      </div>
-    </div>
+    null
   );
 }
 
@@ -204,15 +205,113 @@ export function EditorOverlays({
   previewElementsImageUrl,
   setPreviewFullscreenOpen,
   previewFullscreenOpen,
-  watermarkEnabled,
 }) {
   const [activePreviewSurfaceId, setActivePreviewSurfaceId] = React.useState('simple');
+  const [previewElementsTone, setPreviewElementsTone] = React.useState('dark');
+  const [previewNeedsContrastBoost, setPreviewNeedsContrastBoost] = React.useState(false);
 
   React.useEffect(() => {
     if (!previewDialogOpen && !previewFullscreenOpen) {
       setActivePreviewSurfaceId('simple');
     }
   }, [previewDialogOpen, previewFullscreenOpen]);
+
+  React.useEffect(() => {
+    const source = previewElementsImageUrl || previewImageUrl;
+    if (!source || typeof window === 'undefined') {
+      setPreviewElementsTone('dark');
+      setPreviewNeedsContrastBoost(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const img = new window.Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      if (cancelled) {
+        return;
+      }
+
+      const canvas = document.createElement('canvas');
+      const sampleWidth = 48;
+      const sampleHeight = Math.max(1, Math.round((img.height / Math.max(1, img.width)) * sampleWidth));
+      canvas.width = sampleWidth;
+      canvas.height = sampleHeight;
+      const context = canvas.getContext('2d');
+
+      if (!context) {
+        setPreviewElementsTone('dark');
+        setPreviewNeedsContrastBoost(false);
+        return;
+      }
+
+      context.drawImage(img, 0, 0, sampleWidth, sampleHeight);
+      const { data } = context.getImageData(0, 0, sampleWidth, sampleHeight);
+      let alphaPixels = 0;
+      let luminanceTotal = 0;
+      let contrastAgainstLightTotal = 0;
+      let contrastAgainstDarkTotal = 0;
+      let brightPixelWeight = 0;
+
+      const lightSurfaceLuminance = 0.96;
+      const darkSurfaceLuminance = 0.12;
+
+      for (let index = 0; index < data.length; index += 4) {
+        const alpha = data[index + 3] / 255;
+        if (alpha < 0.08) {
+          continue;
+        }
+
+        alphaPixels += 1;
+        const red = data[index] / 255;
+        const green = data[index + 1] / 255;
+        const blue = data[index + 2] / 255;
+        const luminance = (0.2126 * red) + (0.7152 * green) + (0.0722 * blue);
+        luminanceTotal += luminance * alpha;
+
+        const contrastOnLight = (Math.max(luminance, lightSurfaceLuminance) + 0.05)
+          / (Math.min(luminance, lightSurfaceLuminance) + 0.05);
+        const contrastOnDark = (Math.max(luminance, darkSurfaceLuminance) + 0.05)
+          / (Math.min(luminance, darkSurfaceLuminance) + 0.05);
+        contrastAgainstLightTotal += contrastOnLight * alpha;
+        contrastAgainstDarkTotal += contrastOnDark * alpha;
+
+        if (luminance >= 0.78) {
+          brightPixelWeight += alpha;
+        }
+      }
+
+      if (!alphaPixels) {
+        setPreviewElementsTone('dark');
+        setPreviewNeedsContrastBoost(false);
+        return;
+      }
+
+      const averageLuminance = luminanceTotal / alphaPixels;
+      const averageContrastOnLight = contrastAgainstLightTotal / alphaPixels;
+      const averageContrastOnDark = contrastAgainstDarkTotal / alphaPixels;
+      const brightCoverageRatio = brightPixelWeight / alphaPixels;
+      const shouldUseDarkSurface = averageContrastOnDark > (averageContrastOnLight + 0.24)
+        || brightCoverageRatio >= 0.34
+        || averageLuminance > 0.72;
+      const selectedContrast = shouldUseDarkSurface ? averageContrastOnDark : averageContrastOnLight;
+      const needsBoost = selectedContrast < 2.35 || brightCoverageRatio > 0.5;
+
+      setPreviewElementsTone(shouldUseDarkSurface ? 'light' : 'dark');
+      setPreviewNeedsContrastBoost(needsBoost);
+    };
+    img.onerror = () => {
+      if (!cancelled) {
+        setPreviewElementsTone('dark');
+        setPreviewNeedsContrastBoost(false);
+      }
+    };
+    img.src = source;
+
+    return () => {
+      cancelled = true;
+    };
+  }, [previewElementsImageUrl, previewImageUrl]);
 
   const activePreviewSurface = React.useMemo(
     () => PREVIEW_SURFACE_OPTIONS.find((option) => option.id === activePreviewSurfaceId) || PREVIEW_SURFACE_OPTIONS[0],
@@ -221,6 +320,26 @@ export function EditorOverlays({
 
   return (
     <>
+      <style>{`
+        @keyframes premiumFrameSpin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        @keyframes premiumFrameFloat {
+          0% { transform: translateY(0px) scale(1); }
+          50% { transform: translateY(-4px) scale(1.004); }
+          100% { transform: translateY(0px) scale(1); }
+        }
+
+        .premium-frame-spin {
+          animation: premiumFrameSpin 9s linear infinite;
+        }
+
+        .premium-frame-float {
+          animation: premiumFrameFloat 4.6s ease-in-out infinite;
+        }
+      `}</style>
       {editDialog.open && (
         <div className={`${isMobileViewport ? 'fixed' : 'absolute'} inset-0 z-[180] overflow-y-auto ${isMobileViewport ? 'bg-white p-0' : 'bg-slate-950/25 p-4 backdrop-blur-sm'}`}>
           <div className={`flex min-h-full ${isMobileViewport ? 'items-stretch justify-stretch' : 'items-center justify-center py-6'}`}>
@@ -763,7 +882,8 @@ export function EditorOverlays({
               surface={activePreviewSurface}
               previewImageUrl={previewImageUrl}
               previewElementsImageUrl={previewElementsImageUrl}
-              watermarkEnabled={watermarkEnabled}
+              previewElementsTone={previewElementsTone}
+              previewNeedsContrastBoost={previewNeedsContrastBoost}
             />
 
             <div className="flex flex-col gap-2 rounded-full bg-white/95 p-1.5 shadow-[0_18px_45px_rgba(15,23,42,0.2)] backdrop-blur sm:flex-row">
@@ -825,7 +945,8 @@ export function EditorOverlays({
                   surface={activePreviewSurface}
                   previewImageUrl={previewImageUrl}
                   previewElementsImageUrl={previewElementsImageUrl}
-                  watermarkEnabled={watermarkEnabled}
+                  previewElementsTone={previewElementsTone}
+                  previewNeedsContrastBoost={previewNeedsContrastBoost}
                   fullscreen
                 />
               </div>

@@ -14,7 +14,6 @@ import {
 
 const CANVAS_WIDTH = 700;
 const CANVAS_HEIGHT = 500;
-
 const getAxisTilt = (angle) => {
   const normalized = ((Number(angle || 0) % 360) + 360) % 360;
 
@@ -78,6 +77,47 @@ const encodeSvgBase64DataUri = (svgMarkup) => {
   }
 
   return encodeSvgDataUri(svgMarkup);
+};
+
+const useStableImage = (source) => {
+  const normalizedSource = source || '';
+  const [loadedImage, loadStatus] = useImage(normalizedSource);
+  const [stableImage, setStableImage] = useState(null);
+  const [stableSource, setStableSource] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!normalizedSource) {
+      queueMicrotask(() => {
+        if (!cancelled) {
+          setStableImage(null);
+          setStableSource('');
+        }
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (loadedImage && loadStatus === 'loaded') {
+      queueMicrotask(() => {
+        if (!cancelled) {
+          setStableImage(loadedImage);
+          setStableSource(normalizedSource);
+        }
+      });
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadedImage, loadStatus, normalizedSource]);
+
+  const image = loadedImage || (stableSource ? stableImage : null);
+  const status = image && loadStatus === 'loading' ? 'loaded' : loadStatus;
+
+  return [image, status, loadStatus];
 };
 
 const parseSvgViewBox = (svgMarkup) => {
@@ -866,8 +906,8 @@ function BackgroundDecoration({
   const fillColor = /^#([0-9A-F]{3}|[0-9A-F]{6})$/i.test(shape.fillColor || '')
     ? shape.fillColor
     : undefined;
-  const stroke = shape.strokeColor || fillColor || '#111111';
-  const strokeWidth = Math.max(1, Number(shape.strokeWidth || 4));
+  const strokeWidth = Math.max(0, Number(shape.strokeWidth ?? 4));
+  const stroke = strokeWidth > 0 ? (shape.strokeColor || fillColor || '#111111') : undefined;
   const opacity = Math.max(
     0.05,
     Math.min(1, Number(shape.opacity ?? 1) * Number(backgroundOpacity ?? 1))
@@ -989,8 +1029,8 @@ function LogoNode({
     return nextSvgMarkup ? encodeSvgDataUri(nextSvgMarkup) : "";
   }, [decodedSvgMarkup, isLineNode, isShapeNode, item.imageUrl, item.src, item.style, outlineWidth]);
 
-  const [img, imageStatus] = useImage(styledImageUrl || '');
-  const [outlineImg] = useImage(outlineImageUrl || "");
+  const [img, , rawImageStatus] = useStableImage(styledImageUrl);
+  const [outlineImg] = useStableImage(outlineImageUrl);
   const transform3d = get3dTransforms(item.style);
   const nodeOpacity = Math.max(0.05, Math.min(1, Number(item.opacity ?? 1)));
   const fallbackSvgMarkup = styledSvgMarkup || decodedSvgMarkup || '';
@@ -1191,8 +1231,8 @@ function LogoNode({
               )}
               fillColor={item.style?.fillColor || '#F8FAFC'}
               fillGradient={fillGradient}
-              strokeColor={item.style?.outlineColor || '#111827'}
-              strokeWidth={Math.max(1, Number(item.style?.outlineWidth || 4))}
+              strokeColor={outlineWidth > 0 ? item.style?.outlineColor || '#111827' : undefined}
+              strokeWidth={outlineWidth}
               opacity={nodeOpacity}
               gradientWidth={imageWidth}
               gradientHeight={imageHeight}
@@ -1245,7 +1285,7 @@ function LogoNode({
                 crop={imageContentCrop || undefined}
                 opacity={nodeOpacity}
               />
-            ) : imageStatus === 'failed' && svgPathFallbacks.length > 0 ? (
+            ) : rawImageStatus === 'failed' && !img && svgPathFallbacks.length > 0 ? (
               <Group
                 x={(-svgViewBox.minX * imageWidth) / svgViewBox.width}
                 y={(-svgViewBox.minY * imageHeight) / svgViewBox.height}
@@ -1299,7 +1339,7 @@ function TextNode({
   };
   const { value, fontSize, blockWidth, blockHeight } = getTextNodeMetrics(item);
   const shouldRenderSvgText = item.renderMode === 'svg' && Boolean(item.svgDataUri);
-  const [svgTextImage] = useImage(shouldRenderSvgText ? item.svgDataUri : '');
+  const [svgTextImage] = useStableImage(shouldRenderSvgText ? item.svgDataUri : '');
   const transform3d = get3dTransforms(item.style);
   const nodeOpacity = Math.max(0.05, Math.min(1, Number(item.opacity ?? 1)));
   const fillGradient = normalizeFillGradient(item.style?.fillGradient);
@@ -1311,6 +1351,7 @@ function TextNode({
     if (
       typeof window === 'undefined' ||
       typeof FontFace === 'undefined' ||
+      !document.fonts ||
       !item.fontUrl ||
       !resolvedFontFamily
     ) {
@@ -1324,6 +1365,17 @@ function TextNode({
     );
 
     if (existingFont) {
+      existingFont.load()
+        .then(() => {
+          if (!cancelled) {
+            setFontRenderVersion((value) => value + 1);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setFontRenderVersion((value) => value + 1);
+          }
+        });
       return undefined;
     }
 
@@ -1510,7 +1562,7 @@ export default function Canvas({
   const [rotationInfo, setRotationInfo] = useState(null);
   const [inlineEditor, setInlineEditor] = useState(null);
   const [inlineEditorLayout, setInlineEditorLayout] = useState(null);
-  const [backgroundImage] = useImage(config.bgImageUrl || '');
+  const [backgroundImage] = useStableImage(config.bgImageUrl);
 
   const canvasWidth = CANVAS_WIDTH;
   const canvasHeight = CANVAS_HEIGHT;

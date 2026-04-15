@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
+import { EDITOR_FONT_CATALOG } from '../../../lib/editorFonts';
 
 const ALLOWED_HOSTS = new Set([
   'logoai.com',
   'www.logoai.com',
+  'fonts.gstatic.com',
 ]);
+
+const GOOGLE_FONTS_CSS_ENDPOINT = 'https://fonts.googleapis.com/css2';
+const FONT_CSS_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
 const resolveFontContentType = (headers, url) => {
   const headerType = headers.get('content-type');
@@ -19,7 +24,75 @@ const resolveFontContentType = (headers, url) => {
   return 'application/octet-stream';
 };
 
+const extractGoogleFontAssetUrl = (cssText) => {
+  if (typeof cssText !== 'string' || !cssText.trim()) {
+    return null;
+  }
+
+  const woff2Match = cssText.match(/url\((https:\/\/fonts\.gstatic\.com\/[^)]+\.woff2)\)/i);
+  if (woff2Match?.[1]) {
+    return woff2Match[1];
+  }
+
+  const fallbackMatch = cssText.match(/url\((https:\/\/fonts\.gstatic\.com\/[^)]+)\)/i);
+  return fallbackMatch?.[1] || null;
+};
+
+const fetchCuratedGoogleFont = async (family, weightParam) => {
+  const fontOption = EDITOR_FONT_CATALOG.find((item) => item.family === family);
+  if (!fontOption) {
+    return NextResponse.json({ error: 'Font family is not allowed.' }, { status: 400 });
+  }
+
+  const safeWeight = [400, 500, 600, 700].includes(Number(weightParam)) ? Number(weightParam) : 400;
+  const cssUrl = `${GOOGLE_FONTS_CSS_ENDPOINT}?family=${encodeURIComponent(fontOption.queryFamily)}:wght@${safeWeight}&display=swap`;
+  const cssResponse = await fetch(cssUrl, {
+    cache: 'force-cache',
+    next: { revalidate: 86400 },
+    headers: {
+      'user-agent': FONT_CSS_USER_AGENT,
+    },
+  });
+
+  if (!cssResponse.ok) {
+    return NextResponse.json({ error: 'Unable to resolve font family.' }, { status: cssResponse.status });
+  }
+
+  const cssText = await cssResponse.text();
+  const assetUrl = extractGoogleFontAssetUrl(cssText);
+  if (!assetUrl) {
+    return NextResponse.json({ error: 'Unable to locate font asset.' }, { status: 502 });
+  }
+
+  const fontResponse = await fetch(assetUrl, {
+    cache: 'force-cache',
+    next: { revalidate: 86400 },
+  });
+
+  if (!fontResponse.ok) {
+    return NextResponse.json({ error: 'Unable to fetch font asset.' }, { status: fontResponse.status });
+  }
+
+  const fontBuffer = await fontResponse.arrayBuffer();
+
+  return new NextResponse(fontBuffer, {
+    headers: {
+      'content-type': resolveFontContentType(fontResponse.headers, assetUrl),
+      'cache-control': 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800',
+    },
+  });
+};
+
 export async function GET(request) {
+  const fontFamily = request.nextUrl.searchParams.get('family');
+  if (fontFamily) {
+    try {
+      return await fetchCuratedGoogleFont(fontFamily, request.nextUrl.searchParams.get('weight'));
+    } catch {
+      return NextResponse.json({ error: 'Font proxy request failed.' }, { status: 502 });
+    }
+  }
+
   const sourceUrl = request.nextUrl.searchParams.get('src');
   if (!sourceUrl) {
     return NextResponse.json({ error: 'Missing src parameter.' }, { status: 400 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback } from 'react';
+import { getEditorFontOption } from '../../../lib/editorFonts';
 import { CARD_HEIGHT, CARD_WIDTH, CARD_X, CARD_Y, EMPTY_EDIT_DIALOG } from '../editorConstants';
 import {
   applyStyleToTextItem,
@@ -315,14 +316,18 @@ export function useEditorObjectActions({
     });
   }, [getResolvedTextProps, updateSelectedElements]);
 
-  const handleSelectedTextFontChange = useCallback((fontFamily) => {
+  const handleSelectedTextFontChange = useCallback((fontSelection) => {
+    const fontOption = getEditorFontOption(fontSelection);
+    const fontFamily = fontOption?.family || (typeof fontSelection === 'string' ? fontSelection : '');
     if (!fontFamily) {
       return;
     }
 
     updateSelectedTextElements((item) => buildMeasuredTextUpdate(item, {
       fontFamily,
-      fontUrl: null,
+      fontUrl: fontOption?.fontUrl || null,
+      fontStyle: 'normal',
+      fontWeight: fontOption?.weight || 400,
     }));
   }, [buildMeasuredTextUpdate, updateSelectedTextElements]);
 

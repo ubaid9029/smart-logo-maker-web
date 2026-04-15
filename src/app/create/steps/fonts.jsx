@@ -16,27 +16,27 @@ const Fonts = ({ onNext, onBack, data, setData }) => {
   const dispatch = useDispatch();
 
   const handleSelect = (fontItem) => {
-    setData({ ...data, font: fontItem.name });
+    setData((currentData) => ({ ...currentData, fontId: fontItem.id }));
   };
 
   const handleContinue = useCallback(() => {
-    const selectedFont = fontStyles.find((font) => font.name === data.font);
-    if (!selectedFont) {
+    if (!data.fontId) {
       return;
     }
 
-    dispatch(updateFormData({ fontId: selectedFont.id }));
+    dispatch(updateFormData({ fontId: data.fontId }));
     onNext();
-  }, [data, dispatch, onNext]);
+  }, [data.fontId, dispatch, onNext]);
 
   const handleSkip = useCallback(() => {
-    setData({ ...data, font: '' });
+    setData((currentData) => ({ ...currentData, fontId: '' }));
+    dispatch(updateFormData({ fontId: '' }));
     onNext();
-  }, [data, onNext, setData]);
+  }, [dispatch, onNext, setData]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (event.key === 'Enter' && data.font) {
+      if (event.key === 'Enter' && data.fontId) {
         event.preventDefault();
         handleContinue();
       }
@@ -44,7 +44,7 @@ const Fonts = ({ onNext, onBack, data, setData }) => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [data.font, handleContinue]);
+  }, [data.fontId, handleContinue]);
 
   return (
     <div className="flex flex-col h-full w-full animate-in fade-in slide-in-from-bottom-6 duration-700">
@@ -69,7 +69,7 @@ const Fonts = ({ onNext, onBack, data, setData }) => {
             >
               Go Back
             </button>
-            {data.font ? (
+            {data.fontId ? (
               <button
                 onClick={handleContinue}
                 className="w-1/2 md:w-auto rounded-2xl py-2.5 px-8 text-sm font-black transition-all duration-300 brand-button-primary hover:scale-[1.02] shadow-pink-500/30"
@@ -92,7 +92,7 @@ const Fonts = ({ onNext, onBack, data, setData }) => {
       <div className="flex-1 overflow-y-auto overflow-x-hidden pb-6 px-2 md:px-3 w-full max-w-5xl mx-auto pt-2">
         <div className="mx-auto grid w-full flex-1 grid-cols-1 gap-x-3 gap-y-2.5 sm:grid-cols-2 md:grid-cols-3 md:gap-x-3 md:gap-y-3">
           {fontStyles.map((font) => {
-            const isSelected = data.font === font.name;
+            const isSelected = data.fontId === font.id;
 
             return (
               <button

@@ -7,7 +7,6 @@ import { ChevronLeft, Edit3, Heart, Download, Loader2, Sparkles } from 'lucide-r
 import { useSelector } from "react-redux";
 import DownloadDialog from '../../components/DownloadDialog';
 import FloatingNotice from '../../components/MainComponents/FloatingNotice';
-import { EDITOR_FONT_FAMILIES } from '../../components/Editor/editorConstants';
 import {
   buildWatermarkedSvgMarkup,
   buildPdfBlobFromJpegBytes,
@@ -16,7 +15,14 @@ import {
   renderSvgToCanvas,
   triggerBlobDownload,
 } from '../../lib/downloadAssets';
-import { buildEditableLogoPayload, buildLogoCardSvg } from '../../lib/logoSvg';
+import {
+  buildEditableLogoPayload,
+  buildLogoCardSvg,
+  getApiBusinessName,
+  getApiFontFamily,
+  getApiSloganText,
+  getApiTextColor,
+} from '../../lib/logoSvg';
 import { openEditorWindowWithPayload, saveTemporaryEditorPayload } from '../../lib/editorPayloadStorage';
 import { loadGeneratedResultsSnapshot, saveGeneratedResultsSnapshot } from '../../lib/generatedResultsStorage';
 import {
@@ -241,21 +247,26 @@ const ResultsPage = () => {
     return subscribeFavoriteLogos(syncFavoritesFromCache);
   }, [authUser?.id]);
   const logos = useMemo(() => {
-    const businessName = typeof formData?.name === 'string' && formData.name.trim() ? formData.name.trim() : 'BRAND';
-    const slogan = typeof formData?.slogan === 'string' ? formData.slogan.trim() : '';
+    const fallbackBusinessName = typeof formData?.name === 'string' && formData.name.trim() ? formData.name.trim() : 'BRAND';
+    const fallbackSlogan = typeof formData?.slogan === 'string' ? formData.slogan.trim() : '';
     const industryLabel = INDUSTRY_LABELS[formData?.industryId] || 'Brand identity';
-    const preferredFontFamily = EDITOR_FONT_FAMILIES[formData?.fontId] || 'Arial';
     const items = Array.isArray(activeResults) ? activeResults : [];
 
     return items.map((item, index) => {
+      const businessName = getApiBusinessName(item) || fallbackBusinessName;
+      const slogan = getApiSloganText(item) || fallbackSlogan;
+      const apiFontFamily = getApiFontFamily(item);
+      const apiTextColor = getApiTextColor(item);
       const svgMarkup = buildLogoCardSvg(item, {
         businessName,
         slogan,
+        textColor: apiTextColor || undefined,
       });
       const editablePayload = buildEditableLogoPayload(item, {
         businessName,
         slogan,
-        fontFamily: preferredFontFamily,
+        fontFamily: apiFontFamily || undefined,
+        textColor: apiTextColor || undefined,
       });
 
       const iconAsset = getNameIconAsset(item);
@@ -269,12 +280,12 @@ const ResultsPage = () => {
 
       return {
         id: item?.id || index + 1,
-        name: item?.logo_name || `${businessName} ${index + 1}`,
+        name: getApiBusinessName(item) || `${businessName} ${index + 1}`,
         businessName,
         slogan,
         industryLabel,
-        themeColor: editablePayload?.textColor || item?.name_color || '#111827',
-        backgroundColor: editablePayload?.bgColor || editablePayload?.backgroundColor || item?.background_color || '#ffffff',
+        themeColor: apiTextColor || editablePayload?.textColor || item?.name_color || '#111827',
+        backgroundColor: item?.background_color || editablePayload?.bgColor || editablePayload?.backgroundColor || '#ffffff',
         svgMarkup,
         editablePayload,
         previewDataUrl: null,
@@ -284,6 +295,7 @@ const ResultsPage = () => {
       };
     });
   }, [activeResults, formData]);
+  const resultsHeadingName = getApiBusinessName((Array.isArray(activeResults) ? activeResults[0] : null) || null) || logos[0]?.businessName || formData?.name || 'Brand';
 
 
   if (status === 'loading') {
@@ -509,7 +521,7 @@ const ResultsPage = () => {
         <div className="mb-8 flex w-full flex-col gap-4 sm:mb-10 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <h1 className="text-2xl font-extrabold text-slate-900 sm:text-3xl lg:text-4xl">
-              Designs for {formData?.name || "Brand"}
+              Designs for {resultsHeadingName}
             </h1>
             <p className="mt-1 text-sm font-medium text-slate-500 sm:text-base">
               Review, edit, and download your generated logo concepts.

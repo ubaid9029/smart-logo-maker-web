@@ -14,52 +14,17 @@ import { deriveCreateResumeStep, hasCreateDraft } from "../../lib/logoResumeStor
 const EMPTY_FORM_DATA = {
   businessName: "",
   slogan: "",
-  category: "",
-  industry: null,
-  font: "",
-  color: "",
-};
-
-const INDUSTRY_NAMES = {
-  23: 'Retail & E-commerce',
-  24: 'Food & Beverage',
-  25: 'Health & Wellness',
-  26: 'Creative & Design',
-  27: 'Technology & IT',
-  28: 'Photography & Video',
-  29: 'Music & Entertainment',
-  30: 'Cafe & Coffee Shop',
-  31: 'Real Estate',
-  32: 'Fitness & Sports',
-  33: 'Education & Training',
-  34: 'Consulting & Business',
-};
-
-const FONT_NAMES = {
-  "1": 'Modern Sans',
-  "2": 'Elegant Serif',
-  "3": 'Bold Display',
-  "4": 'Playful Rounded',
-  "5": 'Minimal Light',
-  "6": 'Classic Script',
-};
-
-const COLOR_NAMES = {
-  "1": 'Vibrant Energy',
-  "2": 'Professional Blue',
-  "3": 'Warm Sunset',
-  "4": 'Cool Ocean',
-  "5": 'Natural Green',
-  "6": 'Elegant Gold',
+  industryId: null,
+  fontId: "",
+  colorId: "",
 };
 
 const buildInitialCreateData = (source) => ({
   businessName: source?.name || "",
   slogan: source?.slogan || "",
-  category: INDUSTRY_NAMES[Number(source?.industryId)] || "",
-  industry: source?.industryId ?? null,
-  font: FONT_NAMES[String(source?.fontId || "")] || "",
-  color: COLOR_NAMES[String(source?.colorId || "")] || "",
+  industryId: source?.industryId ?? null,
+  fontId: String(source?.fontId || ""),
+  colorId: String(source?.colorId || ""),
 });
 
 function CreateFlowContent({

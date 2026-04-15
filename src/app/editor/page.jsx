@@ -48,6 +48,12 @@ import {
   getCollectionNameByType,
   getLinearGradientCss,
   getOrderedCanvasItems,
+  getPayloadBackgroundColor,
+  getPayloadBusinessValue,
+  getPayloadFontFamily,
+  getPayloadPrimaryImageUrl,
+  getPayloadSloganValue,
+  getPayloadTextColor,
   getRadialGradientCss,
   getTextBlockMetrics,
   getTextMetrics,
@@ -80,16 +86,14 @@ import {
 import { useSelector } from 'react-redux'; // Redux check ke liye
 import { loadEditorResumeDraft } from '../../lib/logoResumeStorage';
 import { loadTemporaryEditorPayload } from '../../lib/editorPayloadStorage';
+import { getEditorFontFaceCss } from '../../lib/editorFonts';
 
 const LogoCanvas = dynamic(() => import('../../components/Editor/Canvas'), {
   ssr: false,
   loading: () => <div className="w-full h-64 bg-white animate-pulse rounded-3xl" />
 });
 
-const gradients = {
-  primary: "bg-gradient-to-r from-[#FF6B00] via-[#E02424] to-[#2563EB]",
-  text: "bg-clip-text text-transparent bg-gradient-to-r from-[#FF6B00] via-[#E02424] to-[#2563EB]",
-};
+const EDITOR_FONT_FACE_CSS = getEditorFontFaceCss();
 
 function ToolbarDivider() {
   return <span className="mx-1 h-4 w-px shrink-0 bg-slate-200" aria-hidden />;
@@ -101,12 +105,12 @@ function ToolbarIconButton({ active = false, children, className = '', ...props 
       {...props}
       className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-all ${
         active
-          ? 'border-orange-200 bg-orange-50 text-orange-600 ring-2 ring-orange-200 scale-[1.04]'
-          : 'border-slate-200 bg-white hover:border-orange-200 hover:bg-orange-50/70'
+          ? 'border-slate-300 bg-slate-50 text-slate-700 ring-2 ring-slate-200 scale-[1.04]'
+          : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
       } ${className}`}
     >
       {active ? (
-        <span className="absolute left-1/2 top-0.5 h-0.5 w-3 -translate-x-1/2 rounded-full bg-[#F59E0B]" />
+        <span className="absolute left-1/2 top-0.5 h-0.5 w-3 -translate-x-1/2 rounded-full bg-slate-500" />
       ) : null}
       {children}
     </button>
@@ -117,10 +121,10 @@ function ToolbarPillButton({ active = false, children, className = '', ...props 
   return (
     <button
       {...props}
-      className={`flex h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-[12px] font-bold transition-all ${
+      className={`flex h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-[13px] font-semibold transition-all ${
         active
-          ? 'border-orange-200 bg-orange-50 text-orange-600 ring-2 ring-orange-200 scale-[1.02]'
-          : 'border-slate-200 bg-white hover:border-orange-200 hover:bg-orange-50/70'
+          ? 'border-slate-300 bg-slate-50 text-slate-700 ring-2 ring-slate-200 scale-[1.02]'
+          : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
       } ${className}`}
     >
       {children}
@@ -130,12 +134,12 @@ function ToolbarPillButton({ active = false, children, className = '', ...props 
 
 function ToolbarCheckboxToggle({ checked, label, onChange }) {
   return (
-    <label className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 text-[11px] font-bold text-slate-700">
+    <label className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 text-[12px] font-semibold text-slate-700">
       <input
         type="checkbox"
         checked={checked}
         onChange={onChange}
-        className="h-4 w-4 rounded border-slate-300 accent-orange-500"
+        className="h-4 w-4 rounded border-slate-300 accent-slate-600"
       />
       <span>{label}</span>
     </label>
@@ -153,6 +157,7 @@ export default function EditorPage() {
 function EditorUI() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { formData } = useSelector((state) => state.logo);
 
   // --- STEP 5: URL Handover Logic ---
   // Results page se bheja gaya data yahan receive ho raha hai
@@ -164,16 +169,15 @@ function EditorUI() {
 
     return loadEditorResumeDraft();
   }, [shouldResumeDraft]);
-  const urlImage = searchParams.get('img') || resumeDraft?.sourceImageUrl || '';
-  const urlName = searchParams.get('text') || resumeDraft?.initialBusinessValue || '';
-  const urlLogoName = searchParams.get('name') || resumeDraft?.initialLogoName || '';
-  const urlSlogan = searchParams.get('slogan') || resumeDraft?.initialSloganValue || '';
-  const urlBgColor = searchParams.get('bgColor');
-  const urlTextColor = searchParams.get('textColor');
+  const queryImage = searchParams.get('img') || '';
+  const queryName = searchParams.get('text') || '';
+  const queryLogoName = searchParams.get('name') || '';
+  const querySlogan = searchParams.get('slogan') || '';
+  const queryBgColor = searchParams.get('bgColor') || '';
+  const queryTextColor = searchParams.get('textColor') || '';
   const payloadKey = searchParams.get('payloadKey') || resumeDraft?.payloadKey || '';
   const favoriteId = searchParams.get('favoriteId') || resumeDraft?.favoriteId || '';
   const favoriteRowKey = searchParams.get('favoriteRowKey') || '';
-  const initialIndustryLabel = searchParams.get('industryLabel') || resumeDraft?.initialIndustryLabel || 'Brand identity';
   const isFavorite = (searchParams.get('isFavorite') === '1') || Boolean(resumeDraft?.isFavorite);
   const isSaved = (searchParams.get('isSaved') === '1') || Boolean(resumeDraft?.isSaved);
   const isDownloaded = (searchParams.get('isDownloaded') === '1') || Boolean(resumeDraft?.isDownloaded);
@@ -182,12 +186,6 @@ function EditorUI() {
   const returnMode = searchParams.get('returnMode') || resumeDraft?.returnMode || 'push';
   const editScopeKey = searchParams.get('editScopeKey') || resumeDraft?.editScopeKey || '';
   const designId = searchParams.get('designId') || resumeDraft?.designId || payloadKey?.replace(/^logo-edit-/, '') || null;
-  const hasDirectEditorSource = Boolean(urlImage || urlName || urlLogoName || payloadKey || designId || favoriteId || favoriteRowKey);
-
-  // Redux se fallback data (agar URL mein na ho)
-  const { formData } = useSelector((state) => state.logo);
-  const initialBusinessValue = (urlName || formData.name || 'BRAND').trim();
-  const initialSloganValue = (urlSlogan || formData.slogan || '').trim();
 
   useEffect(() => {
     if (!shouldResumeDraft) {
@@ -234,11 +232,58 @@ function EditorUI() {
     }
   }, [designId, editScopeKey, payloadKey]);
 
+  const payloadBusinessValue = getPayloadBusinessValue(sessionPayload);
+  const payloadSloganValue = getPayloadSloganValue(sessionPayload);
+  const payloadBackgroundColor = getPayloadBackgroundColor(sessionPayload);
+  const payloadTextColor = getPayloadTextColor(sessionPayload);
+  const payloadPrimaryImageUrl = getPayloadPrimaryImageUrl(sessionPayload);
+  const payloadFontFamily = getPayloadFontFamily(sessionPayload);
+  const sourceImageUrl = payloadPrimaryImageUrl || queryImage || resumeDraft?.sourceImageUrl || '';
+  const initialBusinessValue = (
+    payloadBusinessValue
+    || queryName
+    || resumeDraft?.initialBusinessValue
+    || formData.name
+    || 'BRAND'
+  ).trim();
+  const initialSloganValue = (
+    payloadSloganValue
+    || querySlogan
+    || resumeDraft?.initialSloganValue
+    || formData.slogan
+    || ''
+  ).trim();
+  const initialLogoName = (
+    payloadBusinessValue
+    || queryLogoName
+    || resumeDraft?.initialLogoName
+    || initialBusinessValue
+  ).trim();
+  const initialIndustryLabel = (
+    searchParams.get('industryLabel')
+    || resumeDraft?.initialIndustryLabel
+    || 'Brand identity'
+  ).trim();
+  const resolvedBgColor = payloadBackgroundColor || queryBgColor || '';
+  const resolvedTextColor = payloadTextColor || queryTextColor || '';
+  const hasDirectEditorSource = Boolean(
+    sourceImageUrl
+    || payloadBusinessValue
+    || payloadSloganValue
+    || payloadFontFamily
+    || queryName
+    || queryLogoName
+    || payloadKey
+    || designId
+    || favoriteId
+    || favoriteRowKey
+  );
+
   const { editorState, applyLogoConfigChange, handleUndo, handleRedo } = useEditorHistory(() =>
     buildInitialPresent({
-      urlBgColor,
-      urlTextColor,
-      urlImage,
+      urlBgColor: resolvedBgColor,
+      urlTextColor: resolvedTextColor,
+      urlImage: sourceImageUrl,
       initialBusinessValue,
       initialSloganValue,
       formData,
@@ -353,7 +398,7 @@ function EditorUI() {
     setSelectedCanvasItem,
     setSelectedCanvasItems,
     setSidebarOpen,
-    urlBgColor,
+    urlBgColor: resolvedBgColor,
   });
 
   const areAllSelectedText = selectedCanvasItems.length > 0 && selectedCanvasItems.every((item) => item.type === 'text');
@@ -574,7 +619,7 @@ function EditorUI() {
     favoriteRowKey,
     initialBusinessValue,
     initialIndustryLabel,
-    initialLogoName: urlLogoName || initialBusinessValue,
+    initialLogoName,
     initialSloganValue,
     isFavorite,
     isSaved,
@@ -585,7 +630,7 @@ function EditorUI() {
     returnMode,
     returnTo,
     router,
-    sourceImageUrl: urlImage || '',
+    sourceImageUrl,
     stageRef,
   });
 
@@ -724,7 +769,7 @@ function EditorUI() {
     top: '4.65rem',
   };
   const floatingActionDockOffsetStyle = {
-    bottom: 'max(0.75rem, calc(50% - 230px))',
+    bottom: 'max(0.5rem, calc(50% - 250px))',
   };
   const mobileFloatingControlsStyle = isMobileViewport
     ? {
@@ -1030,14 +1075,14 @@ function EditorUI() {
 
   if (shouldShowEmptyEditorState) {
     return (
-      <div className="mt-20 min-h-screen bg-pink-50 px-6 py-14">
-        <div className="mx-auto max-w-2xl rounded-[2rem] border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-pink-50 text-pink-500">
+      <div className="mt-20 min-h-screen bg-[radial-gradient(circle_at_top,#fff7ed_0%,#f8fafc_52%,#e0f2fe_100%)] px-5 py-14">
+        <div className="mx-auto max-w-3xl rounded-[2.4rem] border border-white/80 bg-white/85 p-8 text-center shadow-[0_30px_90px_-45px_rgba(15,23,42,0.35)] backdrop-blur md:p-10">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[1.4rem] bg-gradient-to-br from-orange-100 via-rose-50 to-sky-100 text-pink-500 shadow-inner">
             <Sparkles size={28} />
           </div>
           <p className="text-xs font-black uppercase tracking-[0.28em] text-pink-500">Editor</p>
-          <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-900">Open a logo first to start editing</h1>
-          <p className="mt-3 text-sm font-medium text-slate-500">
+          <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-900 md:text-4xl">Open a logo first to start editing</h1>
+          <p className="mx-auto mt-3 max-w-2xl text-sm font-medium leading-6 text-slate-600 md:text-base">
             Go to Results or Favorites, choose a logo, then open it in the editor with its full design data.
           </p>
           <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -1060,32 +1105,36 @@ function EditorUI() {
   }
 
   return (
-    <div
-      className="fixed inset-x-0 bottom-0 top-20 flex flex-col overflow-hidden bg-[radial-gradient(circle_at_top,#ffffff_0%,#f8fafc_48%,#eef2ff_100%)] font-sans lg:flex-row"
-      style={{ WebkitTapHighlightColor: 'transparent' }}
-    >
-      <DesktopToolRail
-        editorTools={editorTools}
-        activeTool={activeTool}
-        onToolSelect={handleEditorToolSelect}
-      />
+    <>
+      <style jsx global>{EDITOR_FONT_FACE_CSS}</style>
+      <div
+        className="fixed inset-x-0 bottom-0 top-20 flex flex-col overflow-hidden bg-[radial-gradient(circle_at_top,#ffffff_0%,#f8fafc_48%,#eef2ff_100%)] font-sans lg:flex-row"
+        style={{ WebkitTapHighlightColor: 'transparent' }}
+      >
+      <div className="flex h-full w-full">
+        <div className="flex h-full w-full flex-col overflow-hidden lg:flex-row lg:border lg:border-slate-200/80 lg:bg-white/45 lg:shadow-[0_24px_70px_-44px_rgba(15,23,42,0.38)] lg:backdrop-blur">
+          <DesktopToolRail
+            editorTools={editorTools}
+            activeTool={activeTool}
+            onToolSelect={handleEditorToolSelect}
+          />
 
-      {/* DESKTOP SIDEBAR */}
-      {shouldShowDesktopSidebar && (
-        <aside className={`hidden shrink-0 flex-col border-r border-gray-100 bg-white lg:flex ${desktopSidebarWidthClass}`}>
-          {!selectedCanvasItem && (
-            <div className="border-b border-gray-50 px-6 py-5">
-              <h2 className={`text-xs font-black uppercase tracking-widest ${gradients.text}`}>{sidebarHeading}</h2>
-            </div>
+          {/* DESKTOP SIDEBAR */}
+          {shouldShowDesktopSidebar && (
+            <aside className={`hidden shrink-0 flex-col border-r border-slate-200/80 bg-white/88 lg:flex ${desktopSidebarWidthClass}`}>
+              {!selectedCanvasItem && (
+                <div className="border-b border-slate-100 px-6 py-5">
+                  <h2 className={`text-[15px] font-extrabold uppercase tracking-[0.08em] text-slate-800`}>{sidebarHeading}</h2>
+                </div>
+              )}
+              <div className="flex-1 overflow-y-auto bg-slate-50/55 p-4 space-y-4">
+                <EditorSidebarContent {...editorSidebarProps} />
+              </div>
+            </aside>
           )}
-          <div className={`flex-1 overflow-y-auto bg-gray-50/30 ${selectedCanvasItem ? 'p-4' : 'p-4'} space-y-4`}>
-            <EditorSidebarContent {...editorSidebarProps} />
-          </div>
-        </aside>
-      )}
 
-      {/* MAIN CONTENT AREA */}
-      <main className="flex-1 flex flex-col relative h-full min-w-0">
+          {/* MAIN CONTENT AREA */}
+          <main className="relative flex h-full min-w-0 flex-1 flex-col lg:bg-white/35">
 
         {/* MOBILE HEADER */}
         <MobileHeader
@@ -1103,7 +1152,7 @@ function EditorUI() {
         />
 
         {/* CANVAS */}
-        <div className="relative flex-1 overflow-y-auto bg-[linear-gradient(180deg,#f8fafc_0%,#eef2ff_100%)] p-2.5 pb-[7.1rem] sm:p-4 sm:pb-[8rem] lg:p-8 lg:pb-8">
+        <div className="relative flex-1 overflow-y-auto bg-[linear-gradient(180deg,#f8fafc_0%,#eef2ff_100%)] p-3 pb-[7.1rem] sm:p-4 sm:pb-[8rem] lg:p-4 lg:pb-4">
           <input
             ref={imageInputRef}
             type="file"
@@ -1147,12 +1196,12 @@ function EditorUI() {
             >
               <Redo2 size={18} />
             </button>
-            <label className="flex h-9 items-center gap-2 rounded-full border border-slate-200 bg-white/95 px-3 text-[11px] font-bold text-slate-700 backdrop-blur lg:h-10 lg:px-4 lg:text-[12px]">
+            <label className="flex h-9 items-center gap-2 rounded-full border border-slate-200 bg-white/95 px-3 text-[12px] font-semibold text-slate-700 backdrop-blur lg:h-10 lg:px-4 lg:text-[13px]">
               <input
                 type="checkbox"
                 checked={logoConfig.watermarkEnabled !== false}
                 onChange={(event) => applyLogoConfigChange({ watermarkEnabled: event.target.checked })}
-                className="h-4 w-4 rounded border-slate-300 accent-orange-500"
+                className="h-4 w-4 rounded border-slate-300 accent-slate-600"
               />
               <span>Watermark</span>
             </label>
@@ -1169,10 +1218,10 @@ function EditorUI() {
                       <div className="flex min-w-max items-center gap-px text-slate-700">
                         <button
                           onClick={() => openSelectedPanel('fonts')}
-                          className={`flex h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-[12px] font-bold transition-all ${
+                          className={`flex h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-[13px] font-semibold transition-all ${
                             activeObjectPanel === 'fonts'
-                              ? 'border-orange-200 bg-orange-50 text-orange-600 ring-2 ring-orange-200'
-                              : 'border-slate-200 bg-white hover:border-orange-200 hover:bg-orange-50/70'
+                              ? 'border-slate-300 bg-slate-50 text-slate-700 ring-2 ring-slate-200'
+                              : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                           }`}
                         >
                           <span
@@ -1184,24 +1233,26 @@ function EditorUI() {
                           <ChevronDown size={14} />
                         </button>
 
+                        <ToolbarDivider />
+
                         <div className="flex h-10 shrink-0 items-center rounded-xl border border-slate-200 bg-white px-1.5">
                           <button
                             onClick={() => handleSelectedTextFontSizeChange(selectedTextFontSize - 2)}
-                            className="flex h-7 w-7 items-center justify-center rounded-lg text-[12px] font-black transition-all hover:bg-slate-100"
+                            className="flex h-7 w-7 items-center justify-center rounded-lg text-[13px] font-bold transition-all hover:bg-slate-100"
                             title="Decrease font size"
                           >
                             -
                           </button>
                           <button
                             onClick={() => openSelectedPanel('fonts')}
-                            className="min-w-[34px] px-1.5 text-[12px] font-black text-slate-800"
+                            className="min-w-[34px] px-1.5 text-[13px] font-bold text-slate-800"
                             title="Open font settings"
                           >
                             {selectedTextFontSize}
                           </button>
                           <button
                             onClick={() => handleSelectedTextFontSizeChange(selectedTextFontSize + 2)}
-                            className="flex h-7 w-7 items-center justify-center rounded-lg text-[12px] font-black transition-all hover:bg-slate-100"
+                            className="flex h-7 w-7 items-center justify-center rounded-lg text-[13px] font-bold transition-all hover:bg-slate-100"
                             title="Increase font size"
                           >
                             +
@@ -1456,9 +1507,9 @@ function EditorUI() {
                         <Fragment key={panel}>
                           <button
                             onClick={() => openSelectedPanel(panel)}
-                            className={`brand-chip-button shrink-0 px-3 py-1.5 text-[11px] transition-all ${
+                            className={`brand-chip-button shrink-0 px-3 py-1.5 text-[12px] font-semibold transition-all ${
                               activeObjectPanel === panel
-                                ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200'
+                                ? 'bg-slate-100 text-slate-700 ring-2 ring-slate-200'
                                 : ''
                             }`}
                           >
@@ -1500,7 +1551,7 @@ function EditorUI() {
                 ) : activeTool === 'background' ? (
                   <div className="flex min-w-max items-center justify-center gap-1.5">
                     {hasActiveBackgroundShape ? (
-                      <span className="flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 px-2.5 py-1.5 text-[11px] font-bold text-slate-700">
+                      <span className="flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 px-2.5 py-1.5 text-[12px] font-semibold text-slate-700">
                         <span>Background Layers</span>
                         <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600">
                           {backgroundLayerCount}
@@ -1520,9 +1571,9 @@ function EditorUI() {
                         <Fragment key={option.id}>
                           <button
                             onClick={() => handleBackgroundOptionSelect(option.id)}
-                            className={`brand-chip-button flex shrink-0 items-center gap-1.5 px-3 py-1.5 text-[11px] transition-all ${
+                            className={`brand-chip-button flex shrink-0 items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold transition-all ${
                               isActiveOption
-                                ? 'bg-orange-50 text-orange-600 ring-2 ring-orange-200'
+                                ? 'bg-slate-100 text-slate-700 ring-2 ring-slate-200'
                                 : ''
                             }`}
                           >
@@ -1561,7 +1612,7 @@ function EditorUI() {
               {activeToolbarPopover === 'opacity' && selectedCanvasItem ? (
                 <div className="absolute left-1/2 top-[calc(100%+0.35rem)] z-30 w-[192px] -translate-x-1/2 rounded-[0.95rem] border border-slate-200/80 bg-white/95 p-2.5 shadow-2xl backdrop-blur">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-[11px] font-bold text-slate-700">Transparency</p>
+                    <p className="text-[12px] font-semibold text-slate-700">Transparency</p>
                     <span className="rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-700">
                       {selectedOpacityPercent}
                     </span>
@@ -1646,7 +1697,7 @@ function EditorUI() {
           />
 
           <div className="flex h-full w-full items-start justify-center pt-2 sm:pt-3 lg:items-center lg:pt-0">
-            <div className="relative h-full w-full max-w-[880px] max-h-[44vh] sm:max-h-[52vh] lg:max-h-[380px]">
+            <div className="relative h-full w-full max-w-[560px] max-h-[32vh] sm:max-w-[620px] sm:max-h-[40vh] lg:max-w-[680px] lg:max-h-[54vh]">
               <LogoCanvas
                 config={logoConfig}
                 onConfigChange={handleCanvasConfigChange}
@@ -1666,7 +1717,7 @@ function EditorUI() {
               {savingChanges && (
                 <div className="absolute inset-0 z-50 flex items-center justify-center rounded-[1.5rem] bg-slate-900/15 backdrop-blur-[2px] transition-all duration-300 sm:rounded-[2rem]">
                   <div className="flex flex-col items-center gap-3 rounded-[1.25rem] bg-white px-6 py-5 shadow-2xl">
-                    <Loader2 size={26} className="animate-spin text-orange-500" />
+                    <Loader2 size={26} className="animate-spin text-slate-600" />
                     <p className="text-[11px] font-black uppercase tracking-[0.1em] text-slate-700">Saving Logo...</p>
                   </div>
                 </div>
@@ -1684,6 +1735,8 @@ function EditorUI() {
           />
         </div>
       </main>
+      </div>
+      </div>
 
       <DownloadDialog
         open={downloadDialogOpen}
@@ -1699,6 +1752,7 @@ function EditorUI() {
       />
 
       <FloatingNotice notice={authNotice} onClose={() => setAuthNotice(null)} />
-    </div>
+      </div>
+    </>
   );
 }
