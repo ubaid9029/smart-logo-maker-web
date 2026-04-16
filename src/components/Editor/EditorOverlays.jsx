@@ -65,44 +65,27 @@ function PreviewSurfaceFrame({
   }
 
   if (surface.type === 'business-card') {
-    const visibilityPlateClassName = previewNeedsContrastBoost
-      ? (useDarkSurface ? 'bg-white/14 ring-1 ring-white/22' : 'bg-slate-900/12 ring-1 ring-slate-900/16')
-      : '';
-    const logoDepthClassName = previewNeedsContrastBoost
-      ? (useDarkSurface
-        ? 'drop-shadow-[0_0_20px_rgba(248,250,252,0.3)] drop-shadow-[0_16px_30px_rgba(15,23,42,0.4)]'
-        : 'drop-shadow-[0_0_20px_rgba(15,23,42,0.2)] drop-shadow-[0_16px_30px_rgba(15,23,42,0.28)]')
-      : (useDarkSurface ? 'drop-shadow-[0_14px_28px_rgba(255,255,255,0.12)]' : 'drop-shadow-[0_14px_28px_rgba(15,23,42,0.18)]');
-
     return (
       <div className={`${frameClassName} relative flex items-center justify-center`}>
-        <div
-          className="premium-frame-spin relative aspect-[1.75/1] w-[84%] rounded-[1.9rem] p-[2px]"
-          style={{
-            background: 'conic-gradient(from 45deg, rgba(255,255,255,0.5), rgba(255,255,255,0.06), rgba(255,184,107,0.55), rgba(255,255,255,0.06), rgba(255,255,255,0.5))',
-          }}
-        >
-          <div className={`premium-frame-float relative h-full w-full rounded-[1.8rem] border ${useDarkSurface ? 'border-slate-600/60 bg-[linear-gradient(145deg,#1f2937_0%,#0f172a_100%)]' : 'border-white/80 bg-[linear-gradient(145deg,#ffffff_0%,#f8fafc_100%)]'} shadow-[0_28px_70px_rgba(15,23,42,0.22)]`}>
-            <div className={`absolute inset-x-[8%] top-[14%] h-[1px] ${useDarkSurface ? 'bg-[linear-gradient(90deg,transparent,rgba(226,232,240,0.35),transparent)]' : 'bg-[linear-gradient(90deg,transparent,rgba(148,163,184,0.5),transparent)]'}`} />
-            <div className={`absolute bottom-[10%] left-[8%] h-[10%] w-[34%] rounded-full blur-md ${useDarkSurface ? 'bg-[linear-gradient(90deg,rgba(255,255,255,0.12),rgba(255,255,255,0))]' : 'bg-[linear-gradient(90deg,rgba(15,23,42,0.08),rgba(15,23,42,0))]'}`} />
-            {previewAssetUrl ? (
-              <div className="absolute inset-x-[10%] top-[14%] bottom-[20%] flex items-center justify-center">
-                {previewNeedsContrastBoost && (
-                  <div className={`absolute inset-x-[4%] inset-y-[8%] rounded-[1.15rem] ${visibilityPlateClassName}`} />
-                )}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={previewAssetUrl}
-                  alt="Business card logo preview"
-                  className={`relative max-h-full max-w-full object-contain ${logoDepthClassName}`}
-                />
-              </div>
-            ) : (
-              <div className="absolute inset-x-[10%] top-[14%] bottom-[20%] flex items-center justify-center text-sm font-semibold text-slate-500">
-                Preview unavailable
-              </div>
-            )}
-          </div>
+        <div className="relative flex aspect-[1.75/1] w-full max-w-[84%] items-center justify-center overflow-hidden drop-shadow-2xl">
+          <img
+            src="/mockups/card.svg"
+            alt="Business card mockup"
+            className="absolute inset-0 h-full w-full object-contain"
+          />
+          {previewAssetUrl ? (
+            <div className="absolute inset-0 z-10 flex items-center justify-center p-[15%]">
+              <img
+                src={previewAssetUrl}
+                alt="Business card logo preview"
+                className="relative max-h-full max-w-full object-contain drop-shadow-md"
+              />
+            </div>
+          ) : (
+            <div className="absolute inset-0 z-10 flex items-center justify-center text-sm font-semibold text-slate-500">
+              Preview unavailable
+            </div>
+          )}
         </div>
       </div>
     );
@@ -110,41 +93,28 @@ function PreviewSurfaceFrame({
 
   if (surface.type === 't-shirt') {
     const tShirtLogoUrl = previewAssetUrl || previewImageUrl || '';
-    const tShirtShellClassName = 'bg-[linear-gradient(168deg,#ffffff_0%,#f2f4f7_54%,#e3e7ec_100%)] border-slate-300/75';
-    const tShirtLogoClassName = previewNeedsContrastBoost
-      ? 'drop-shadow-[0_0_20px_rgba(15,23,42,0.24)] drop-shadow-[0_16px_30px_rgba(15,23,42,0.3)]'
-      : 'drop-shadow-[0_10px_24px_rgba(15,23,42,0.2)]';
 
     return (
-      <div className={`${frameClassName} relative flex items-center justify-center overflow-hidden rounded-[1.2rem] bg-[#6a6a6a]`}>
-        <div className="absolute inset-x-[24%] bottom-[8%] h-[9%] rounded-full bg-black/22 blur-[18px]" />
-        <div
-          className={`relative h-[90%] w-[74%] border ${tShirtShellClassName} shadow-[0_16px_28px_rgba(15,23,42,0.26)]`}
-          style={{ clipPath: 'polygon(22% 8%,35% 8%,44% 3.5%,56% 3.5%,65% 8%,78% 8%,94% 22%,86% 37%,86% 97%,14% 97%,14% 37%,6% 22%)' }}
-        >
-          <div className="absolute left-1/2 top-[4.5%] h-[9%] w-[24%] -translate-x-1/2 rounded-b-[1.2rem] border-x border-b border-slate-300/35 bg-slate-100/72" />
-          <div className="absolute inset-y-[18%] left-[18%] w-[10%] rounded-full bg-white/34 blur-md" />
-          <div className="absolute inset-y-[18%] right-[18%] w-[9%] rounded-full bg-slate-400/14 blur-md" />
-          <div className="absolute inset-x-[16%] bottom-[10%] h-[1.5px] bg-slate-300/45" />
-
-          {tShirtLogoUrl ? (
-            <div className="absolute inset-x-[24%] top-[36%] bottom-[28%] flex items-center justify-center">
-              {previewNeedsContrastBoost && (
-                <div className="absolute inset-x-[4%] inset-y-[8%] rounded-2xl bg-white/45 ring-1 ring-slate-200/80" />
-              )}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={tShirtLogoUrl}
-                alt="T-shirt logo preview"
-                className={`relative max-h-full max-w-full object-contain ${tShirtLogoClassName}`}
-              />
-            </div>
-          ) : (
-            <div className="absolute inset-x-[24%] top-[36%] bottom-[28%] flex items-center justify-center text-sm font-semibold text-slate-600">
-              Preview unavailable
-            </div>
-          )}
-        </div>
+      <div className={`${frameClassName} relative flex items-center justify-center overflow-hidden rounded-[1.2rem] bg-white`}>
+        <img
+          src="/mockups/T_shirt.svg"
+          alt="T-shirt mockup"
+          className="absolute inset-0 h-full w-full object-contain p-4"
+        />
+        
+        {tShirtLogoUrl ? (
+          <div className="absolute inset-x-[28%] top-[30%] bottom-[40%] z-10 flex items-center justify-center">
+            <img
+              src={tShirtLogoUrl}
+              alt="T-shirt logo preview"
+              className="relative max-h-full max-w-full object-contain drop-shadow-md"
+            />
+          </div>
+        ) : (
+          <div className="absolute inset-x-[28%] top-[30%] bottom-[40%] z-10 flex items-center justify-center text-sm font-semibold text-slate-500">
+            Preview unavailable
+          </div>
+        )}
       </div>
     );
   }

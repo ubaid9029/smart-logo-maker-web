@@ -191,23 +191,6 @@ const cropPreviewDataUrlToEditorCard = async (previewDataUrl) => {
   return cardCanvas.toDataURL('image/png');
 };
 
-const withPreviewWatermarkDataUrl = async (previewDataUrl, watermarkEnabled = true) => {
-  if (!previewDataUrl) {
-    return null;
-  }
-
-  if (!watermarkEnabled) {
-    return previewDataUrl;
-  }
-
-  const { canvas } = await renderDataUrlToCanvas(previewDataUrl);
-  await applyWatermarkToCanvas(canvas, {
-    logicalWidth: CARD_WIDTH,
-    logicalHeight: CARD_HEIGHT,
-  });
-  return canvas.toDataURL('image/png');
-};
-
 export function useEditorPreviewPersistence({
   designId,
   editScopeKey,
@@ -615,20 +598,16 @@ export function useEditorPreviewPersistence({
       skipFavoriteSync: true,
     });
     const previewCardDataUrl = await cropPreviewDataUrlToEditorCard(nextPreviewImageUrl);
-    const previewCardDataUrlWithWatermark = await withPreviewWatermarkDataUrl(
-      previewCardDataUrl,
-      logoConfig?.watermarkEnabled !== false
-    );
     let previewElementsCardDataUrl = '';
     if (nextElementsPreviewImageUrl) {
       const { canvas: elementsCanvas } = await renderDataUrlToCanvas(nextElementsPreviewImageUrl);
       const trimmedCanvas = cropCanvasToVisibleContent(elementsCanvas, { padding: 18 });
       previewElementsCardDataUrl = trimmedCanvas.toDataURL('image/png');
     }
-    setPreviewImageUrl(previewCardDataUrlWithWatermark || '');
+    setPreviewImageUrl(previewCardDataUrl || '');
     setPreviewElementsImageUrl(previewElementsCardDataUrl || '');
     setPreviewDialogOpen(true);
-  }, [captureEditorPreview, logoConfig?.watermarkEnabled, persistEditorChanges]);
+  }, [captureEditorPreview, persistEditorChanges]);
 
   const handleSaveDesign = useCallback(async () => {
     const canSave = await ensureSignedIn();

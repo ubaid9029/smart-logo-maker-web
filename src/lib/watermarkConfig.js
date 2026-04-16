@@ -1,7 +1,8 @@
 export const BRAND_WATERMARK_SRC = '/logos/logo3.svg';
-export const BRAND_WATERMARK_TILE_SIZE = 92;
-export const BRAND_WATERMARK_OPACITY = 0.12;
-export const BRAND_WATERMARK_ROTATION = -18;
+export const BRAND_WATERMARK_TILE_SIZE = 130;
+export const BRAND_WATERMARK_PATTERN_GAP = 110;
+export const BRAND_WATERMARK_OPACITY = 0.082;
+export const BRAND_WATERMARK_ROTATION = -16;
 export const BRAND_WATERMARK_OVERLAY_INSET = '-18%';
 export const BRAND_WATERMARK_OVERLAY_SCALE = 1.08;
 

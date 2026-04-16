@@ -646,6 +646,8 @@ export const getFontWidthFactor = (fontFamily = '') => {
 };
 
 let textMeasurementCanvas = null;
+export const TEXT_BLOCK_HORIZONTAL_PADDING = 12;
+export const TEXT_BLOCK_VERTICAL_PADDING = 0;
 
 const getTextMeasurementContext = () => {
   if (typeof document === 'undefined') {
@@ -692,10 +694,12 @@ const measureTextBounds = ({
   const trackingValue = Number(letterSpacing || 0);
   const metrics = context.measureText(normalizedValue || ' ');
   const widestLine = metrics.width + (trackingValue * Math.max(0, normalizedValue.length - 1));
-  const baseHeightMetrics = context.measureText('Mg');
+  const baseHeightMetrics = context.measureText(normalizedValue || 'Mg');
+  const measuredAscent = baseHeightMetrics.actualBoundingBoxAscent || fontSize * 0.78;
+  const measuredDescent = baseHeightMetrics.actualBoundingBoxDescent || fontSize * 0.22;
   const measuredLineHeight = Math.max(
-    fontSize + 18,
-    (baseHeightMetrics.actualBoundingBoxAscent || fontSize * 0.82) + (baseHeightMetrics.actualBoundingBoxDescent || fontSize * 0.28)
+    fontSize * 0.92,
+    Math.ceil(measuredAscent + measuredDescent)
   );
   const resolvedLineHeight = typography.lineHeight
     ? Math.max(measuredLineHeight, fontSize * typography.lineHeight)
@@ -715,11 +719,12 @@ export const getTextBlockMetrics = (item = {}) => {
     ? explicitFontSize
     : safeValue.length > 28 ? 24 : safeValue.length > 20 ? 30 : safeValue.length > 12 ? 38 : 46;
   const explicitWidth = Number(item.width || 0);
+  const shouldAutoFit = item.autoFit !== false;
   let fontSize = baseFontSize;
   const explicitHeight = Number(item.height || 0);
   const fontWidthFactor = getFontWidthFactor(item.fontFamily);
   const maxBlockWidth = Math.max(48, Math.min(620, Number(item.maxWidth || 620)));
-  const maxTextWidth = Math.max(16, maxBlockWidth - 32);
+  const maxTextWidth = Math.max(16, maxBlockWidth - TEXT_BLOCK_HORIZONTAL_PADDING);
   let measuredBounds = measureTextBounds({
     value: safeValue,
     fontFamily: item.fontFamily,
@@ -730,7 +735,7 @@ export const getTextBlockMetrics = (item = {}) => {
     letterSpacing: item.letterSpacing,
   });
 
-  if (measuredBounds?.width && measuredBounds.width > maxTextWidth) {
+  if (shouldAutoFit && measuredBounds?.width && measuredBounds.width > maxTextWidth) {
     const scaledFontSize = Math.max(12, Math.floor(fontSize * (maxTextWidth / measuredBounds.width)));
     fontSize = scaledFontSize;
     measuredBounds = measureTextBounds({
@@ -757,13 +762,16 @@ export const getTextBlockMetrics = (item = {}) => {
     }
   }
 
-  const measuredWidth = Math.min(
-    maxBlockWidth,
-    Math.max(Math.min(160, maxBlockWidth), Math.ceil((measuredBounds?.width || (safeValue.length * (fontSize * fontWidthFactor))) + 32))
+  const naturalMeasuredWidth = Math.max(
+    120,
+    Math.ceil((measuredBounds?.width || (safeValue.length * (fontSize * fontWidthFactor))) + TEXT_BLOCK_HORIZONTAL_PADDING)
   );
+  const measuredWidth = shouldAutoFit
+    ? Math.min(maxBlockWidth, Math.max(Math.min(160, maxBlockWidth), naturalMeasuredWidth))
+    : naturalMeasuredWidth;
   const measuredHeight = Math.max(
-    fontSize + 18,
-    Math.ceil((measuredBounds?.height || fontSize) + 24)
+    Math.ceil(fontSize * 0.9),
+    Math.ceil((measuredBounds?.height || fontSize) + TEXT_BLOCK_VERTICAL_PADDING)
   );
   const blockWidth = item.renderMode === 'svg'
     ? (explicitWidth > 0 ? explicitWidth : measuredWidth)
@@ -783,6 +791,91 @@ export const getTextBlockMetrics = (item = {}) => {
 export const getTextMetrics = (item = {}) => {
   const { width, height } = getTextBlockMetrics(item);
   return { width, height };
+};
+
+export const getEditableTextBaseFontSize = (item = {}) => {
+  const fallbackFontSize = Math.max(12, Number(item.fontSize || getTextBlockMetrics(item).fontSize || 46));
+
+  if (!(item.renderMode === 'svg' && item.svgDataUri)) {
+    return fallbackFontSize;
+  }
+
+  const sourceMetrics = getTextMetrics(item);
+  const editableCandidateMetrics = getTextBlockMetrics({
+    ...item,
+    autoFit: false,
+    renderMode: 'text',
+    svgDataUri: null,
+    width: 0,
+    height: 0,
+    fontSize: fallbackFontSize,
+  });
+  const widthRatio = sourceMetrics.width / Math.max(1, editableCandidateMetrics.width || 1);
+  const heightRatio = sourceMetrics.height / Math.max(1, editableCandidateMetrics.height || 1);
+  const scaleRatio = Math.max(1, Math.min(8, Math.max(widthRatio, heightRatio)));
+
+  return Math.max(12, fallbackFontSize * scaleRatio);
+};
+
+export const getEffectiveTextFontSize = (item = {}) => {
+  const renderedFontSize = getEditableTextBaseFontSize(item);
+  const scaleY = Math.abs(Number(item.transform?.scaleY ?? item.scaleY ?? 1)) || 1;
+  return renderedFontSize * scaleY;
+};
+
+export const resolveTextFontSizeFromRenderedTarget = (item = {}, targetRenderedFontSize) => {
+  const currentRenderedFontSize = Math.max(1, getEffectiveTextFontSize(item));
+  const currentBaseFontSize = Math.max(1, getEditableTextBaseFontSize(item));
+  const safeTargetRenderedFontSize = Math.max(12, Number(targetRenderedFontSize || currentRenderedFontSize));
+  const resizeRatio = safeTargetRenderedFontSize / currentRenderedFontSize;
+
+  return Math.max(12, currentBaseFontSize * resizeRatio);
+};
+
+export const bakeTextTransformIntoTypography = (item = {}, overrides = {}) => {
+  const resolvedTransform = {
+    x: Number(overrides.transform?.x ?? item.transform?.x ?? item.x ?? (CARD_X + 110)),
+    y: Number(overrides.transform?.y ?? item.transform?.y ?? item.y ?? (CARD_Y + CARD_HEIGHT - 150)),
+    scaleX: Number(overrides.transform?.scaleX ?? item.transform?.scaleX ?? item.scaleX ?? 1),
+    scaleY: Number(overrides.transform?.scaleY ?? item.transform?.scaleY ?? item.scaleY ?? 1),
+    rotation: Number(overrides.transform?.rotation ?? item.transform?.rotation ?? item.rotation ?? 0),
+  };
+  const previousItem = {
+    ...item,
+    fontSize: getEditableTextBaseFontSize(item),
+    transform: resolvedTransform,
+  };
+  const resolvedFontSize = Number(overrides.fontSize);
+  const nextFontSize = Number.isFinite(resolvedFontSize)
+    ? resolvedFontSize
+    : getEffectiveTextFontSize(previousItem);
+  const nextItem = withMeasuredTextBox({
+    ...previousItem,
+    ...overrides,
+    width: 0,
+    height: 0,
+    fontSize: Math.max(12, nextFontSize),
+    transform: resolvedTransform,
+  });
+  const previousMetrics = getTextMetrics(previousItem);
+  const nextMetrics = getTextMetrics(nextItem);
+  const previousScaleX = Math.abs(resolvedTransform.scaleX || 1) || 1;
+  const previousScaleY = Math.abs(resolvedTransform.scaleY || 1) || 1;
+  const centerX = resolvedTransform.x + (previousMetrics.width * previousScaleX) / 2;
+  const centerY = resolvedTransform.y + (previousMetrics.height * previousScaleY) / 2;
+  const signedScaleX = Math.sign(resolvedTransform.scaleX || 1) || 1;
+  const signedScaleY = Math.sign(resolvedTransform.scaleY || 1) || 1;
+
+  return {
+    ...nextItem,
+    transform: {
+      ...resolvedTransform,
+      x: centerX - (nextMetrics.width * Math.abs(signedScaleX)) / 2,
+      y: centerY - (nextMetrics.height * Math.abs(signedScaleY)) / 2,
+      scaleX: signedScaleX,
+      scaleY: signedScaleY,
+    },
+  };
 };
 
 export const preserveTextCenterTransform = (previousItem = {}, nextItem = {}) => {
@@ -831,6 +924,24 @@ export const preserveTextAnchorTransform = (previousItem = {}, nextItem = {}) =>
     ...previousTransform,
     x: nextX,
     y: previousCenterY - (nextMetrics.height * scaleY) / 2,
+  };
+};
+
+export const preserveTextPositionTransform = (previousItem = {}, nextItem = {}) => {
+  const previousTransform = previousItem.transform || {
+    x: CARD_X + 110,
+    y: CARD_Y + CARD_HEIGHT - 150,
+    scaleX: 1,
+    scaleY: 1,
+    rotation: 0,
+  };
+  const nextTransform = nextItem.transform || {};
+
+  return {
+    ...nextTransform,
+    ...previousTransform,
+    x: previousTransform.x,
+    y: previousTransform.y,
   };
 };
 
@@ -1044,6 +1155,7 @@ export const buildTextItemFromTemplate = ({
 }) => withMeasuredTextBox({
   id,
   text,
+  autoFit: false,
   width: 0,
   height: 0,
   fontSize: Number(template.fontSize || 46),
@@ -1376,6 +1488,7 @@ export const normalizePayloadTextItem = (item) => {
   if ((item.text || item.businessValue || item.sloganValue) && item.transform) {
     return withMeasuredTextBox({
       ...item,
+      autoFit: item.autoFit ?? true,
       width: Number(item.width || 0),
       height: Number(item.height || 0),
       fontSize: Number(item.fontSize || 46),
@@ -1412,6 +1525,7 @@ export const normalizePayloadTextItem = (item) => {
   return withMeasuredTextBox({
     id: item.id || `text-${Date.now()}`,
     text: textValue,
+    autoFit: item.autoFit ?? true,
     width: Number(item.width || 0),
     height: Number(item.height || 0),
     fontSize,

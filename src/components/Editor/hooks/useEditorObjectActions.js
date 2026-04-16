@@ -5,16 +5,22 @@ import { getEditorFontOption } from '../../../lib/editorFonts';
 import { CARD_HEIGHT, CARD_WIDTH, CARD_X, CARD_Y, EMPTY_EDIT_DIALOG } from '../editorConstants';
 import {
   applyStyleToTextItem,
+  bakeTextTransformIntoTypography,
   buildShapeItemFromBackgroundShape,
   clampTransformToCard,
   extractTextTemplate,
   getCanvasLayerKey,
+  getEditableTextBaseFontSize,
+  getEffectiveTextFontSize,
   isCanvasItemLocked,
   getPreferredTextTemplateSource,
+  resolveTextFontSizeFromRenderedTarget,
   getTextMetrics,
   moveCanvasLayers,
   normalizeTextFontWeight,
+  preserveTextAnchorTransform,
   preserveTextCenterTransform,
+  preserveTextPositionTransform,
   syncCanvasLayerOrder,
   withMeasuredTextBox,
 } from '../editorUtils';
@@ -58,6 +64,7 @@ export function useEditorObjectActions({
 
     return {
       ...item,
+      fontSize: getEditableTextBaseFontSize(item),
       fill: resolvedTemplate.fill,
       fontFamily: resolvedTemplate.fontFamily,
       fontUrl: item.fontUrl || resolvedTemplate.fontUrl || null,
@@ -100,9 +107,9 @@ export function useEditorObjectActions({
   const getBaseItemMetrics = useCallback((type, item) => (
     type === 'logo'
       ? {
-          width: Number(item.baseWidth || item.width || 280),
-          height: Number(item.baseHeight || item.height || 200),
-        }
+        width: Number(item.baseWidth || item.width || 280),
+        height: Number(item.baseHeight || item.height || 200),
+      }
       : getTextMetrics(item)
   ), []);
 
@@ -117,26 +124,59 @@ export function useEditorObjectActions({
     };
   }, [getBaseItemMetrics]);
 
-  const buildMeasuredTextUpdate = useCallback((item, overrides = {}) => {
+  const buildMeasuredTextUpdate = useCallback((item, overrides = {}, options = {}) => {
     const isTypographyResizeUpdate = Object.prototype.hasOwnProperty.call(overrides, 'fontSize');
     const resolvedMaxWidth = isTypographyResizeUpdate
       ? CARD_WIDTH
       : Math.max(48, Math.min(CARD_WIDTH, Number(item.width || CARD_WIDTH)));
-    const nextItem = withMeasuredTextBox({
+
+    // Anchor fontFamily to prevent cross-contamination from logoConfig.textTemplate.
+    // After every text edit, syncTextTemplate writes the selected item's fontFamily
+    // into logoConfig.textTemplate. If another item doesn't have its own fontFamily
+    // stored (e.g. AI-generated SVG items), getResolvedTextProps would incorrectly
+    // inherit the last-edited item's font.
+    // Priority: overrides.fontFamily (explicit font change) > item's own fontFamily
+    // > global design fontFamily. We intentionally skip logoConfig.textTemplate.fontFamily.
+    const safeFontFamily = overrides.fontFamily || item.fontFamily || logoConfig.fontFamily || 'Arial';
+    const safeFontUrl = overrides.fontFamily
+      ? (overrides.fontUrl || null)
+      : (item.fontUrl || null);
+
+    const resolvedItem = {
       ...getResolvedTextProps(item),
-      ...overrides,
-      maxWidth: resolvedMaxWidth,
+      autoFit: false,
       renderMode: 'text',
       svgDataUri: null,
+      fontFamily: safeFontFamily,
+      fontUrl: safeFontUrl,
+    };
+    const nextItem = bakeTextTransformIntoTypography(resolvedItem, {
+      ...overrides,
+      maxWidth: resolvedMaxWidth,
       width: 0,
       height: 0,
     });
 
-    return {
-      ...nextItem,
-      transform: preserveTextCenterTransform(item, nextItem),
-    };
-  }, [getResolvedTextProps]);
+    // bakeTextTransformIntoTypography already centers nextItem on the resolvedItem's
+    // center point. Applying preserveTextCenterTransform on top would re-center using
+    // the ORIGINAL item's scale (scaleX/scaleY from before the bake) against nextItem's
+    // already-baked scale (±1), causing an asymmetric position drift: the box shifts
+    // one way on bold-apply and the opposite on bold-remove, never returning exactly.
+    //
+    // For typography resize updates (bold/italic/size): trust the bake's centering.
+    // For anchor-preserving updates (align changes, etc.): use the anchor logic.
+    if (options.preserveAnchor) {
+      return {
+        ...nextItem,
+        transform: preserveTextPositionTransform(item, {
+          ...nextItem,
+          transform: preserveTextAnchorTransform(item, nextItem),
+        }),
+      };
+    }
+
+    return nextItem;
+  }, [getResolvedTextProps, logoConfig.fontFamily]);
 
   const commitTextValueChange = useCallback((itemId, nextValue) => {
     const safeItemId = typeof itemId === 'string' ? itemId : '';
@@ -179,32 +219,33 @@ export function useEditorObjectActions({
       const nextTextItems = targetCollection.map((item) =>
         item.id === safeItemId
           ? (() => {
-              const availableWidth = Math.max(48, CARD_WIDTH);
-              const nextItem = {
-                ...getResolvedTextProps(item),
-                text: safeTextValue,
-                renderMode: 'text',
-                svgDataUri: null,
-                width: 0,
-                height: 0,
-                maxWidth: availableWidth,
-              };
-              const measuredItem = withMeasuredTextBox(nextItem);
-              const persistedItem = { ...measuredItem };
-              delete persistedItem.maxWidth;
-              const nextTransform = clampTransformToCard(
-                'text',
-                persistedItem,
-                {
-                  ...(item.transform || {}),
-                }
-              );
+            const availableWidth = Math.max(48, CARD_WIDTH);
+            const nextItem = {
+              ...getResolvedTextProps(item),
+              autoFit: false,
+              text: safeTextValue,
+              renderMode: 'text',
+              svgDataUri: null,
+              width: 0,
+              height: 0,
+              maxWidth: availableWidth,
+            };
+            const measuredItem = withMeasuredTextBox(nextItem);
+            const persistedItem = { ...measuredItem };
+            delete persistedItem.maxWidth;
+            const nextTransform = clampTransformToCard(
+              'text',
+              persistedItem,
+              {
+                ...(item.transform || {}),
+              }
+            );
 
-              return {
-                ...persistedItem,
-                transform: nextTransform,
-              };
-            })()
+            return {
+              ...persistedItem,
+              transform: nextTransform,
+            };
+          })()
           : item
       );
       return {
@@ -229,9 +270,9 @@ export function useEditorObjectActions({
         const nextItem = updater('logo', item);
         return nextItem
           ? {
-              ...nextItem,
-              transform: clampTransformToCard('logo', nextItem, nextItem.transform),
-            }
+            ...nextItem,
+            transform: clampTransformToCard('logo', nextItem, nextItem.transform),
+          }
           : null;
       }).filter(Boolean);
       const nextTextItems = (prev.textItems || []).map((item) => {
@@ -242,9 +283,9 @@ export function useEditorObjectActions({
         const nextItem = updater('text', item);
         return nextItem
           ? {
-              ...nextItem,
-              transform: clampTransformToCard('text', nextItem, nextItem.transform),
-            }
+            ...nextItem,
+            transform: clampTransformToCard('text', nextItem, nextItem.transform),
+          }
           : null;
       }).filter(Boolean);
       const selectedTextIds = Array.from(selectedItemKeySet)
@@ -328,15 +369,55 @@ export function useEditorObjectActions({
       fontUrl: fontOption?.fontUrl || null,
       fontStyle: 'normal',
       fontWeight: fontOption?.weight || 400,
-    }));
+      // Pass the effective visual size so the bounding box gets properly recalculated
+      // using the full CARD_WIDTH and the new font's intrinsic metrics doesn't clip characters.
+      fontSize: getEffectiveTextFontSize(item),
+    }, { preserveCenter: true }));
   }, [buildMeasuredTextUpdate, updateSelectedTextElements]);
 
   const handleSelectedTextFontSizeChange = useCallback((fontSizeValue) => {
-    const safeFontSize = Math.max(12, Math.min(120, Number(fontSizeValue || 46)));
+    const safeTargetFontSize = Math.max(12, Math.min(240, Number(fontSizeValue || 46)));
 
-    updateSelectedTextElements((item) => buildMeasuredTextUpdate(item, {
-      fontSize: safeFontSize,
-    }));
+    updateSelectedTextElements((item) => {
+      // SVG-mode text items: resize by scaling the transform so the SVG (and any
+      // custom font baked into it) stays completely intact. Converting to text mode
+      // with buildMeasuredTextUpdate would destroy the SVG and render the text in
+      // whatever fallback font the browser picks, changing the visual appearance.
+      if (item.renderMode === 'svg' && item.svgDataUri) {
+        const currentEffectiveSize = Math.max(1, getEffectiveTextFontSize(item));
+        if (Math.round(currentEffectiveSize) === safeTargetFontSize) {
+          return item; // already at target size, no-op
+        }
+        const scaleRatio = safeTargetFontSize / currentEffectiveSize;
+        const currentTransform = item.transform || {};
+        const oldAbsScaleX = Math.abs(currentTransform.scaleX ?? 1) || 1;
+        const oldAbsScaleY = Math.abs(currentTransform.scaleY ?? 1) || 1;
+        const signedScaleX = Math.sign(currentTransform.scaleX || 1) || 1;
+        const signedScaleY = Math.sign(currentTransform.scaleY || 1) || 1;
+        const newAbsScaleX = oldAbsScaleX * scaleRatio;
+        const newAbsScaleY = oldAbsScaleY * scaleRatio;
+        const baseW = item.width || 1;
+        const baseH = item.height || 1;
+        const centerX = (currentTransform.x ?? 0) + (baseW * oldAbsScaleX) / 2;
+        const centerY = (currentTransform.y ?? 0) + (baseH * oldAbsScaleY) / 2;
+
+        return {
+          ...item,
+          transform: clampTransformToCard('text', item, {
+            ...currentTransform,
+            scaleX: newAbsScaleX * signedScaleX,
+            scaleY: newAbsScaleY * signedScaleY,
+            x: centerX - (baseW * newAbsScaleX) / 2,
+            y: centerY - (baseH * newAbsScaleY) / 2,
+          }),
+        };
+      }
+
+      // Text-mode items: update fontSize directly (scaleY is always ±1 after baking).
+      return buildMeasuredTextUpdate(item, {
+        fontSize: safeTargetFontSize,
+      }, { preserveCenter: true });
+    });
   }, [buildMeasuredTextUpdate, updateSelectedTextElements]);
 
   const handleSelectedTextFontStyleChange = useCallback((nextFontStyle) => {
@@ -345,7 +426,11 @@ export function useEditorObjectActions({
     updateSelectedTextElements((item) => buildMeasuredTextUpdate(item, {
       fontStyle: normalizedFontStyle,
       fontWeight: syncFontWeightWithStyle(getResolvedTextProps(item), normalizedFontStyle),
-    }));
+      // Including fontSize makes isTypographyResizeUpdate=true inside buildMeasuredTextUpdate,
+      // which lets the text reflow within the full card width (not the item's current SVG
+      // pixel width). It also keeps the displayed font size stable across style changes.
+      fontSize: getEditableTextBaseFontSize(getResolvedTextProps(item)),
+    }, { preserveCenter: true }));
   }, [buildMeasuredTextUpdate, getResolvedTextProps, normalizeFontStyleValue, syncFontWeightWithStyle, updateSelectedTextElements]);
 
   const handleToggleSelectedTextFontStyle = useCallback((styleToken) => {
@@ -370,7 +455,10 @@ export function useEditorObjectActions({
       return buildMeasuredTextUpdate(item, {
         fontStyle: nextFontStyle,
         fontWeight: syncFontWeightWithStyle(getResolvedTextProps(item), nextFontStyle),
-      });
+        // Same reason as handleSelectedTextFontStyleChange: keeps displayed size stable
+        // and prevents text from being squeezed into its current SVG pixel width.
+        fontSize: getEditableTextBaseFontSize(getResolvedTextProps(item)),
+      }, { preserveCenter: true });
     });
   }, [buildMeasuredTextUpdate, getResolvedTextProps, normalizeFontStyleValue, syncFontWeightWithStyle, updateSelectedTextElements]);
 
@@ -379,11 +467,10 @@ export function useEditorObjectActions({
       return;
     }
 
-    updateSelectedTextElements((item) => ({
-      ...getResolvedTextProps(item),
+    updateSelectedTextElements((item) => buildMeasuredTextUpdate(item, {
       align: nextAlign,
-    }));
-  }, [getResolvedTextProps, updateSelectedTextElements]);
+    }, { preserveAnchor: true }));
+  }, [buildMeasuredTextUpdate, updateSelectedTextElements]);
 
   const handleNudge = useCallback((dx, dy) => {
     updateSelectedElements((type, item) => ({
@@ -409,6 +496,16 @@ export function useEditorObjectActions({
     const safeScale = Math.max(0.2, Math.min(3, Number(scaleValue || 1)));
 
     updateSelectedElements((type, item) => {
+      if (type === 'text') {
+        const currentRenderedFontSize = getEffectiveTextFontSize(item);
+        return buildMeasuredTextUpdate(item, {
+          fontSize: resolveTextFontSizeFromRenderedTarget(
+            item,
+            Math.max(12, Math.min(240, currentRenderedFontSize * safeScale))
+          ),
+        }, { preserveCenter: true });
+      }
+
       const currentTransform = item.transform || {};
       const currentScaleX = Math.abs(currentTransform.scaleX ?? 1);
       const currentScaleY = Math.abs(currentTransform.scaleY ?? 1);
@@ -429,7 +526,7 @@ export function useEditorObjectActions({
         },
       };
     });
-  }, [getBaseItemMetrics, updateSelectedElements]);
+  }, [buildMeasuredTextUpdate, getBaseItemMetrics, updateSelectedElements]);
 
   const handleRotateSelected = useCallback((rotationValue) => {
     const safeRotation = Number(rotationValue || 0);
@@ -445,6 +542,23 @@ export function useEditorObjectActions({
 
   const handleResetSelectedTransform = useCallback(() => {
     updateSelectedElements((type, item) => {
+      if (type === 'text') {
+        const normalizedItem = bakeTextTransformIntoTypography(item, {
+          renderMode: 'text',
+          svgDataUri: null,
+        });
+
+        return {
+          ...normalizedItem,
+          transform: {
+            ...normalizedItem.transform,
+            rotation: 0,
+            scaleX: 1,
+            scaleY: 1,
+          },
+        };
+      }
+
       const currentTransform = item.transform || {};
       const currentScaleX = Math.abs(currentTransform.scaleX ?? 1);
       const currentScaleY = Math.abs(currentTransform.scaleY ?? 1);
@@ -528,12 +642,39 @@ export function useEditorObjectActions({
         const currentTransform = item.transform || {};
         const baseMetrics = getBaseItemMetrics(selectedCanvasItem.type, item);
         const lockAspectRatio = Boolean(item.style?.lockAspectRatio);
-        if (lockAspectRatio && (field === 'width' || field === 'height')) {
+        const isTextSelection = selectedCanvasItem.type === 'text';
+        if (!isTextSelection && lockAspectRatio && (field === 'width' || field === 'height')) {
           return item;
         }
         const signedScaleX = Math.sign(currentTransform.scaleX || 1) || 1;
         const signedScaleY = Math.sign(currentTransform.scaleY || 1) || 1;
         let nextTransform = { ...currentTransform };
+
+        if (isTextSelection && (field === 'width' || field === 'height')) {
+          const normalizedItem = bakeTextTransformIntoTypography(item, {
+            renderMode: 'text',
+            svgDataUri: null,
+          });
+          const normalizedMetrics = getTextMetrics(normalizedItem);
+          const currentFontSize = Number(normalizedItem.fontSize || item.fontSize || 46);
+          const currentMeasure = field === 'width'
+            ? Math.max(1, normalizedMetrics.width)
+            : Math.max(1, normalizedMetrics.height);
+          const requestedMeasure = field === 'width'
+            ? Math.max(24, Number(nextValue || currentMeasure))
+            : Math.max(24, Number(nextValue || currentMeasure));
+          const resizeRatio = requestedMeasure / currentMeasure;
+          const resizedItem = bakeTextTransformIntoTypography(normalizedItem, {
+            fontSize: Math.max(12, Math.min(240, currentFontSize * resizeRatio)),
+            renderMode: 'text',
+            svgDataUri: null,
+          });
+
+          return {
+            ...resizedItem,
+            transform: clampTransformToCard('text', resizedItem, resizedItem.transform),
+          };
+        }
 
         if (field === 'x' || field === 'y' || field === 'rotation') {
           nextTransform = {
@@ -550,8 +691,8 @@ export function useEditorObjectActions({
             scaleX: nextScaleMagnitude * signedScaleX,
             ...(lockAspectRatio
               ? {
-                  scaleY: nextScaleMagnitude * signedScaleY,
-                }
+                scaleY: nextScaleMagnitude * signedScaleY,
+              }
               : {}),
           };
         }
@@ -564,8 +705,8 @@ export function useEditorObjectActions({
             scaleY: nextScaleMagnitude * signedScaleY,
             ...(lockAspectRatio
               ? {
-                  scaleX: nextScaleMagnitude * signedScaleX,
-                }
+                scaleX: nextScaleMagnitude * signedScaleX,
+              }
               : {}),
           };
         }
@@ -868,9 +1009,9 @@ export function useEditorObjectActions({
         [collectionName]: (prev[collectionName] || []).map((item) => (
           item.id === id
             ? {
-                ...item,
-                locked: typeof forcedLockedState === 'boolean' ? forcedLockedState : !isCanvasItemLocked(item),
-              }
+              ...item,
+              locked: typeof forcedLockedState === 'boolean' ? forcedLockedState : !isCanvasItemLocked(item),
+            }
             : item
         )),
       };
@@ -900,9 +1041,9 @@ export function useEditorObjectActions({
 
       const migratedLegacyBackgroundItem = prev.backgroundShape?.type && prev.backgroundShape.type !== 'none'
         ? {
-            ...buildShapeItemFromBackgroundShape(prev.backgroundShape, { id: `shape-${Date.now()}-legacy-bg` }),
-            isBackground: true,
-          }
+          ...buildShapeItemFromBackgroundShape(prev.backgroundShape, { id: `shape-${Date.now()}-legacy-bg` }),
+          isBackground: true,
+        }
         : null;
 
       if (migratedLegacyBackgroundItem) {

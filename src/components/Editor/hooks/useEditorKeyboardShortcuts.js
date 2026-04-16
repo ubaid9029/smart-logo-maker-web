@@ -51,7 +51,6 @@ export function useEditorKeyboardShortcuts({
   previewDialogOpen,
   previewFullscreenOpen,
   selectedCanvasItemsCount,
-  setCanvasZoom,
   setColorDialogOpen,
   setDownloadDialogOpen,
   setGradientColorDialogOpen,
@@ -223,23 +222,6 @@ export function useEditorKeyboardShortcuts({
           return;
         }
 
-        if (event.key === '=' || event.key === '+') {
-          event.preventDefault();
-          setCanvasZoom((prev) => Math.min(2.5, Number((prev + 0.1).toFixed(2))));
-          return;
-        }
-
-        if (event.key === '-' || event.key === '_') {
-          event.preventDefault();
-          setCanvasZoom((prev) => Math.max(0.5, Number((prev - 0.1).toFixed(2))));
-          return;
-        }
-
-        if (event.key === '0') {
-          event.preventDefault();
-          setCanvasZoom(1);
-          return;
-        }
       }
 
       if (!selectedCanvasItemsCount) {
@@ -285,6 +267,5 @@ export function useEditorKeyboardShortcuts({
     handleUndo,
     hasLockedSelection,
     selectedCanvasItemsCount,
-    setCanvasZoom,
   ]);
 }

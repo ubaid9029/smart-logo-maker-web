@@ -295,16 +295,12 @@ function LayerPanelRow({
 
 export function EditorSidebarContent(props) {
   const {
-    activeBackgroundOpacity,
     activeBackgroundOption,
     activeBackgroundShape,
-    activeBackgroundShapeColor,
     activeObjectPanel,
     activeTool,
     applyBackgroundColor,
-    applyBackgroundOpacity,
     applyBackgroundShape,
-    applyBackgroundShapeColor,
     applyDesignPalette,
     applyGradientToBackground,
     applyPresetBackgroundImage,
@@ -333,8 +329,6 @@ export function EditorSidebarContent(props) {
     handleAddPresetArt,
     handleAddShapeElement,
     handleBackgroundOptionSelect,
-    handleDeleteSelected,
-    handleDuplicateSelected,
     handleCenter,
     handleMoveSelectedLayers,
     handleNudge,
@@ -342,14 +336,12 @@ export function EditorSidebarContent(props) {
     handleRotateSelected,
     handleScaleSelected,
     handleSelectedOpacityChange,
+    handleSelectedTextFontSizeChange,
     handleSelectedTextFontChange,
     handleSelectedTextFontStyleChange,
     handleToggleLayerLock,
     handleToggleSelectedLock,
     isControlsContext,
-    canDuplicate,
-    canSetSelectedShapeAsBackground,
-    isSelectedItemBackground,
     isMobileViewport,
     isValidHexColor,
     layerPanelItems,
@@ -363,6 +355,7 @@ export function EditorSidebarContent(props) {
     selectedItemLocked,
     selectedLayerKey,
     selectedStyle,
+    selectedTextFontSize,
     handleReorderLayerFromPanel,
     handleSelectLayerFromPanel,
     handleSingleSelectedNumericChange,
@@ -2226,23 +2219,17 @@ export function EditorMobileContextBar(props) {
     backgroundOptions,
     canEditText,
     canDuplicate,
-    canBringForward,
-    canBringToFront,
     canRoundSelectedShape,
-    canSendBackward,
-    canSendToBack,
     canSetSelectedShapeAsBackground,
     hasLockedSelection,
     handleBackgroundOptionSelect,
     handleDeleteSelected,
     handleDuplicateSelected,
-    handleMoveSelectedLayers,
     handleSelectedTextAlignChange,
     handleSelectedTextFontSizeChange,
     handleToggleSelectedLock,
     handleToggleSelectedTextFontStyle,
     handleToggleSelectedItemBackground,
-    handleSetSelectedShapeAsBackground,
     isBoldActive,
     isItalicActive,
     isRasterImageSelection,
@@ -2258,7 +2245,6 @@ export function EditorMobileContextBar(props) {
     selectedTextFontFamily,
     selectedTextFontSize,
     setActiveObjectPanel,
-    hasActiveBackgroundShape,
   } = props;
 
   const renderMobileContextBar = () => {
@@ -2549,11 +2535,6 @@ export function EditorMobileContextBar(props) {
 
   return renderMobileContextBar();
 }
-
-
-
-
-
 
 
 

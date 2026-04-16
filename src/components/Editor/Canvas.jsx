@@ -2,14 +2,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Group, Image as KonvaImage, Layer, Line, Path as KonvaPath, Rect, Shape as KonvaShape, Stage, Text, Transformer } from 'react-konva';
 import useImage from 'use-image';
-import { applySvgPresentationToMarkup, clampTransformToCard, getEditorTextValue, getOrderedCanvasItems, getTextBlockMetrics, getTextTypography, isBackgroundCanvasItem, isCanvasItemLocked, normalizeFillGradient, syncCanvasLayerOrder } from './editorUtils';
+import { applySvgPresentationToMarkup, bakeTextTransformIntoTypography, clampTransformToCard, getEditorTextValue, getOrderedCanvasItems, getTextBlockMetrics, getTextTypography, isBackgroundCanvasItem, isCanvasItemLocked, normalizeFillGradient, syncCanvasLayerOrder, TEXT_BLOCK_HORIZONTAL_PADDING } from './editorUtils';
 import { CARD_CORNER_RADIUS } from './editorConstants';
 import {
-  BRAND_WATERMARK_OPACITY,
-  BRAND_WATERMARK_OVERLAY_INSET,
-  BRAND_WATERMARK_OVERLAY_SCALE,
-  BRAND_WATERMARK_PATTERN_STYLE,
+  BRAND_WATERMARK_PATTERN_GAP,
   BRAND_WATERMARK_ROTATION,
+  BRAND_WATERMARK_SRC,
+  BRAND_WATERMARK_TILE_SIZE,
+  BRAND_WATERMARK_OPACITY,
 } from '../../lib/watermarkConfig';
 
 const CANVAS_WIDTH = 700;
@@ -1347,6 +1347,16 @@ function TextNode({
   const resolvedFontFamily = typography.fontFamily;
   const actualScaleX = transform.scaleX || 1;
   const actualScaleY = transform.scaleY || 1;
+  const contentOffsetX = 0;
+  const contentOffsetY = 0;
+  // Give the Konva Text node the full blockWidth (which includes horizontal padding).
+  // Konva automatically word-wraps if text exceeds the set `width`. If we strictly 
+  // limit it to exact text width, and the font renders even 1px wider (due to italic
+  // slant or browser rendering), Konva clips or wraps the last character. By using
+  // the full padded blockWidth, we keep it perfectly centered while giving a "safe zone"
+  // bleed area on the left and right.
+  const contentWidth = Math.max(1, blockWidth);
+  const contentHeight = Math.max(1, blockHeight);
   useEffect(() => {
     if (
       typeof window === 'undefined' ||
@@ -1507,9 +1517,11 @@ function TextNode({
         ) : (
           <Text
             key={`${item.id}-${fontRenderVersion}`}
+            x={contentOffsetX}
+            y={contentOffsetY}
             text={value}
-            width={blockWidth}
-            height={blockHeight}
+            width={contentWidth}
+            height={contentHeight}
             fontSize={fontSize}
             fontFamily={resolvedFontFamily}
             fontStyle={typography.konvaFontStyle}
@@ -1517,13 +1529,13 @@ function TextNode({
             {...getNodeFillProps(
               item.style?.fillColor || item.fill || textColor || '#1F2937',
               fillGradient,
-              blockWidth,
-              blockHeight
+              contentWidth,
+              contentHeight
             )}
             stroke={Number(item.style?.outlineWidth || 0) > 0 ? item.style?.outlineColor || '#111827' : undefined}
             strokeWidth={Number(item.style?.outlineWidth || 0)}
             align={item.align || "center"}
-            verticalAlign="middle"
+            verticalAlign="top"
             letterSpacing={Number(item.letterSpacing || 0)}
             opacity={isInlineEditing ? 0 : nodeOpacity}
           />
@@ -1542,7 +1554,6 @@ export default function Canvas({
   selectionOverride,
   clearSelectionToken = 0,
   stageRef: externalStageRef = null,
-  zoom = 1,
   hasLockedSelection = false,
   hideSelectionUi = false,
   clipContentToCard = false,
@@ -1563,9 +1574,11 @@ export default function Canvas({
   const [inlineEditor, setInlineEditor] = useState(null);
   const [inlineEditorLayout, setInlineEditorLayout] = useState(null);
   const [backgroundImage] = useStableImage(config.bgImageUrl);
+  const [watermarkPatternImage] = useStableImage(BRAND_WATERMARK_SRC);
 
   const canvasWidth = CANVAS_WIDTH;
   const canvasHeight = CANVAS_HEIGHT;
+  const lockedZoom = 1;
   const cardWidth = 620;
   const cardHeight = 420;
   const cardX = (canvasWidth - cardWidth) / 2;
@@ -1601,11 +1614,40 @@ export default function Canvas({
   const cardFillProps = useMemo(() => {
     return getBackgroundFillProps(config.bgColor || '#FFFFFF', config.bgFill || null, cardWidth, cardHeight);
   }, [config.bgColor, config.bgFill, cardHeight, cardWidth]);
-  const isWatermarkVisible = !renderElementsOnly && config.watermarkEnabled !== false;
-  const viewportWidth = cardWidth * dimensions.scale * zoom;
-  const viewportHeight = cardHeight * dimensions.scale * zoom;
-  const viewportOffsetX = cardX * dimensions.scale * zoom;
-  const viewportOffsetY = cardY * dimensions.scale * zoom;
+  const watermarkPatternTile = useMemo(() => {
+    if (typeof document === 'undefined' || !watermarkPatternImage?.width || !watermarkPatternImage?.height) {
+      return null;
+    }
+
+    const sourceWidth = watermarkPatternImage.width;
+    const sourceHeight = watermarkPatternImage.height;
+    const sourceMaxSide = Math.max(sourceWidth, sourceHeight);
+    const drawScale = Math.max(0.01, BRAND_WATERMARK_TILE_SIZE / sourceMaxSide);
+    const drawWidth = Math.round(sourceWidth * drawScale);
+    const drawHeight = Math.round(sourceHeight * drawScale);
+    const tileSize = Math.max(1, Math.round(Math.max(drawWidth, drawHeight) + BRAND_WATERMARK_PATTERN_GAP));
+    const tileCanvas = document.createElement('canvas');
+
+    tileCanvas.width = tileSize;
+    tileCanvas.height = tileSize;
+    const context = tileCanvas.getContext('2d');
+
+    if (!context) {
+      return null;
+    }
+
+    const drawX = Math.round((tileSize - drawWidth) / 2);
+    const drawY = Math.round((tileSize - drawHeight) / 2);
+    context.clearRect(0, 0, tileSize, tileSize);
+    context.drawImage(watermarkPatternImage, drawX, drawY, drawWidth, drawHeight);
+
+    return tileCanvas;
+  }, [watermarkPatternImage]);
+  const isWatermarkVisible = !renderElementsOnly && config.watermarkEnabled !== false && Boolean(watermarkPatternTile);
+  const viewportWidth = cardWidth * dimensions.scale * lockedZoom;
+  const viewportHeight = cardHeight * dimensions.scale * lockedZoom;
+  const viewportOffsetX = cardX * dimensions.scale * lockedZoom;
+  const viewportOffsetY = cardY * dimensions.scale * lockedZoom;
   const inlineEditingItem = inlineEditor?.id
     ? textItems.find((item) => item.id === inlineEditor.id) || null
     : null;
@@ -1869,10 +1911,25 @@ export default function Canvas({
     onConfigChange({
       [collectionName]: (config[collectionName] || []).map((item) =>
         item.id === itemId
-          ? {
-              ...item,
-              transform: clampTransformToCard(itemType, item, nextTransform),
-            }
+          ? (() => {
+              if (itemType === 'text') {
+                const normalizedItem = bakeTextTransformIntoTypography(item, {
+                  transform: nextTransform,
+                  renderMode: 'text',
+                  svgDataUri: null,
+                });
+
+                return {
+                  ...normalizedItem,
+                  transform: clampTransformToCard('text', normalizedItem, normalizedItem.transform),
+                };
+              }
+
+              return {
+                ...item,
+                transform: clampTransformToCard(itemType, item, nextTransform),
+              };
+            })()
           : item
       ),
     });
@@ -1991,7 +2048,7 @@ export default function Canvas({
     externalStageRef,
     inlineEditingItem,
     inlineEditor?.value,
-    zoom,
+    lockedZoom,
   ]);
 
   const commitSelectionTransforms = (updates) => {
@@ -2008,9 +2065,20 @@ export default function Canvas({
       }),
       textItems: textItems.map((item) => {
         const nextTransform = updates.get(`text:${item.id}`);
-        return nextTransform
-          ? { ...item, transform: clampTransformToCard('text', item, nextTransform) }
-          : item;
+        if (!nextTransform) {
+          return item;
+        }
+
+        const normalizedItem = bakeTextTransformIntoTypography(item, {
+          transform: nextTransform,
+          renderMode: 'text',
+          svgDataUri: null,
+        });
+
+        return {
+          ...normalizedItem,
+          transform: clampTransformToCard('text', normalizedItem, normalizedItem.transform),
+        };
       }),
     });
   };
@@ -2193,8 +2261,8 @@ export default function Canvas({
             ref={externalStageRef}
             width={dimensions.width}
             height={dimensions.height}
-            scaleX={dimensions.scale * zoom}
-            scaleY={dimensions.scale * zoom}
+            scaleX={dimensions.scale * lockedZoom}
+            scaleY={dimensions.scale * lockedZoom}
             onMouseDown={(event) => {
               const clickedOnEmptyArea =
                 event.target === event.target.getStage() ||
@@ -2255,6 +2323,40 @@ export default function Canvas({
                     cardHeight={cardHeight}
                     backgroundOpacity={backgroundOpacity}
                   />
+
+                  {isWatermarkVisible ? (
+                    <Group
+                      clipFunc={(context) => {
+                        drawRoundedRectPath(context, cardX, cardY, cardWidth, cardHeight, CARD_CORNER_RADIUS);
+                      }}
+                      listening={false}
+                    >
+                      <Rect
+                        x={cardX}
+                        y={cardY}
+                        width={cardWidth}
+                        height={Math.round(cardHeight * 0.28)}
+                        fillPatternImage={watermarkPatternTile}
+                        fillPatternRepeat="repeat"
+                        fillPatternScale={{ x: 1, y: 1 }}
+                        fillPatternRotation={BRAND_WATERMARK_ROTATION}
+                        opacity={BRAND_WATERMARK_OPACITY}
+                        listening={false}
+                      />
+                      <Rect
+                        x={cardX}
+                        y={cardY + Math.round(cardHeight * 0.72)}
+                        width={cardWidth}
+                        height={Math.round(cardHeight * 0.28)}
+                        fillPatternImage={watermarkPatternTile}
+                        fillPatternRepeat="repeat"
+                        fillPatternScale={{ x: 1, y: 1 }}
+                        fillPatternRotation={BRAND_WATERMARK_ROTATION}
+                        opacity={BRAND_WATERMARK_OPACITY}
+                        listening={false}
+                      />
+                    </Group>
+                  ) : null}
 
                   <Group
                     clipFunc={(context) => {
@@ -2388,7 +2490,7 @@ export default function Canvas({
                   anchorStroke="#2563EB"
                   anchorStrokeWidth={2}
                   anchorSize={10}
-                  keepRatio={selectedItem?.type === 'logo'}
+                  keepRatio={selectedItem?.type === 'logo' || selectedItem?.type === 'text'}
                   boundBoxFunc={(oldBox, newBox) => {
                     if (newBox.width < 70 || newBox.height < 24) {
                       return oldBox;
@@ -2401,19 +2503,6 @@ export default function Canvas({
             </Layer>
           </Stage>
         </div>
-        {isWatermarkVisible ? (
-          <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
-            <div
-              className="absolute"
-              style={{
-                ...BRAND_WATERMARK_PATTERN_STYLE,
-                inset: BRAND_WATERMARK_OVERLAY_INSET,
-                opacity: BRAND_WATERMARK_OPACITY,
-                transform: `rotate(${BRAND_WATERMARK_ROTATION}deg) scale(${BRAND_WATERMARK_OVERLAY_SCALE})`,
-              }}
-            />
-          </div>
-        ) : null}
       </div>
       {inlineEditor && inlineEditorLayout ? (
         <input

@@ -46,6 +46,8 @@ import {
   getCanvasItemByLayerKey,
   getCanvasItemDisplayLabel,
   getCollectionNameByType,
+  getEditableTextBaseFontSize,
+  getEffectiveTextFontSize,
   getLinearGradientCss,
   getOrderedCanvasItems,
   getPayloadBackgroundColor,
@@ -301,7 +303,6 @@ function EditorUI() {
   const imageInputRef = useRef(null);
   const backgroundImageInputRef = useRef(null);
   const stageRef = useRef(null);
-  const [canvasZoom, setCanvasZoom] = useState(1);
   const isMobileViewport = useEditorViewport();
   const clipboardRef = useRef([]);
   const [editDialog, setEditDialog] = useState({
@@ -658,8 +659,11 @@ function EditorUI() {
   );
   const selectedCornerRadius = Math.round(Number(selectedStyle.cornerRadius ?? 28));
   const selectedTextFontFamily = selectedItemData?.fontFamily || logoConfig.fontFamily || 'Arial';
+  // Text items visually scale when resized by mouse (changing transform.scaleY).
+  // Use getEffectiveTextFontSize so the displayed numeric size reflects
+  // the visual size the user created via mouse scaling, not just the baked fontSize.
   const selectedTextFontSize = selectedCanvasItem?.type === 'text' && selectedItemData
-    ? Math.round(Number(getTextBlockMetrics(selectedItemData).fontSize || selectedItemData?.fontSize || 46))
+    ? Math.round(Number(getEffectiveTextFontSize(selectedItemData) || selectedItemData?.fontSize || 46))
     : Math.round(Number(selectedItemData?.fontSize || 46));
   const selectedTextColor = normalizeHexColor(
     selectedStyle.fillColor || selectedItemData?.fill || logoConfig.textColor || '#111827',
@@ -766,10 +770,10 @@ function EditorUI() {
     });
   }, [selectedToolbarKey, setSidebarOpen]);
   const floatingToolbarOffsetStyle = {
-    top: '4.65rem',
+    top: '5.1rem',
   };
   const floatingActionDockOffsetStyle = {
-    bottom: 'max(0.5rem, calc(50% - 250px))',
+    bottom: 'max(0.5rem, calc(50% - 290px))',
   };
   const mobileFloatingControlsStyle = isMobileViewport
     ? {
@@ -830,7 +834,6 @@ function EditorUI() {
     previewDialogOpen,
     previewFullscreenOpen,
     selectedCanvasItemsCount: selectedCanvasItems.length,
-    setCanvasZoom,
     setColorDialogOpen,
     setDownloadDialogOpen,
     setGradientColorDialogOpen,
@@ -1152,7 +1155,7 @@ function EditorUI() {
         />
 
         {/* CANVAS */}
-        <div className="relative flex-1 overflow-y-auto bg-[linear-gradient(180deg,#f8fafc_0%,#eef2ff_100%)] p-3 pb-[7.1rem] sm:p-4 sm:pb-[8rem] lg:p-4 lg:pb-4">
+        <div className="relative flex-1 overflow-y-auto bg-[linear-gradient(180deg,#f8fafc_0%,#eef2ff_100%)] p-3 pb-[7.1rem] sm:p-4 sm:pb-[8rem] lg:p-4 lg:pb-4 lg:pt-24">
           <input
             ref={imageInputRef}
             type="file"
@@ -1705,7 +1708,7 @@ function EditorUI() {
                 selectionOverride={canvasSelectionOverride}
                 clearSelectionToken={canvasClearSelectionToken}
                 stageRef={stageRef}
-                zoom={canvasZoom}
+                zoom={1}
                 hasLockedSelection={hasLockedSelection}
                 hideSelectionUi={hideCanvasSelectionUi}
                 clipContentToCard={clipCanvasToCard}
