@@ -3,10 +3,11 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
-import { Download, Edit3, Heart, Loader2, Trash2 } from 'lucide-react';
+import { Download, Edit3, Heart, Trash2 } from 'lucide-react';
 
 import DownloadDialog from '../DownloadDialog';
 import FloatingNotice from '../MainComponents/FloatingNotice';
+import PremiumLoader from '../Shared/PremiumLoader';
 import { openEditorWindowWithPayload, saveTemporaryEditorPayload } from '../../lib/editorPayloadStorage';
 import { createClient } from '../../lib/supabaseClient';
 import { loadFavoriteLogoRuntime, subscribeFavoriteLogos } from '../../lib/favoriteLogosStorage';
@@ -29,7 +30,6 @@ import {
   toggleFavoriteLogo,
 } from '../../lib/favoriteLogosRepository';
 import {
-  applyWatermarkToCanvas,
   buildRasterImageSvgMarkup,
   buildWatermarkedSvgMarkup,
   buildPdfBlobFromJpegBytes,
@@ -47,11 +47,7 @@ import {
   CARD_WIDTH,
 } from '../Editor/editorConstants';
 import {
-  BRAND_WATERMARK_OPACITY,
-  BRAND_WATERMARK_OVERLAY_INSET,
-  BRAND_WATERMARK_OVERLAY_SCALE,
-  BRAND_WATERMARK_PATTERN_STYLE,
-  BRAND_WATERMARK_ROTATION,
+  injectBrandWatermarkIntoSvgMarkup,
 } from '../../lib/watermarkConfig';
 
 const EDITOR_CARD_EXPORT_AREA = {
@@ -382,9 +378,8 @@ export default function LogoCollectionPage({ collectionType = 'favorites' }) {
   };
 
   const handleDownload = async (design, format) => {
-    const currentSvgMarkup = design?.previewDataUrl
-      ? buildRasterSvgMarkup(design.previewDataUrl)
-      : design?.svgMarkup;
+    const currentSvgMarkup = design?.svgMarkup
+      || (design?.previewDataUrl ? buildRasterSvgMarkup(design.previewDataUrl) : null);
 
     if (!currentSvgMarkup || !format) {
       return;
@@ -414,9 +409,8 @@ export default function LogoCollectionPage({ collectionType = 'favorites' }) {
       ...design,
       isDownloaded: true,
     };
-    const refreshedSvgMarkup = refreshedDesign.previewDataUrl
-      ? buildRasterSvgMarkup(refreshedDesign.previewDataUrl)
-      : (refreshedDesign.svgMarkup || currentSvgMarkup);
+    const refreshedSvgMarkup = refreshedDesign.svgMarkup
+      || (refreshedDesign.previewDataUrl ? buildRasterSvgMarkup(refreshedDesign.previewDataUrl) : currentSvgMarkup);
     const safeBaseName = getDownloadBaseName(refreshedDesign.name || refreshedDesign.businessName || 'logo');
     setDownloadingFormat(format);
 
@@ -507,11 +501,12 @@ export default function LogoCollectionPage({ collectionType = 'favorites' }) {
 
   if (!authChecked) {
     return (
-      <div className="mt-20 min-h-screen flex items-center justify-center bg-pink-50 px-6">
-        <div className="text-center">
-          <Loader2 className="mx-auto mb-4 animate-spin text-pink-600" size={42} />
-          <p className="text-sm font-bold text-slate-600">Loading your profile workspace...</p>
-        </div>
+      <div className="mt-20 min-h-screen bg-pink-50 px-6">
+        <PremiumLoader
+          size="lg"
+          text="Loading your profile workspace..."
+          className="min-h-[calc(100vh-5rem)]"
+        />
       </div>
     );
   }
@@ -558,9 +553,10 @@ export default function LogoCollectionPage({ collectionType = 'favorites' }) {
         ) : (
           <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3 xl:gap-5">
             {collectionLogos.map((design) => {
-              const previewSvgMarkup = design.previewDataUrl
-                ? buildRasterSvgMarkup(design.previewDataUrl)
-                : design.svgMarkup;
+              const previewSvgMarkup = design.svgMarkup
+                || (design.previewDataUrl ? buildRasterSvgMarkup(design.previewDataUrl) : null);
+              const shouldApplyCardWatermark =
+                design?.editablePayload?.watermarkEnabled !== false && !design.previewDataUrl;
 
               return (
                 <div
@@ -569,7 +565,12 @@ export default function LogoCollectionPage({ collectionType = 'favorites' }) {
                 >
                   <div className="relative aspect-[7/5] w-full overflow-hidden rounded-[1.15rem] bg-slate-50 sm:rounded-[1.5rem]">
                     {previewSvgMarkup ? (
-                      <InlineSvgPreview svgMarkup={previewSvgMarkup} alt={design.name} />
+                      <InlineSvgPreview
+                        svgMarkup={shouldApplyCardWatermark
+                          ? injectBrandWatermarkIntoSvgMarkup(previewSvgMarkup)
+                          : previewSvgMarkup}
+                        alt={design.name}
+                      />
                     ) : design.fallbackUrl ? (
                       <Image
                         src={design.fallbackUrl}
@@ -583,39 +584,25 @@ export default function LogoCollectionPage({ collectionType = 'favorites' }) {
                         No preview
                       </div>
                     )}
-                    {design?.editablePayload?.watermarkEnabled !== false ? (
-                      <div className="pointer-events-none absolute inset-0 z-[1] overflow-hidden">
-                        <div
-                          className="absolute"
-                          style={{
-                            ...BRAND_WATERMARK_PATTERN_STYLE,
-                            inset: BRAND_WATERMARK_OVERLAY_INSET,
-                            opacity: BRAND_WATERMARK_OPACITY,
-                            transform: `rotate(${BRAND_WATERMARK_ROTATION}deg) scale(${BRAND_WATERMARK_OVERLAY_SCALE})`,
-                          }}
-                        />
-                      </div>
-                    ) : null}
-                    <div className="absolute inset-0 hidden items-end justify-center bg-black/20 pb-4 opacity-0 transition-opacity group-hover:opacity-100 sm:flex sm:pb-6">
-                      <div className="flex w-full justify-center gap-2 px-2">
-                        <button
-                          onClick={() => void handleFavoriteToggle(design)}
-                          className={`brand-icon-button h-11 w-11 p-0 ${design.isFavorite ? 'border-red-100 bg-white text-red-500 shadow-[0_10px_24px_rgba(239,68,68,0.18)]' : ''}`}
-                        >
-                          <Heart size={16} fill={design.isFavorite ? 'currentColor' : 'none'} className={design.isFavorite ? 'text-red-500' : ''} />
+
+                    <div className="absolute inset-x-2 bottom-2 hidden items-center justify-center gap-2 sm:flex">
+                      <button
+                        onClick={() => void handleFavoriteToggle(design)}
+                        className={`brand-icon-button h-11 w-11 p-0 ${design.isFavorite ? 'border-red-100 bg-white text-red-500 shadow-[0_10px_24px_rgba(239,68,68,0.18)]' : ''}`}
+                      >
+                        <Heart size={16} fill={design.isFavorite ? 'currentColor' : 'none'} className={design.isFavorite ? 'text-red-500' : ''} />
+                      </button>
+                      <button onClick={() => handleEdit(design)} className="brand-icon-button h-11 w-11 p-0">
+                        <Edit3 size={16} />
+                      </button>
+                      <button onClick={() => setDownloadDesign(design)} className="brand-icon-button h-11 w-11 p-0">
+                        <Download size={16} />
+                      </button>
+                      {collectionType === 'all' ? (
+                        <button onClick={() => void handleDelete(design)} className="brand-icon-button h-11 w-11 p-0">
+                          <Trash2 size={16} />
                         </button>
-                        <button onClick={() => handleEdit(design)} className="brand-icon-button h-11 w-11 p-0">
-                          <Edit3 size={16} />
-                        </button>
-                        <button onClick={() => setDownloadDesign(design)} className="brand-icon-button h-11 w-11 p-0">
-                          <Download size={16} />
-                        </button>
-                        {collectionType === 'all' ? (
-                          <button onClick={() => void handleDelete(design)} className="brand-icon-button h-11 w-11 p-0">
-                            <Trash2 size={16} />
-                          </button>
-                        ) : null}
-                      </div>
+                      ) : null}
                     </div>
                   </div>
 

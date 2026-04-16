@@ -3,17 +3,23 @@ import { useCallback } from "react";
 import { useDispatch } from "react-redux";
 import { updateFormData } from "../../../store/slices/logoSlice";
 
+const MAX_TEXT_LENGTH = 30;
+
 const BusinessInfo = ({ onNext, data, setData }) => {
   const dispatch = useDispatch();
   const isFormValid = data.businessName.trim() !== '';
 
   const handleInputChange = (field, value) => {
-    setData((currentData) => ({ ...currentData, [field]: value }));
+    const nextValue = field === "businessName" || field === "slogan"
+      ? value.slice(0, MAX_TEXT_LENGTH)
+      : value;
+
+    setData((currentData) => ({ ...currentData, [field]: nextValue }));
   };
 
   const submitBusinessInfo = useCallback((businessName, slogan) => {
-    const normalizedBusinessName = businessName.trim();
-    const normalizedSlogan = slogan.trim();
+    const normalizedBusinessName = businessName.slice(0, MAX_TEXT_LENGTH).trim();
+    const normalizedSlogan = slogan.slice(0, MAX_TEXT_LENGTH).trim();
 
     if (!normalizedBusinessName) {
       return;
@@ -66,6 +72,7 @@ const BusinessInfo = ({ onNext, data, setData }) => {
                   name="businessName"
                   value={data.businessName}
                   onChange={(event) => handleInputChange("businessName", event.target.value)}
+                  maxLength={MAX_TEXT_LENGTH}
                   placeholder="Enter your business name"
                   className="w-full rounded-xl border-2 border-slate-50 bg-slate-50/50 px-4 py-2.5 text-base font-medium outline-none transition-all duration-300 focus:border-pink-200 focus:ring-6 focus:ring-pink-500/5 md:px-5 md:py-3 md:text-lg"
                 />
@@ -80,6 +87,7 @@ const BusinessInfo = ({ onNext, data, setData }) => {
                   name="slogan"
                   value={data.slogan}
                   onChange={(event) => handleInputChange("slogan", event.target.value)}
+                  maxLength={MAX_TEXT_LENGTH}
                   placeholder="Enter your slogan (optional)"
                   className="w-full rounded-xl border-2 border-slate-50 bg-slate-50/50 px-4 py-2.5 text-base font-medium outline-none transition-all duration-300 focus:border-purple-200 focus:ring-6 focus:ring-purple-500/5 md:px-5 md:py-3 md:text-lg"
                 />

@@ -2,8 +2,8 @@
 import React, { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { Zap } from 'lucide-react';
 import { useSelector } from 'react-redux';
+import PremiumLoader from '../../components/Shared/PremiumLoader';
 import { loadGeneratedResultsSnapshot } from '../../lib/generatedResultsStorage';
 import { hasCreateDraft } from '../../lib/logoResumeStorage';
 
@@ -88,9 +88,7 @@ const CreatingLogos = () => {
   return (
     <div className=" mt-20 min-h-screen flex flex-col items-center justify-center p-6 bg-white">
       <div className="w-full max-w-2xl p-6 md:p-12 flex flex-col items-center text-center">
-        <div className="p-4 rounded-full bg-pink-100 text-pink-600 mb-8 animate-bounce">
-          <Zap size={48} fill="currentColor" />
-        </div>
+        <PremiumLoader size="sm" text="Generating logo concepts..." className="mb-4 h-40" />
 
         <h1 className="text-4xl font-extrabold text-slate-900 mb-3 tracking-tight">
           Creating Your Logos
@@ -127,10 +125,8 @@ const CreatingLogos = () => {
           ))}
         </motion.div>
 
-        <div className="flex items-center gap-2 mt-12">
-          <div className="w-3 h-3 rounded-full bg-pink-500 animate-bounce"></div>
-          <div className="w-3 h-3 rounded-full bg-pink-500 animate-bounce [animation-delay:0.2s]"></div>
-          <div className="w-3 h-3 rounded-full bg-pink-500 animate-bounce [animation-delay:0.4s]"></div>
+        <div className="mt-4 text-xs font-bold uppercase tracking-[0.18em] text-pink-500/70">
+          Please wait while we prepare variations
         </div>
       </div>
     </div>

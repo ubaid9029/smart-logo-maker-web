@@ -532,7 +532,7 @@ export function useEditorPreviewPersistence({
             });
           });
         }
-        router.replace(returnTo || '/my-designs');
+        router.replace('/my-designs');
         return nextPreviewImageUrl;
       }
 

@@ -4,6 +4,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import DownloadDialog from '../../components/DownloadDialog';
 import FloatingNotice from '../../components/MainComponents/FloatingNotice';
+import PremiumLoader from '../../components/Shared/PremiumLoader';
+import { PremiumLoaderOverlay } from '../../components/Shared/PremiumLoader';
 import {
   DesktopActionDock,
   DesktopToolRail,
@@ -83,7 +85,6 @@ import {
   Undo2,
   Redo2,
   Sparkles,
-  Loader2,
 } from 'lucide-react';
 import { useSelector } from 'react-redux'; // Redux check ke liye
 import { loadEditorResumeDraft } from '../../lib/logoResumeStorage';
@@ -92,7 +93,13 @@ import { getEditorFontFaceCss } from '../../lib/editorFonts';
 
 const LogoCanvas = dynamic(() => import('../../components/Editor/Canvas'), {
   ssr: false,
-  loading: () => <div className="w-full h-64 bg-white animate-pulse rounded-3xl" />
+  loading: () => (
+    <PremiumLoaderOverlay
+      size="full"
+      text="Loading editor workspace..."
+      className="z-[330] bg-white"
+    />
+  )
 });
 
 const EDITOR_FONT_FACE_CSS = getEditorFontFaceCss();
@@ -150,7 +157,7 @@ function ToolbarCheckboxToggle({ checked, label, onChange }) {
 
 export default function EditorPage() {
   return (
-    <Suspense fallback={<div className="h-screen flex items-center justify-center">Loading Editor...</div>}>
+    <Suspense fallback={<PremiumLoader size="full" text="Loading editor workspace..." />}>
       <EditorUI />
     </Suspense>
   );
@@ -200,6 +207,10 @@ function EditorUI() {
 
     router.replace(returnTo || '/results');
   }, [designId, resumeDraft, returnTo, router, shouldResumeDraft]);
+
+  useEffect(() => {
+    router.prefetch('/my-designs');
+  }, [router]);
 
   const sessionPayload = useMemo(() => {
     if (typeof window === 'undefined') {
@@ -772,9 +783,6 @@ function EditorUI() {
   const floatingToolbarOffsetStyle = {
     top: '5.1rem',
   };
-  const floatingActionDockOffsetStyle = {
-    bottom: 'max(0.5rem, calc(50% - 290px))',
-  };
   const mobileFloatingControlsStyle = isMobileViewport
     ? {
         bottom: sidebarOpen && shouldShowDesktopSidebar
@@ -1111,11 +1119,11 @@ function EditorUI() {
     <>
       <style jsx global>{EDITOR_FONT_FACE_CSS}</style>
       <div
-        className="fixed inset-x-0 bottom-0 top-20 flex flex-col overflow-hidden bg-[radial-gradient(circle_at_top,#ffffff_0%,#f8fafc_48%,#eef2ff_100%)] font-sans lg:flex-row"
+        className="fixed inset-x-0 bottom-0 top-20 flex flex-col overflow-hidden bg-pink-50 font-sans lg:flex-row"
         style={{ WebkitTapHighlightColor: 'transparent' }}
       >
-      <div className="flex h-full w-full">
-        <div className="flex h-full w-full flex-col overflow-hidden lg:flex-row lg:border lg:border-slate-200/80 lg:bg-white/45 lg:shadow-[0_24px_70px_-44px_rgba(15,23,42,0.38)] lg:backdrop-blur">
+        <div className="flex h-full w-full">
+          <div className="mx-auto flex h-full w-full max-w-[1800px] flex-col overflow-hidden px-3 py-3 sm:px-4 sm:py-4 lg:flex-row lg:rounded-[2rem] lg:border lg:border-slate-200/70 lg:bg-white lg:shadow-[0_24px_70px_-44px_rgba(15,23,42,0.28)]">
           <DesktopToolRail
             editorTools={editorTools}
             activeTool={activeTool}
@@ -1124,20 +1132,20 @@ function EditorUI() {
 
           {/* DESKTOP SIDEBAR */}
           {shouldShowDesktopSidebar && (
-            <aside className={`hidden shrink-0 flex-col border-r border-slate-200/80 bg-white/88 lg:flex ${desktopSidebarWidthClass}`}>
+            <aside className={`hidden shrink-0 flex-col border-r border-slate-200/70 bg-white lg:flex ${desktopSidebarWidthClass}`}>
               {!selectedCanvasItem && (
                 <div className="border-b border-slate-100 px-6 py-5">
                   <h2 className={`text-[15px] font-extrabold uppercase tracking-[0.08em] text-slate-800`}>{sidebarHeading}</h2>
                 </div>
               )}
-              <div className="flex-1 overflow-y-auto bg-slate-50/55 p-4 space-y-4">
+              <div className="flex-1 space-y-4 overflow-y-auto bg-slate-50/70 p-4">
                 <EditorSidebarContent {...editorSidebarProps} />
               </div>
             </aside>
           )}
 
           {/* MAIN CONTENT AREA */}
-          <main className="relative flex h-full min-w-0 flex-1 flex-col lg:bg-white/35">
+          <main className="relative flex h-full min-w-0 flex-1 flex-col bg-pink-50 lg:bg-white/70">
 
         {/* MOBILE HEADER */}
         <MobileHeader
@@ -1155,7 +1163,7 @@ function EditorUI() {
         />
 
         {/* CANVAS */}
-        <div className="relative flex-1 overflow-y-auto bg-[linear-gradient(180deg,#f8fafc_0%,#eef2ff_100%)] p-3 pb-[7.1rem] sm:p-4 sm:pb-[8rem] lg:p-4 lg:pb-4 lg:pt-24">
+        <div className="relative flex-1 overflow-y-auto bg-pink-50 p-3 pb-[7.1rem] sm:p-4 sm:pb-[8rem] lg:p-4 lg:pb-24 lg:pt-28">
           <input
             ref={imageInputRef}
             type="file"
@@ -1699,8 +1707,8 @@ function EditorUI() {
             onToolSelect={handleMobileToolSelect}
           />
 
-          <div className="flex h-full w-full items-start justify-center pt-2 sm:pt-3 lg:items-center lg:pt-0">
-            <div className="relative h-full w-full max-w-[560px] max-h-[32vh] sm:max-w-[620px] sm:max-h-[40vh] lg:max-w-[680px] lg:max-h-[54vh]">
+          <div className="flex w-full flex-col items-center pt-2 sm:pt-3 lg:justify-center lg:pt-0">
+            <div className="relative h-[36vh] w-full max-w-[620px] sm:h-[44vh] sm:max-w-[700px] lg:h-[58vh] lg:max-w-[760px]">
               <LogoCanvas
                 config={logoConfig}
                 onConfigChange={handleCanvasConfigChange}
@@ -1716,30 +1724,21 @@ function EditorUI() {
                 inlineTextEditRequest={inlineTextEditRequest}
                 onTextEditCommit={handleInlineTextEdit}
               />
-
-              {savingChanges && (
-                <div className="absolute inset-0 z-50 flex items-center justify-center rounded-[1.5rem] bg-slate-900/15 backdrop-blur-[2px] transition-all duration-300 sm:rounded-[2rem]">
-                  <div className="flex flex-col items-center gap-3 rounded-[1.25rem] bg-white px-6 py-5 shadow-2xl">
-                    <Loader2 size={26} className="animate-spin text-slate-600" />
-                    <p className="text-[11px] font-black uppercase tracking-[0.1em] text-slate-700">Saving Logo...</p>
-                  </div>
-                </div>
-              )}
             </div>
-          </div>
 
-          <DesktopActionDock
-            style={floatingActionDockOffsetStyle}
-            onPreview={handlePreviewOpen}
-            onSave={handleSaveDesign}
-            onDownload={handleOpenDownloadDialog}
-            canSave={Boolean(designId)}
-            savingChanges={savingChanges}
-          />
+            <DesktopActionDock
+              className="mt-2"
+              onPreview={handlePreviewOpen}
+              onSave={handleSaveDesign}
+              onDownload={handleOpenDownloadDialog}
+              canSave={Boolean(designId)}
+              savingChanges={savingChanges}
+            />
+          </div>
         </div>
       </main>
-      </div>
-      </div>
+          </div>
+        </div>
 
       <DownloadDialog
         open={downloadDialogOpen}
@@ -1753,6 +1752,14 @@ function EditorUI() {
         }}
         onDownload={handleEditorDownload}
       />
+
+      {savingChanges ? (
+        <PremiumLoaderOverlay
+          size="full"
+          text="Loading editor workspace..."
+          className="z-[340] bg-white"
+        />
+      ) : null}
 
       <FloatingNotice notice={authNotice} onClose={() => setAuthNotice(null)} />
       </div>

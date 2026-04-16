@@ -1,8 +1,9 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
-import { Check, Loader2 } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useDispatch, useSelector } from "react-redux";
+import { PremiumInlineLoader } from '../../../components/Shared/PremiumLoader';
 import { updateFormData, generateLogosAction } from "../../../store/slices/logoSlice";
 
 const palettes = [
@@ -100,7 +101,7 @@ const ColorPalette = ({ onBack, data, setData }) => {
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="animate-spin" size={16} />
+                  <PremiumInlineLoader size={14} />
                   <span>Generating...</span>
                 </>
               ) : "Generate Logo"}

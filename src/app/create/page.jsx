@@ -19,9 +19,12 @@ const EMPTY_FORM_DATA = {
   colorId: "",
 };
 
+const CREATE_TEXT_MAX_LENGTH = 30;
+const clampCreateText = (value) => String(value || "").slice(0, CREATE_TEXT_MAX_LENGTH);
+
 const buildInitialCreateData = (source) => ({
-  businessName: source?.name || "",
-  slogan: source?.slogan || "",
+  businessName: clampCreateText(source?.name),
+  slogan: clampCreateText(source?.slogan),
   industryId: source?.industryId ?? null,
   fontId: String(source?.fontId || ""),
   colorId: String(source?.colorId || ""),

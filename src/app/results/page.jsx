@@ -3,10 +3,11 @@ import Image from 'next/image';
 import { useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ChevronLeft, Edit3, Heart, Download, Loader2, Sparkles } from 'lucide-react';
+import { ChevronLeft, Edit3, Heart, Download, Sparkles } from 'lucide-react';
 import { useSelector } from "react-redux";
 import DownloadDialog from '../../components/DownloadDialog';
 import FloatingNotice from '../../components/MainComponents/FloatingNotice';
+import PremiumLoader from '../../components/Shared/PremiumLoader';
 import {
   buildWatermarkedSvgMarkup,
   buildPdfBlobFromJpegBytes,
@@ -26,11 +27,7 @@ import {
 import { openEditorWindowWithPayload, saveTemporaryEditorPayload } from '../../lib/editorPayloadStorage';
 import { loadGeneratedResultsSnapshot, saveGeneratedResultsSnapshot } from '../../lib/generatedResultsStorage';
 import {
-  BRAND_WATERMARK_OPACITY,
-  BRAND_WATERMARK_OVERLAY_INSET,
-  BRAND_WATERMARK_OVERLAY_SCALE,
-  BRAND_WATERMARK_PATTERN_STYLE,
-  BRAND_WATERMARK_ROTATION,
+  injectBrandWatermarkIntoSvgMarkup,
 } from '../../lib/watermarkConfig';
 import {
   getLogoLibraryUpgradeMessage,
@@ -300,9 +297,12 @@ const ResultsPage = () => {
 
   if (status === 'loading') {
     return (
-      <div className="h-screen flex flex-col items-center justify-center bg-pink-50">
-        <Loader2 className="animate-spin text-red-500 mb-4" size={48} />
-        <p className="text-slate-600 font-bold">Fetching your brand designs...</p>
+      <div className="min-h-screen bg-pink-50">
+        <PremiumLoader
+          size="lg"
+          text="Fetching your brand designs..."
+          className="min-h-screen"
+        />
       </div>
     );
   }
@@ -543,7 +543,7 @@ const ResultsPage = () => {
             >
               <div className="relative aspect-[7/5] w-full overflow-hidden rounded-[1.15rem] bg-slate-50 sm:rounded-[1.5rem]">
                 {design.svgMarkup ? (
-                  <InlineSvgPreview svgMarkup={design.svgMarkup} alt={design.name} />
+                  <InlineSvgPreview svgMarkup={injectBrandWatermarkIntoSvgMarkup(design.svgMarkup)} alt={design.name} />
                 ) : design.fallbackUrl ? (
                   <Image
                     src={design.fallbackUrl}
@@ -557,17 +557,6 @@ const ResultsPage = () => {
                     No preview
                   </div>
                 )}
-                <div className="pointer-events-none absolute inset-0 z-[1] overflow-hidden">
-                  <div
-                    className="absolute"
-                    style={{
-                      ...BRAND_WATERMARK_PATTERN_STYLE,
-                      inset: BRAND_WATERMARK_OVERLAY_INSET,
-                      opacity: BRAND_WATERMARK_OPACITY,
-                      transform: `rotate(${BRAND_WATERMARK_ROTATION}deg) scale(${BRAND_WATERMARK_OVERLAY_SCALE})`,
-                    }}
-                  />
-                </div>
                 <div className="absolute inset-0 z-10 hidden items-end justify-center bg-black/20 pb-4 opacity-0 transition-opacity group-hover:opacity-100 sm:flex sm:pb-6">
                   <div className="flex w-full justify-center gap-2 px-2">
                     <button

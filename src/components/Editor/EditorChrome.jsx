@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Download, Eye, Loader2, Redo2, Save, Undo2 } from 'lucide-react';
+import { Download, Eye, Redo2, Save, Undo2 } from 'lucide-react';
 
 export function DesktopToolRail({
   editorTools,
@@ -9,7 +9,7 @@ export function DesktopToolRail({
   onToolSelect,
 }) {
   return (
-    <aside className="hidden h-full w-[132px] shrink-0 overflow-y-auto scroll-smooth border-r border-slate-200/80 bg-white/88 z-20 lg:flex lg:flex-col lg:items-center lg:px-2.5 lg:py-4">
+    <aside className="hidden h-full w-[132px] shrink-0 overflow-y-hidden border-r border-slate-200/80 bg-white/88 z-20 lg:flex lg:flex-col lg:items-center lg:px-2 lg:py-0">
       <div className="flex w-full flex-col items-stretch gap-4">
         {editorTools.map((tool) => {
           const Icon = tool.icon;
@@ -20,7 +20,7 @@ export function DesktopToolRail({
               key={tool.id}
               onClick={() => onToolSelect(tool.id)}
               title={tool.label}
-              className={`brand-icon-button flex min-h-[88px] w-full flex-col items-center justify-center gap-2 rounded-[1.45rem] px-2 py-3 text-slate-600 transition-all ${isActive ? 'scale-[1.03]' : ''} ${isActive
+              className={`brand-icon-button flex min-h-[88px] w-full flex-col items-center justify-center gap-0 rounded-[1.45rem] px-2 py-2 text-slate-600 transition-all ${isActive ? 'scale-[1.03]' : ''} ${isActive
                 ? 'bg-slate-100 text-slate-900 ring-2 ring-slate-200'
                 : 'hover:bg-slate-50 hover:text-slate-800'
                 }`}
@@ -107,7 +107,7 @@ export function MobileHeader({
             title={savingChanges ? 'Saving...' : 'Save Design'}
             aria-busy={savingChanges ? 'true' : 'false'}
           >
-            {savingChanges ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+            <Save size={18} />
           </button>
           <button
             onClick={onDownload}
@@ -185,7 +185,7 @@ export function MobileBottomPanel({
 }
 
 export function DesktopActionDock({
-  style,
+  className = '',
   onPreview,
   onSave,
   onDownload,
@@ -193,10 +193,7 @@ export function DesktopActionDock({
   savingChanges,
 }) {
   return (
-    <div
-      className="absolute left-1/2 z-20 hidden -translate-x-1/2 lg:block"
-      style={style}
-    >
+    <div className={`z-20 hidden w-full justify-center lg:flex ${className}`}>
       <div className="flex items-center gap-3 rounded-full border border-slate-200/80 bg-white/95 px-4 py-3 shadow-xl backdrop-blur">
         <button
           onClick={onPreview}
@@ -212,7 +209,7 @@ export function DesktopActionDock({
           title={savingChanges ? 'Saving...' : 'Save Design'}
           aria-busy={savingChanges ? 'true' : 'false'}
         >
-          {savingChanges ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+          <Save size={15} />
         </button>
         <button
           onClick={onDownload}

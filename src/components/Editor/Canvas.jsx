@@ -5,15 +5,22 @@ import useImage from 'use-image';
 import { applySvgPresentationToMarkup, bakeTextTransformIntoTypography, clampTransformToCard, getEditorTextValue, getOrderedCanvasItems, getTextBlockMetrics, getTextTypography, isBackgroundCanvasItem, isCanvasItemLocked, normalizeFillGradient, syncCanvasLayerOrder, TEXT_BLOCK_HORIZONTAL_PADDING } from './editorUtils';
 import { CARD_CORNER_RADIUS } from './editorConstants';
 import {
-  BRAND_WATERMARK_PATTERN_GAP,
+  BRAND_WATERMARK_DIAGONAL_INNER_MARGIN_RATIO,
+  BRAND_WATERMARK_DIAGONAL_LAYER_COUNT,
+  BRAND_WATERMARK_GRID_COLUMNS,
+  BRAND_WATERMARK_GRID_GAP_X_RATIO,
+  BRAND_WATERMARK_GRID_GAP_Y_RATIO,
+  BRAND_WATERMARK_GRID_ITEM_FILL_RATIO,
   BRAND_WATERMARK_ROTATION,
   BRAND_WATERMARK_SRC,
-  BRAND_WATERMARK_TILE_SIZE,
   BRAND_WATERMARK_OPACITY,
 } from '../../lib/watermarkConfig';
 
 const CANVAS_WIDTH = 700;
 const CANVAS_HEIGHT = 500;
+const TEXT_MIN_TRANSFORM_WIDTH = 70;
+const TEXT_MIN_TRANSFORM_HEIGHT = 24;
+
 const getAxisTilt = (angle) => {
   const normalized = ((Number(angle || 0) % 360) + 360) % 360;
 
@@ -1583,6 +1590,8 @@ export default function Canvas({
   const cardHeight = 420;
   const cardX = (canvasWidth - cardWidth) / 2;
   const cardY = (canvasHeight - cardHeight) / 2;
+  const watermarkCenterX = cardX + (cardWidth / 2);
+  const watermarkCenterY = cardY + (cardHeight / 2);
 
   const logoItems = useMemo(() => config.logoItems || [], [config.logoItems]);
   const textItems = useMemo(() => config.textItems || [], [config.textItems]);
@@ -1614,36 +1623,45 @@ export default function Canvas({
   const cardFillProps = useMemo(() => {
     return getBackgroundFillProps(config.bgColor || '#FFFFFF', config.bgFill || null, cardWidth, cardHeight);
   }, [config.bgColor, config.bgFill, cardHeight, cardWidth]);
-  const watermarkPatternTile = useMemo(() => {
-    if (typeof document === 'undefined' || !watermarkPatternImage?.width || !watermarkPatternImage?.height) {
-      return null;
+  const watermarkLayers = useMemo(() => {
+    if (!watermarkPatternImage?.width || !watermarkPatternImage?.height) {
+      return [];
     }
 
-    const sourceWidth = watermarkPatternImage.width;
-    const sourceHeight = watermarkPatternImage.height;
-    const sourceMaxSide = Math.max(sourceWidth, sourceHeight);
-    const drawScale = Math.max(0.01, BRAND_WATERMARK_TILE_SIZE / sourceMaxSide);
-    const drawWidth = Math.round(sourceWidth * drawScale);
-    const drawHeight = Math.round(sourceHeight * drawScale);
-    const tileSize = Math.max(1, Math.round(Math.max(drawWidth, drawHeight) + BRAND_WATERMARK_PATTERN_GAP));
-    const tileCanvas = document.createElement('canvas');
+    const layerCount = Math.max(1, BRAND_WATERMARK_DIAGONAL_LAYER_COUNT);
+    const columns = Math.max(1, BRAND_WATERMARK_GRID_COLUMNS);
+    const rows = Math.max(1, Math.ceil(layerCount / columns));
+    const marginX = cardWidth * BRAND_WATERMARK_DIAGONAL_INNER_MARGIN_RATIO;
+    const marginY = cardHeight * BRAND_WATERMARK_DIAGONAL_INNER_MARGIN_RATIO;
+    const containerWidth = Math.max(1, cardWidth - (marginX * 2));
+    const containerHeight = Math.max(1, cardHeight - (marginY * 2));
+    const baseGapX = containerWidth * BRAND_WATERMARK_GRID_GAP_X_RATIO;
+    const baseGapY = containerHeight * BRAND_WATERMARK_GRID_GAP_Y_RATIO;
+    const gapX = columns > 1 ? Math.min(baseGapX, containerWidth * 0.28) : 0;
+    const gapY = rows > 1 ? Math.min(baseGapY, containerHeight * 0.3) : 0;
+    const slotWidth = Math.max(1, (containerWidth - (gapX * (columns - 1))) / columns);
+    const slotHeight = Math.max(1, (containerHeight - (gapY * (rows - 1))) / rows);
+    const drawWidth = Math.max(8, Math.min(slotWidth, slotHeight) * BRAND_WATERMARK_GRID_ITEM_FILL_RATIO);
+    const drawHeight = Math.max(8, drawWidth * (watermarkPatternImage.height / watermarkPatternImage.width));
+    const minX = (-cardWidth / 2) + marginX;
+    const minY = (-cardHeight / 2) + marginY;
 
-    tileCanvas.width = tileSize;
-    tileCanvas.height = tileSize;
-    const context = tileCanvas.getContext('2d');
-
-    if (!context) {
-      return null;
-    }
-
-    const drawX = Math.round((tileSize - drawWidth) / 2);
-    const drawY = Math.round((tileSize - drawHeight) / 2);
-    context.clearRect(0, 0, tileSize, tileSize);
-    context.drawImage(watermarkPatternImage, drawX, drawY, drawWidth, drawHeight);
-
-    return tileCanvas;
-  }, [watermarkPatternImage]);
-  const isWatermarkVisible = !renderElementsOnly && config.watermarkEnabled !== false && Boolean(watermarkPatternTile);
+    return Array.from({ length: layerCount }, (_, index) => ({
+      x: (() => {
+        const columnIndex = index % columns;
+        const slotX = minX + (columnIndex * (slotWidth + gapX));
+        return slotX + ((slotWidth - drawWidth) / 2);
+      })(),
+      y: (() => {
+        const rowIndex = Math.floor(index / columns);
+        const slotY = minY + (rowIndex * (slotHeight + gapY));
+        return slotY + ((slotHeight - drawHeight) / 2);
+      })(),
+      width: drawWidth,
+      height: drawHeight,
+    }));
+  }, [cardHeight, cardWidth, watermarkPatternImage]);
+  const isWatermarkVisible = !renderElementsOnly && config.watermarkEnabled !== false && watermarkLayers.length > 0;
   const viewportWidth = cardWidth * dimensions.scale * lockedZoom;
   const viewportHeight = cardHeight * dimensions.scale * lockedZoom;
   const viewportOffsetX = cardX * dimensions.scale * lockedZoom;
@@ -1913,6 +1931,19 @@ export default function Canvas({
         item.id === itemId
           ? (() => {
               if (itemType === 'text') {
+                const currentSize = getScaledCanvasItemSize(item, 'text', item.transform || {});
+                const nextSize = getScaledCanvasItemSize(item, 'text', nextTransform || item.transform || {});
+                const alreadyAtMinSize = currentSize.width <= (TEXT_MIN_TRANSFORM_WIDTH + 0.5)
+                  || currentSize.height <= (TEXT_MIN_TRANSFORM_HEIGHT + 0.5);
+                const tryingToShrinkPastMin = nextSize.width < TEXT_MIN_TRANSFORM_WIDTH
+                  || nextSize.height < TEXT_MIN_TRANSFORM_HEIGHT;
+
+                // When text is already at minimum size, ignore further shrink attempts.
+                // This prevents small left/right nudges caused by repeated constrained transforms.
+                if (alreadyAtMinSize && tryingToShrinkPastMin) {
+                  return item;
+                }
+
                 const normalizedItem = bakeTextTransformIntoTypography(item, {
                   transform: nextTransform,
                   renderMode: 'text',
@@ -1932,6 +1963,31 @@ export default function Canvas({
             })()
           : item
       ),
+    });
+  };
+
+  const updateItemPosition = (collectionName, itemId, nextPosition) => {
+    if (typeof onConfigChange !== 'function') {
+      return;
+    }
+
+    const itemType = collectionName === 'textItems' ? 'text' : 'logo';
+    onConfigChange({
+      [collectionName]: (config[collectionName] || []).map((item) => {
+        if (item.id !== itemId) {
+          return item;
+        }
+
+        const currentTransform = item.transform || {};
+        return {
+          ...item,
+          transform: clampTransformToCard(itemType, item, {
+            ...currentTransform,
+            x: Number(nextPosition?.x ?? currentTransform.x ?? 0),
+            y: Number(nextPosition?.y ?? currentTransform.y ?? 0),
+          }),
+        };
+      }),
     });
   };
 
@@ -2065,20 +2121,9 @@ export default function Canvas({
       }),
       textItems: textItems.map((item) => {
         const nextTransform = updates.get(`text:${item.id}`);
-        if (!nextTransform) {
-          return item;
-        }
-
-        const normalizedItem = bakeTextTransformIntoTypography(item, {
-          transform: nextTransform,
-          renderMode: 'text',
-          svgDataUri: null,
-        });
-
-        return {
-          ...normalizedItem,
-          transform: clampTransformToCard('text', normalizedItem, normalizedItem.transform),
-        };
+        return nextTransform
+          ? { ...item, transform: clampTransformToCard('text', item, nextTransform) }
+          : item;
       }),
     });
   };
@@ -2198,7 +2243,7 @@ export default function Canvas({
     const dragSelection = dragSelectionRef.current;
     if (!dragSelection || dragSelection.draggedKey !== `${type}:${item.id}`) {
       clearHelpers();
-      updateItemTransform(type === 'logo' ? 'logoItems' : 'textItems', item.id, nextTransform);
+      updateItemPosition(type === 'logo' ? 'logoItems' : 'textItems', item.id, nextTransform);
       return;
     }
 
@@ -2331,30 +2376,25 @@ export default function Canvas({
                       }}
                       listening={false}
                     >
-                      <Rect
-                        x={cardX}
-                        y={cardY}
-                        width={cardWidth}
-                        height={Math.round(cardHeight * 0.28)}
-                        fillPatternImage={watermarkPatternTile}
-                        fillPatternRepeat="repeat"
-                        fillPatternScale={{ x: 1, y: 1 }}
-                        fillPatternRotation={BRAND_WATERMARK_ROTATION}
+                      <Group
+                        x={watermarkCenterX}
+                        y={watermarkCenterY}
+                        rotation={BRAND_WATERMARK_ROTATION}
                         opacity={BRAND_WATERMARK_OPACITY}
                         listening={false}
-                      />
-                      <Rect
-                        x={cardX}
-                        y={cardY + Math.round(cardHeight * 0.72)}
-                        width={cardWidth}
-                        height={Math.round(cardHeight * 0.28)}
-                        fillPatternImage={watermarkPatternTile}
-                        fillPatternRepeat="repeat"
-                        fillPatternScale={{ x: 1, y: 1 }}
-                        fillPatternRotation={BRAND_WATERMARK_ROTATION}
-                        opacity={BRAND_WATERMARK_OPACITY}
-                        listening={false}
-                      />
+                      >
+                        {watermarkLayers.map((layer, index) => (
+                          <KonvaImage
+                            key={`wm-layer-${index}`}
+                            image={watermarkPatternImage}
+                            x={layer.x}
+                            y={layer.y}
+                            width={layer.width}
+                            height={layer.height}
+                            listening={false}
+                          />
+                        ))}
+                      </Group>
                     </Group>
                   ) : null}
 

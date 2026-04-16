@@ -1,8 +1,14 @@
 import {
+  BRAND_WATERMARK_DIAGONAL_INNER_MARGIN_RATIO,
+  BRAND_WATERMARK_DIAGONAL_LAYER_COUNT,
+  BRAND_WATERMARK_GRID_COLUMNS,
+  BRAND_WATERMARK_GRID_GAP_X_RATIO,
+  BRAND_WATERMARK_GRID_GAP_Y_RATIO,
+  BRAND_WATERMARK_GRID_ITEM_FILL_RATIO,
   BRAND_WATERMARK_OPACITY,
   BRAND_WATERMARK_ROTATION,
-  BRAND_WATERMARK_TILE_SIZE,
   BRAND_WATERMARK_SRC,
+  injectBrandWatermarkIntoSvgMarkup,
 } from './watermarkConfig';
 
 export const DOWNLOAD_FORMATS = [
@@ -52,29 +58,6 @@ const escapeXmlAttribute = (value) => String(value ?? '')
   .replace(/</g, '&lt;')
   .replace(/>/g, '&gt;');
 
-const getSvgViewBoxBounds = (svgMarkup) => {
-  const viewBoxMatch = svgMarkup?.match(/viewBox="([^"]+)"/i);
-
-  if (viewBoxMatch) {
-    const [minX = 0, minY = 0, width = 340, height = 250] = viewBoxMatch[1].split(/\s+/).map(Number);
-    return {
-      minX: Number.isFinite(minX) ? minX : 0,
-      minY: Number.isFinite(minY) ? minY : 0,
-      width: Number.isFinite(width) && width > 0 ? width : 340,
-      height: Number.isFinite(height) && height > 0 ? height : 250,
-      viewBox: viewBoxMatch[1],
-    };
-  }
-
-  const { width, height } = getSvgCanvasSize(svgMarkup);
-  return {
-    minX: 0,
-    minY: 0,
-    width,
-    height,
-    viewBox: `0 0 ${width} ${height}`,
-  };
-};
 
 export const triggerBlobDownload = (blob, filename) => {
   const objectUrl = URL.createObjectURL(blob);
@@ -130,27 +113,6 @@ export const getWatermarkSvgDataUri = async () => {
   return watermarkSvgDataUriPromise;
 };
 
-const buildWatermarkSvgOverlay = (svgMarkup, watermarkHref) => {
-  const { minX, minY, width, height } = getSvgViewBoxBounds(svgMarkup);
-  const overlayX = minX - (width * 0.2);
-  const overlayY = minY - (height * 0.2);
-  const overlayWidth = width * 1.4;
-  const overlayHeight = height * 1.4;
-  const uniqueId = Math.random().toString(36).slice(2, 10);
-  const patternId = `export-watermark-${uniqueId}`;
-  const centerX = minX + (width / 2);
-  const centerY = minY + (height / 2);
-
-  return [
-    '<defs>',
-    `<pattern id="${patternId}" patternUnits="userSpaceOnUse" width="${BRAND_WATERMARK_TILE_SIZE}" height="${BRAND_WATERMARK_TILE_SIZE}">`,
-    `<image href="${escapeXmlAttribute(watermarkHref)}" x="0" y="0" width="${BRAND_WATERMARK_TILE_SIZE}" height="${BRAND_WATERMARK_TILE_SIZE}" preserveAspectRatio="xMidYMid meet" />`,
-    '</pattern>',
-    '</defs>',
-    `<rect x="${overlayX.toFixed(2)}" y="${overlayY.toFixed(2)}" width="${overlayWidth.toFixed(2)}" height="${overlayHeight.toFixed(2)}" fill="url(#${patternId})" opacity="${BRAND_WATERMARK_OPACITY}" transform="rotate(${BRAND_WATERMARK_ROTATION} ${centerX.toFixed(2)} ${centerY.toFixed(2)})" />`,
-  ].join('');
-};
-
 export const buildWatermarkedSvgMarkup = async (svgMarkup) => {
   if (!svgMarkup || typeof svgMarkup !== 'string') {
     return svgMarkup;
@@ -158,16 +120,10 @@ export const buildWatermarkedSvgMarkup = async (svgMarkup) => {
 
   try {
     const watermarkHref = await getWatermarkSvgDataUri();
-    const overlayMarkup = buildWatermarkSvgOverlay(svgMarkup, watermarkHref);
-
-    if (/<\/svg>\s*$/i.test(svgMarkup)) {
-      return svgMarkup.replace(/<\/svg>\s*$/i, `${overlayMarkup}</svg>`);
-    }
+    return injectBrandWatermarkIntoSvgMarkup(svgMarkup, { watermarkHref });
   } catch {
     return svgMarkup;
   }
-
-  return svgMarkup;
 };
 
 export const renderSvgToCanvas = async (svgMarkup, scale = 4) => {
@@ -346,41 +302,42 @@ export const buildRasterImageSvgMarkup = (imageUrl, width, height) => {
   ].join('');
 };
 
-const createWatermarkPattern = (tileSize, image) => {
-  const patternCanvas = document.createElement('canvas');
-  const safeTileSize = Math.max(1, Math.round(tileSize));
-  patternCanvas.width = safeTileSize;
-  patternCanvas.height = safeTileSize;
-  const patternContext = patternCanvas.getContext('2d');
-
-  if (!patternContext) {
-    return null;
-  }
-
-  patternContext.imageSmoothingEnabled = true;
-  patternContext.imageSmoothingQuality = 'high';
-  patternContext.drawImage(image, 0, 0, safeTileSize, safeTileSize);
-
-  return patternCanvas;
-};
-
-const fillWatermarkPatternLayer = (context, canvas, image, options) => {
-  const patternCanvas = createWatermarkPattern(options.tileSize, image);
-  if (!patternCanvas) {
-    return;
-  }
-
-  const pattern = context.createPattern(patternCanvas, 'repeat');
-  if (!pattern) {
-    return;
-  }
+const drawCanvasDiagonalWatermarks = (context, canvas, image, options) => {
+  const layerCount = Math.max(1, Math.round(Number(options.layerCount) || BRAND_WATERMARK_DIAGONAL_LAYER_COUNT));
+  const columns = Math.max(1, BRAND_WATERMARK_GRID_COLUMNS);
+  const rows = Math.max(1, Math.ceil(layerCount / columns));
+  const marginX = canvas.width * BRAND_WATERMARK_DIAGONAL_INNER_MARGIN_RATIO;
+  const marginY = canvas.height * BRAND_WATERMARK_DIAGONAL_INNER_MARGIN_RATIO;
+  const containerWidth = Math.max(1, canvas.width - (marginX * 2));
+  const containerHeight = Math.max(1, canvas.height - (marginY * 2));
+  const baseGapX = containerWidth * BRAND_WATERMARK_GRID_GAP_X_RATIO;
+  const baseGapY = containerHeight * BRAND_WATERMARK_GRID_GAP_Y_RATIO;
+  const gapX = columns > 1 ? Math.min(baseGapX, containerWidth * 0.28) : 0;
+  const gapY = rows > 1 ? Math.min(baseGapY, containerHeight * 0.3) : 0;
+  const slotWidth = Math.max(1, (containerWidth - (gapX * (columns - 1))) / columns);
+  const slotHeight = Math.max(1, (containerHeight - (gapY * (rows - 1))) / rows);
+  const baseSize = Math.min(slotWidth, slotHeight) * BRAND_WATERMARK_GRID_ITEM_FILL_RATIO;
+  const sourceRatio = image?.width && image?.height ? (image.height / image.width) : 1;
+  const drawWidth = Math.max(8, baseSize);
+  const drawHeight = Math.max(8, baseSize * sourceRatio);
+  const minX = ((-canvas.width / 2) + marginX);
+  const minY = ((-canvas.height / 2) + marginY);
 
   context.save();
   context.globalAlpha = options.opacity;
   context.translate(canvas.width / 2, canvas.height / 2);
   context.rotate((options.rotation * Math.PI) / 180);
-  context.fillStyle = pattern;
-  context.fillRect(-canvas.width * 0.7, -canvas.height * 0.7, canvas.width * 1.4, canvas.height * 1.4);
+
+  for (let index = 0; index < layerCount; index += 1) {
+    const columnIndex = index % columns;
+    const rowIndex = Math.floor(index / columns);
+    const slotX = minX + (columnIndex * (slotWidth + gapX));
+    const slotY = minY + (rowIndex * (slotHeight + gapY));
+    const layerX = slotX + ((slotWidth - drawWidth) / 2);
+    const layerY = slotY + ((slotHeight - drawHeight) / 2);
+    context.drawImage(image, layerX, layerY, drawWidth, drawHeight);
+  }
+
   context.restore();
 };
 
@@ -393,14 +350,10 @@ export const applyWatermarkToCanvas = async (canvas, options = {}) => {
 
   try {
     const watermarkImage = await loadImage(await getWatermarkSvgDataUri());
-    const logicalWidth = Math.max(1, Number(options.logicalWidth) || canvas.width);
-    const logicalHeight = Math.max(1, Number(options.logicalHeight) || canvas.height);
-    const scale = ((canvas.width / logicalWidth) + (canvas.height / logicalHeight)) / 2;
-
-    fillWatermarkPatternLayer(context, canvas, watermarkImage, {
-      tileSize: BRAND_WATERMARK_TILE_SIZE * scale,
+    drawCanvasDiagonalWatermarks(context, canvas, watermarkImage, {
       opacity: BRAND_WATERMARK_OPACITY,
       rotation: BRAND_WATERMARK_ROTATION,
+      layerCount: BRAND_WATERMARK_DIAGONAL_LAYER_COUNT,
     });
   } catch {
     return canvas;

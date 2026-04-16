@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 
 import Navbar from '../../components/MainComponents/Navbar';
+import PremiumLoader from '../../components/Shared/PremiumLoader';
 import { createClient } from '../../lib/supabaseClient';
 import { isSupabaseAuthSessionMissingError } from '../../lib/favoriteLogosRepository';
 
@@ -94,7 +95,9 @@ export default function ProfilePage() {
           </div>
 
           {!authChecked ? (
-            <div className="mt-6 rounded-xl bg-slate-50 p-4 text-sm font-semibold text-slate-600">Loading...</div>
+            <div className="mt-4 rounded-xl bg-slate-50/60">
+              <PremiumLoader size="sm" text="Loading your profile..." className="h-28" textClassName="text-sm" />
+            </div>
           ) : !user ? (
             <div className="mt-6 rounded-xl border border-pink-100 bg-pink-50 p-4 text-sm font-semibold text-slate-700">
               Sign in to edit your profile.

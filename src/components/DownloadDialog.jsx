@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from 'react';
-import { Download, Loader2, X } from 'lucide-react';
+import { Download, X } from 'lucide-react';
 import { DOWNLOAD_FORMATS } from '../lib/downloadAssets';
+import { PremiumInlineLoader } from './Shared/PremiumLoader';
 
 export default function DownloadDialog({
   open,
@@ -31,7 +32,7 @@ export default function DownloadDialog({
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-4">
             <span className="brand-icon-button h-12 w-12 rounded-2xl">
-              {downloadingFormat ? <Loader2 size={20} className="animate-spin" /> : <Download size={20} />}
+              {downloadingFormat ? <PremiumInlineLoader size={18} /> : <Download size={20} />}
             </span>
             <div>
               <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Download</p>
@@ -81,7 +82,7 @@ export default function DownloadDialog({
                 : 'brand-button-outline'
             }`}
           >
-            {downloadingFormat ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+            {downloadingFormat ? <PremiumInlineLoader size={16} /> : <Download size={18} />}
             <span>{downloadingFormat ? 'Downloading...' : `Download ${activeFormat?.label || ''}`}</span>
           </button>
         </div>

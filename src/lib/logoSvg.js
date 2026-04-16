@@ -469,18 +469,18 @@ const detectLogoTemplate = (item, businessName, rawNameSegments) => {
   } else if (hasNameSegments && rawNameSegments.length >= 3) {
     let minNY1 = Infinity, maxNY1 = -Infinity, totalH = 0;
     rawNameSegments.forEach(s => {
-       if (s?.ratioObj) {
-          const b = getBoundsFromRatio(s.ratioObj);
-          if (b.y1 < minNY1) minNY1 = b.y1;
-          if (b.y1 > maxNY1) maxNY1 = b.y1;
-          totalH += b.height;
-       }
+      if (s?.ratioObj) {
+        const b = getBoundsFromRatio(s.ratioObj);
+        if (b.y1 < minNY1) minNY1 = b.y1;
+        if (b.y1 > maxNY1) maxNY1 = b.y1;
+        totalH += b.height;
+      }
     });
     if (totalH > 0 && maxNY1 > -Infinity && minNY1 < Infinity) {
-       let avgH = totalH / rawNameSegments.length;
-       if (maxNY1 - minNY1 > Math.max(15, avgH * 0.8)) {
-           isBadge = true;
-       }
+      let avgH = totalH / rawNameSegments.length;
+      if (maxNY1 - minNY1 > Math.max(15, avgH * 0.8)) {
+        isBadge = true;
+      }
     }
   }
 
@@ -717,22 +717,22 @@ const estimatePathBounds = (pathStr) => {
   const regex = /[MmLlCcQqZz]\s*([^A-Za-z]+)?/g;
   let match;
   while ((match = regex.exec(pathStr)) !== null) {
-      if (!match[1]) continue;
-      const coords = match[1].match(/-?\d*\.?\d+/g);
-      if (coords && coords.length >= 2) {
-          for (let i = 0; i < coords.length - 1; i += 2) {
-              const x = parseFloat(coords[i]);
-              const y = parseFloat(coords[i+1]);
-              if (!isNaN(x)) {
-                 minX = Math.min(minX, x);
-                 maxX = Math.max(maxX, x);
-              }
-              if (!isNaN(y)) {
-                 minY = Math.min(minY, y);
-                 maxY = Math.max(maxY, y);
-              }
-          }
+    if (!match[1]) continue;
+    const coords = match[1].match(/-?\d*\.?\d+/g);
+    if (coords && coords.length >= 2) {
+      for (let i = 0; i < coords.length - 1; i += 2) {
+        const x = parseFloat(coords[i]);
+        const y = parseFloat(coords[i + 1]);
+        if (!isNaN(x)) {
+          minX = Math.min(minX, x);
+          maxX = Math.max(maxX, x);
+        }
+        if (!isNaN(y)) {
+          minY = Math.min(minY, y);
+          maxY = Math.max(maxY, y);
+        }
       }
+    }
   }
   if (minX === Infinity) return null;
   return { x1: minX, y1: minY, width: Math.max(1, maxX - minX), height: Math.max(1, maxY - minY) };
@@ -740,11 +740,11 @@ const estimatePathBounds = (pathStr) => {
 
 const getRobustBounds = (segment) => {
   if (segment?.path) {
-      const pb = estimatePathBounds(segment.path);
-      if (pb && pb.width > 0) return pb;
+    const pb = estimatePathBounds(segment.path);
+    if (pb && pb.width > 0) return pb;
   }
   if (segment?.ratioObj) {
-      return getBoundsFromRatio(segment.ratioObj);
+    return getBoundsFromRatio(segment.ratioObj);
   }
   return null;
 };
@@ -764,71 +764,71 @@ const renderBadgeTemplate = ({
     maxX = Math.max(maxX, bounds.x1 + bounds.width);
     maxY = Math.max(maxY, bounds.y1 + bounds.height);
   };
-  
+
   const iconAsset = getResolvedIconAsset(item);
   if (iconAsset?.ratioObj) updateExtents(getBoundsFromRatio(iconAsset.ratioObj));
   rawNameSegments.forEach(s => updateExtents(getRobustBounds(s)));
   if (sloganSegment) updateExtents(getRobustBounds(sloganSegment));
-  
+
   if (minX === Infinity) {
-    return { iconMarkup:'', nameMarkup:'', sloganMarkup:'' }; 
+    return { iconMarkup: '', nameMarkup: '', sloganMarkup: '' };
   }
-  
+
   const nativeWidth = Math.max(1, maxX - minX);
   const nativeHeight = Math.max(1, maxY - minY);
   const maxWidth = SVG_CARD_WIDTH - 60;
   const maxHeight = SVG_CARD_HEIGHT - 60;
   const scale = Math.min(maxWidth / nativeWidth, maxHeight / nativeHeight);
-  
+
   const scaledWidth = nativeWidth * scale;
   const scaledHeight = nativeHeight * scale;
   const startX = (SVG_CARD_WIDTH - scaledWidth) / 2;
   const startY = (SVG_CARD_HEIGHT - scaledHeight) / 2;
-  
+
   let iconMarkup = '';
   if (iconAsset?.ratioObj) {
-     const b = getBoundsFromRatio(iconAsset.ratioObj);
-     const iconSvg = iconAsset?.svg_source_code || iconAsset?.source_code || '';
-     const svgParts = extractSvgParts(iconSvg, iconAsset?.view_box || '0 0 100 100');
-     if (svgParts) {
-       const ix = startX + (b.x1 - minX) * scale;
-       const iy = startY + (b.y1 - minY) * scale;
-       const iw = b.width * scale;
-       const ih = b.height * scale;
-       iconMarkup = [
-         `<svg x="${ix.toFixed(2)}" y="${iy.toFixed(2)}" width="${iw.toFixed(2)}" height="${ih.toFixed(2)}" viewBox="${escapeXml(svgParts.viewBox)}" preserveAspectRatio="xMidYMid meet" overflow="visible">`,
-         svgParts.innerMarkup,
-         '</svg>',
-       ].join('');
-     }
+    const b = getBoundsFromRatio(iconAsset.ratioObj);
+    const iconSvg = iconAsset?.svg_source_code || iconAsset?.source_code || '';
+    const svgParts = extractSvgParts(iconSvg, iconAsset?.view_box || '0 0 100 100');
+    if (svgParts) {
+      const ix = startX + (b.x1 - minX) * scale;
+      const iy = startY + (b.y1 - minY) * scale;
+      const iw = b.width * scale;
+      const ih = b.height * scale;
+      iconMarkup = [
+        `<svg x="${ix.toFixed(2)}" y="${iy.toFixed(2)}" width="${iw.toFixed(2)}" height="${ih.toFixed(2)}" viewBox="${escapeXml(svgParts.viewBox)}" preserveAspectRatio="xMidYMid meet" overflow="visible">`,
+        svgParts.innerMarkup,
+        '</svg>',
+      ].join('');
+    }
   }
-  
+
   const nameMarkupChunks = rawNameSegments.map(segment => {
-     const b = getRobustBounds(segment) || { x1: 0, y1: 0 };
-     const ix = startX + (b.x1 - minX) * scale;
-     const iy = startY + (b.y1 - minY) * scale;
-     const fillCol = segment?.color || textColor;
-     return [
-       `<g fill="${escapeXml(fillCol)}" transform="translate(${ix.toFixed(2)} ${iy.toFixed(2)}) scale(${scale.toFixed(4)}) translate(${(-b.x1).toFixed(2)} ${(-b.y1).toFixed(2)})">`,
-       segment.path,
-       '</g>'
-     ].join('');
+    const b = getRobustBounds(segment) || { x1: 0, y1: 0 };
+    const ix = startX + (b.x1 - minX) * scale;
+    const iy = startY + (b.y1 - minY) * scale;
+    const fillCol = segment?.color || textColor;
+    return [
+      `<g fill="${escapeXml(fillCol)}" transform="translate(${ix.toFixed(2)} ${iy.toFixed(2)}) scale(${scale.toFixed(4)}) translate(${(-b.x1).toFixed(2)} ${(-b.y1).toFixed(2)})">`,
+      segment.path,
+      '</g>'
+    ].join('');
   });
   const nameMarkup = nameMarkupChunks.join('');
-  
+
   let sloganMarkup = '';
   if (sloganSegment) {
-     const b = getRobustBounds(sloganSegment) || { x1: 0, y1: 0 };
-     const ix = startX + (b.x1 - minX) * scale;
-     const iy = startY + (b.y1 - minY) * scale;
-     const fillCol = sloganSegment?.color || sloganColor;
-     sloganMarkup = [
-       `<g fill="${escapeXml(fillCol)}" transform="translate(${ix.toFixed(2)} ${iy.toFixed(2)}) scale(${scale.toFixed(4)}) translate(${(-b.x1).toFixed(2)} ${(-b.y1).toFixed(2)})">`,
-       sloganSegment.path,
-       '</g>'
-     ].join('');
+    const b = getRobustBounds(sloganSegment) || { x1: 0, y1: 0 };
+    const ix = startX + (b.x1 - minX) * scale;
+    const iy = startY + (b.y1 - minY) * scale;
+    const fillCol = sloganSegment?.color || sloganColor;
+    sloganMarkup = [
+      `<g fill="${escapeXml(fillCol)}" transform="translate(${ix.toFixed(2)} ${iy.toFixed(2)}) scale(${scale.toFixed(4)}) translate(${(-b.x1).toFixed(2)} ${(-b.y1).toFixed(2)})">`,
+      sloganSegment.path,
+      '</g>'
+    ].join('');
   }
-  
+
   return { iconMarkup, nameMarkup, sloganMarkup };
 };
 
@@ -993,79 +993,79 @@ export const buildEditableLogoPayload = (item, options = {}) => {
       maxX = Math.max(maxX, bounds.x1 + bounds.width);
       maxY = Math.max(maxY, bounds.y1 + bounds.height);
     };
-    
+
     if (iconAsset?.ratioObj) updateExtents(getBoundsFromRatio(iconAsset.ratioObj));
     rawNameSegments.forEach(s => updateExtents(getRobustBounds(s)));
     if (sloganSegment) updateExtents(getRobustBounds(sloganSegment));
-    
+
     if (minX !== Infinity) {
       const nativeW = Math.max(1, maxX - minX);
       const nativeH = Math.max(1, maxY - minY);
       const maxW = EDITOR_CARD_WIDTH - 80;
       const maxH = EDITOR_CARD_HEIGHT - 80;
       const scale = Math.min(maxW / nativeW, maxH / nativeH);
-      
+
       const scaledW = nativeW * scale;
       const scaledH = nativeH * scale;
       const startX = EDITOR_CARD_X + (EDITOR_CARD_WIDTH - scaledW) / 2;
       const startY = EDITOR_CARD_Y + (EDITOR_CARD_HEIGHT - scaledH) / 2;
 
       if (iconAsset?.ratioObj && iconParts) {
-         const b = getBoundsFromRatio(iconAsset.ratioObj);
-         iconFrame = {
-            x: startX + (b.x1 - minX) * scale,
-            y: startY + (b.y1 - minY) * scale,
-            width: b.width * scale,
-            height: b.height * scale,
-            viewBox: iconParts.viewBox,
-            innerMarkup: iconParts.innerMarkup
-         };
+        const b = getBoundsFromRatio(iconAsset.ratioObj);
+        iconFrame = {
+          x: startX + (b.x1 - minX) * scale,
+          y: startY + (b.y1 - minY) * scale,
+          width: b.width * scale,
+          height: b.height * scale,
+          viewBox: iconParts.viewBox,
+          innerMarkup: iconParts.innerMarkup
+        };
       }
-      
+
       if (rawNameSegments.length > 0) {
-         let nMinX = Infinity, nMinY = Infinity, nMaxX = -Infinity, nMaxY = -Infinity;
-         rawNameSegments.forEach(s => {
-            const b = getRobustBounds(s);
-            if (!b) return;
-            nMinX = Math.min(nMinX, b.x1);
-            nMinY = Math.min(nMinY, b.y1);
-            nMaxX = Math.max(nMaxX, b.x1 + b.width);
-            nMaxY = Math.max(nMaxY, b.y1 + b.height);
-         });
-         
-         const bnW = Math.max(1, nMaxX - nMinX);
-         const bnH = Math.max(1, nMaxY - nMinY);
-         
-         const nameMarkupChunks = rawNameSegments.map(segment => {
-            const b = getRobustBounds(segment) || { x1: 0, y1: 0 };
-            const ix = (b.x1 - nMinX);
-            const iy = (b.y1 - nMinY);
-            return `<g fill="${escapeXml(segment?.color || textColor)}" transform="translate(${ix.toFixed(2)} ${iy.toFixed(2)}) translate(${(-b.x1).toFixed(2)} ${(-b.y1).toFixed(2)})">${segment.path || ''}</g>`;
-         });
-         
-         nameFrame = {
-            x: startX + (nMinX - minX) * scale,
-            y: startY + (nMinY - minY) * scale,
-            width: bnW * scale,
-            height: bnH * scale,
-            fontSize: Math.max(12, 40 * scale),
-            align: 'center',
-            color: textColor,
-         };
-         nameSvgDataUri = buildBlockSvgDataUri(bnW, bnH, nameMarkupChunks.join(''));
+        let nMinX = Infinity, nMinY = Infinity, nMaxX = -Infinity, nMaxY = -Infinity;
+        rawNameSegments.forEach(s => {
+          const b = getRobustBounds(s);
+          if (!b) return;
+          nMinX = Math.min(nMinX, b.x1);
+          nMinY = Math.min(nMinY, b.y1);
+          nMaxX = Math.max(nMaxX, b.x1 + b.width);
+          nMaxY = Math.max(nMaxY, b.y1 + b.height);
+        });
+
+        const bnW = Math.max(1, nMaxX - nMinX);
+        const bnH = Math.max(1, nMaxY - nMinY);
+
+        const nameMarkupChunks = rawNameSegments.map(segment => {
+          const b = getRobustBounds(segment) || { x1: 0, y1: 0 };
+          const ix = (b.x1 - nMinX);
+          const iy = (b.y1 - nMinY);
+          return `<g fill="${escapeXml(segment?.color || textColor)}" transform="translate(${ix.toFixed(2)} ${iy.toFixed(2)}) translate(${(-b.x1).toFixed(2)} ${(-b.y1).toFixed(2)})">${segment.path || ''}</g>`;
+        });
+
+        nameFrame = {
+          x: startX + (nMinX - minX) * scale,
+          y: startY + (nMinY - minY) * scale,
+          width: bnW * scale,
+          height: bnH * scale,
+          fontSize: Math.max(12, 40 * scale),
+          align: 'center',
+          color: textColor,
+        };
+        nameSvgDataUri = buildBlockSvgDataUri(bnW, bnH, nameMarkupChunks.join(''));
       }
-      
+
       if (sloganSegment) {
-         const b = getRobustBounds(sloganSegment) || { x1: 0, y1: 0, width: 100, height: 100 };
-         sloganFrame = {
-            x: startX + (b.x1 - minX) * scale,
-            y: startY + (b.y1 - minY) * scale,
-            width: b.width * scale,
-            height: b.height * scale,
-            color: sloganSegment?.color || sloganColor,
-         };
-         const markup = `<g fill="${escapeXml(sloganFrame.color)}" transform="translate(0 0) translate(${(-b.x1).toFixed(2)} ${(-b.y1).toFixed(2)})">${sloganSegment.path || ''}</g>`;
-         sloganSvgDataUri = buildBlockSvgDataUri(Math.max(1, b.width), Math.max(1, b.height), markup);
+        const b = getRobustBounds(sloganSegment) || { x1: 0, y1: 0, width: 100, height: 100 };
+        sloganFrame = {
+          x: startX + (b.x1 - minX) * scale,
+          y: startY + (b.y1 - minY) * scale,
+          width: b.width * scale,
+          height: b.height * scale,
+          color: sloganSegment?.color || sloganColor,
+        };
+        const markup = `<g fill="${escapeXml(sloganFrame.color)}" transform="translate(0 0) translate(${(-b.x1).toFixed(2)} ${(-b.y1).toFixed(2)})">${sloganSegment.path || ''}</g>`;
+        sloganSvgDataUri = buildBlockSvgDataUri(Math.max(1, b.width), Math.max(1, b.height), markup);
       }
     }
   } else if (template === 'icon-left') {
@@ -1293,8 +1293,8 @@ export const buildEditableLogoPayload = (item, options = {}) => {
       strokeWidth: 2,
     });
 
-      textItems.push({
-        id: 'slogan',
+    textItems.push({
+      id: 'slogan',
       type: 'text',
       text: sloganDisplayText,
       x: scaledX,
@@ -1302,24 +1302,24 @@ export const buildEditableLogoPayload = (item, options = {}) => {
       width: scaledWidth,
       height: Math.max(16, scaledHeight),
       fontSize: Math.max(12, scaledHeight),
-        align: 'center',
-        fill: sloganFrame.color,
-        fontFamily: sloganFontFamily,
-        fontUrl: sloganFontUrl,
-        fontStyle: sloganSegment?.style || 'normal',
-        letterSpacing: 2,
-        renderMode: sloganSvgDataUri ? 'svg' : 'text',
-        svgDataUri: sloganSvgDataUri,
-        style: {
-          fillColor: sloganFrame.color,
-          outlineColor: '#111827',
-          outlineWidth: 0,
-          applyColorOverrides: false,
-          rotateX: 0,
-          rotateY: 0,
-          rotateZ: 0,
-        },
-      });
+      align: 'center',
+      fill: sloganFrame.color,
+      fontFamily: sloganFontFamily,
+      fontUrl: sloganFontUrl,
+      fontStyle: sloganSegment?.style || 'normal',
+      letterSpacing: 2,
+      renderMode: sloganSvgDataUri ? 'svg' : 'text',
+      svgDataUri: sloganSvgDataUri,
+      style: {
+        fillColor: sloganFrame.color,
+        outlineColor: '#111827',
+        outlineWidth: 0,
+        applyColorOverrides: false,
+        rotateX: 0,
+        rotateY: 0,
+        rotateZ: 0,
+      },
+    });
   }
 
   return {

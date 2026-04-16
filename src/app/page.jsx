@@ -1,6 +1,7 @@
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { Suspense } from "react";
+import PremiumLoader from "../components/Shared/PremiumLoader.jsx";
 
 import Hero from "../components/Home/Hero.jsx";
 import Features from "../components/Home/Features.jsx";
@@ -10,16 +11,12 @@ const SectionPlaceholder = ({ title, tone = "light" }) => (
     aria-hidden="true"
     className={`px-6 py-20 ${tone === "dark" ? "bg-[#03030b]" : "bg-white"}`}
   >
-    <div className="mx-auto max-w-7xl animate-pulse">
-      <div className={`h-4 w-28 rounded-full ${tone === "dark" ? "bg-white/10" : "bg-slate-200"}`} />
-      <div className={`mt-6 h-10 max-w-xl rounded-2xl ${tone === "dark" ? "bg-white/10" : "bg-slate-200"}`} />
-      <div className={`mt-4 h-4 max-w-2xl rounded-full ${tone === "dark" ? "bg-white/10" : "bg-slate-100"}`} />
-      <div className={`mt-2 h-4 max-w-xl rounded-full ${tone === "dark" ? "bg-white/10" : "bg-slate-100"}`} />
-      <div className="mt-10">
-        <span className={`text-sm font-bold ${tone === "dark" ? "text-white/40" : "text-slate-400"}`}>
-          Loading {title}...
-        </span>
-      </div>
+    <div className="mx-auto max-w-7xl">
+      <PremiumLoader
+        size="md"
+        text={`Loading ${title}...`}
+        className={tone === "dark" ? "text-white" : ""}
+      />
     </div>
   </section>
 );
