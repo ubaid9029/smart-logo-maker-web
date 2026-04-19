@@ -98,7 +98,7 @@ export default function YouTubeLogoMakerPage() {
              </div>
           </div>
 
-          <h2 className="text-3xl font-black text-slate-900 mb-8">How to Create the Best YouTue Logo for Free in 2026</h2>
+          <h2 className="text-3xl font-black text-slate-900 mb-8">How to Create the Best YouTube Logo for Free in 2026</h2>
           <p className="text-lg text-slate-600 mb-8 leading-8">
             The secret to a great YouTube profile picture is simplicity. Because the icon is often shown at a very small size, complex designs get "mushy." Our **free AI logo generator** focuses on bold symbols and high-contrast colors that remain clear even on a smartphone screen.
           </p>

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Sparkles, Zap, Download, Lock, Globe, Cpu, Infinity as InfinityIcon } from 'lucide-react';
+import { Sparkles, Zap, Download, Lock, Globe, Cpu, Maximize, Infinity as InfinityIcon } from 'lucide-react';
 
 export const metadata = {
   title: "Free AI Logo Generator | Best Fast & 100% Free with Vector Exports",
