@@ -1,6 +1,5 @@
 import Link from 'next/link';
-import Image from 'next/image';
-import { motion } from 'framer-motion';
+import InteractiveMockup from '@/components/Marketing/InteractiveMockup';
 import { ShoppingBag, Star, Shirt, Scissors, Tag, Maximize } from 'lucide-react';
 
 export const metadata = {
@@ -42,29 +41,13 @@ export default function ClothingLogoMakerPage() {
         </div>
 
         {/* Interactive Mockup Section */}
-        <div className="relative z-10 max-w-6xl mx-auto px-6 mt-16 md:mt-24">
-           <motion.div 
-             initial={{ opacity: 0, scale: 1.05 }}
-             whileInView={{ opacity: 1, scale: 1 }}
-             viewport={{ once: true }}
-             transition={{ duration: 1.2, ease: "easeOut" }}
-             className="relative group rounded-[3rem] overflow-hidden shadow-2xl border-[12px] border-white"
-           >
-              <Image 
-                src="/assets/mockups/clothing-hero.png" 
-                alt="Minimalist Clothing Store Mockup with Premium Apparel Logo"
-                width={1200}
-                height={675}
-                className="w-full h-auto object-cover group-hover:scale-110 transition-transform duration-[2000ms]"
-              />
-              <div className="absolute inset-0 bg-slate-950/20 group-hover:bg-transparent transition-colors duration-700" />
-              <div className="absolute top-8 left-8">
-                 <div className="bg-white/90 backdrop-blur-md px-6 py-3 rounded-full text-slate-950 text-sm font-black uppercase tracking-widest border border-slate-200">
-                    Fashion Exhibit 2026
-                 </div>
-              </div>
-           </motion.div>
-        </div>
+        <InteractiveMockup 
+           src="/assets/mockups/clothing-hero.png"
+           alt="Minimalist Clothing Store Mockup with Premium Apparel Logo"
+           title="Fashion Exhibit 2026"
+           label="Visual Gallery"
+           accentColor="slate"
+        />
       </section>
 
       {/* Main Content Area */}

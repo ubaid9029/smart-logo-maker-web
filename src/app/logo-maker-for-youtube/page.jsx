@@ -1,6 +1,5 @@
 import Link from 'next/link';
-import Image from 'next/image';
-import { motion } from 'framer-motion';
+import InteractiveMockup from '@/components/Marketing/InteractiveMockup';
 import { Youtube, Play, Video, Share2, Camera, Award } from 'lucide-react';
 
 export const metadata = {
@@ -42,33 +41,13 @@ export default function YouTubeLogoMakerPage() {
         </div>
 
         {/* Interactive Mockup Section */}
-        <div className="relative z-10 max-w-6xl mx-auto px-6 mt-16 md:mt-24">
-           <motion.div 
-             initial={{ opacity: 0, y: 20 }}
-             whileInView={{ opacity: 1, y: 0 }}
-             viewport={{ once: true }}
-             transition={{ duration: 0.8 }}
-             className="relative group rounded-[3rem] overflow-hidden shadow-2xl border-4 border-white"
-           >
-              <Image 
-                src="/assets/mockups/youtube-hero.png" 
-                alt="Professional YouTube Gamer Desk Setup with Custom AI Logo"
-                width={1200}
-                height={675}
-                className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-1000"
-              />
-              <div className="absolute inset-0 bg-linear-to-t from-red-950/40 to-transparent pointer-events-none" />
-              <div className="absolute bottom-8 left-8 right-8 flex justify-between items-end">
-                 <div className="text-white">
-                    <p className="text-xs font-black uppercase tracking-widest opacity-80 mb-2">Channel Identity</p>
-                    <h4 className="text-2xl font-black text-white">Creator Desk Implementation</h4>
-                 </div>
-                 <div className="bg-red-600/20 backdrop-blur-md px-4 py-2 rounded-full text-white text-xs font-bold border border-white/30">
-                    Live Preview
-                 </div>
-              </div>
-           </motion.div>
-        </div>
+        <InteractiveMockup 
+           src="/assets/mockups/youtube-hero.png"
+           alt="Professional YouTube Gamer Desk Setup with Custom AI Logo"
+           title="Creator Desk Implementation"
+           label="Channel Identity"
+           accentColor="red"
+        />
       </section>
 
       {/* Main Content Area */}

@@ -1,6 +1,5 @@
 import Link from 'next/link';
-import Image from 'next/image';
-import { motion } from 'framer-motion';
+import InteractiveMockup from '@/components/Marketing/InteractiveMockup';
 import { Rocket, Sparkles, Zap, ShieldCheck, Globe, Cpu } from 'lucide-react';
 
 export const metadata = {
@@ -43,34 +42,13 @@ export default function StartupLogoMakerPage() {
         </div>
 
         {/* Interactive Mockup Section */}
-        <div className="relative z-10 max-w-6xl mx-auto px-6 mt-16 md:mt-24">
-           <motion.div 
-             initial={{ opacity: 0, scale: 0.95 }}
-             whileInView={{ opacity: 1, scale: 1 }}
-             viewport={{ once: true }}
-             transition={{ duration: 0.8 }}
-             className="relative group rounded-[3rem] overflow-hidden shadow-2xl border-4 border-white"
-           >
-              <Image 
-                src="/assets/mockups/startup-hero.png" 
-                alt="Professional Tech Startup Logo Mockup in Modern Office"
-                width={1200}
-                height={675}
-                className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-1000"
-                priority
-              />
-              <div className="absolute inset-0 bg-linear-to-t from-slate-950/40 to-transparent pointer-events-none" />
-              <div className="absolute bottom-8 left-8 right-8 flex justify-between items-end">
-                 <div className="text-white">
-                    <p className="text-xs font-black uppercase tracking-widest opacity-80 mb-2">Visualized Brand</p>
-                    <h4 className="text-2xl font-black">Startup Office Implementation</h4>
-                 </div>
-                 <div className="bg-white/20 backdrop-blur-md px-4 py-2 rounded-full text-white text-xs font-bold border border-white/30">
-                    Live Preview
-                 </div>
-              </div>
-           </motion.div>
-        </div>
+        <InteractiveMockup 
+           src="/assets/mockups/startup-hero.png"
+           alt="Professional Tech Startup Logo Mockup in Modern Office"
+           title="Startup Office Implementation"
+           label="Visualized Brand"
+           accentColor="indigo"
+        />
       </section>
 
       {/* Main Content Area */}
