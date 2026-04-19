@@ -12,6 +12,13 @@ export default async function sitemap() {
     '/templates',
     '/case-studies',
     '/create',
+    '/logo-maker-for-startups',
+    '/logo-maker-for-youtube',
+    '/logo-maker-for-clothing-brand',
+    '/free-ai-logo-generator',
+    '/blog/how-to-design-startup-logo-2026',
+    '/blog/best-logo-colors',
+    '/blog/ai-vs-human-design',
   ].map((route) => ({
     url: `${baseUrl}${route}`,
     lastModified: new Date().toISOString(),
