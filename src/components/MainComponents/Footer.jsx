@@ -44,6 +44,7 @@ export default function Footer() {
             <h4 className="mb-6 text-lg font-bold text-white">Resources</h4>
             <ul aria-label="Resource links" className="flex flex-col space-y-4">
               {[
+                { name: 'AI Logo Blog', path: '/blog' },
                 { name: 'Logo Templates', path: '/templates' },
                 { name: 'Design Guides', path: '/guides' },
                 { name: 'Branding Case Studies', path: '/case-studies' },
