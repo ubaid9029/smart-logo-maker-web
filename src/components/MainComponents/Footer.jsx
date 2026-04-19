@@ -26,6 +26,7 @@ export default function Footer() {
                 { name: 'Features', path: '/#features' },
                 { name: 'How It Works', path: '/how-it-works' },
                 { name: 'Logo App Preview', path: '/#app-preview' },
+                { name: 'Gaming Logo Maker', path: '/gaming-logo-maker' },
                 { name: 'Create Logo', path: '/create' },
               ].map((item) => (
                 <li key={item.name}>
