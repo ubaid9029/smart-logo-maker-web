@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { Palette, Droplet, Sun, Eye, Layers, Brush } from 'lucide-react';
+import { Palette, Droplet, Sun, Eye, Layers, Brush, Clock } from 'lucide-react';
 
 export const metadata = {
   title: "Best Logo Colors for Brands in 2026 | Smart Logo Maker Blog",
