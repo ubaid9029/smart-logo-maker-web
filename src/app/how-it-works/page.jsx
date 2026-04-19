@@ -13,6 +13,11 @@ import {
 
 export const metadata = {
   title: 'How It Works | Smart Logo Maker',
+  description: 'Learn the step-by-step process of creating, customizing, and downloading your professional AI logo. Our complete walkthrough covers everything from brand setup to export.',
+  keywords: ['Logo creation process', 'How to make a logo', 'AI logo tutorial', 'Logo editor guide', 'Branding workflow'],
+  alternates: {
+    canonical: "/how-it-works",
+  },
 };
 
 const workflowSteps = [

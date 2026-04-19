@@ -37,7 +37,12 @@ const FinalCTA = dynamic(() => import("../components/Home/FinalCTA.jsx"), {
   suspense: true,
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://smart-logomaker.com";
+export const metadata = {
+  title: "Best Free AI Logos | NO Watermark, NO Signup & 10+ Formats",
+  description: "Experience the fastest AI logo maker with NO watermark and 10+ vector export formats. 100% free to use for everyone—no signup, no hidden fees, just professional brand design.",
+};
+
 const jsonLd = {
   "@context": "https://schema.org",
   "@graph": [
@@ -46,6 +51,7 @@ const jsonLd = {
       "@id": `${siteUrl}/#website`,
       url: siteUrl,
       name: "Smart Logo Maker",
+      alternateName: "Smart Logo Maker AI",
       description:
         "Create professional logos in seconds with Smart Logo Maker. Generate, customize, edit, and download AI-powered brand designs for your business online today.",
     },
@@ -55,7 +61,12 @@ const jsonLd = {
       name: "Smart Logo Maker",
       url: siteUrl,
       logo: `${siteUrl}/assets/icons/SmartLogoMaker.png`,
-      email: "support@smartlogomaker.com",
+      email: "support@smart-logomaker.com",
+      sameAs: [
+        "https://twitter.com/smartlogomaker",
+        "https://www.facebook.com/smartlogomaker",
+        "https://www.instagram.com/smartlogomaker",
+      ],
     },
     {
       "@type": "SoftwareApplication",
@@ -74,6 +85,13 @@ const jsonLd = {
       publisher: {
         "@id": `${siteUrl}/#organization`,
       },
+      featureList: [
+        "AI Logo Generation",
+        "Drag & Drop Editor",
+        "Vector Export",
+        "Custom Palettes",
+        "Font Library",
+      ],
     },
   ],
 };

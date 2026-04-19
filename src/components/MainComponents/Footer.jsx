@@ -23,10 +23,10 @@ export default function Footer() {
             <h4 className="mb-6 text-lg font-bold text-white">Product</h4>
             <ul aria-label="Product links" className="flex flex-col space-y-4">
               {[
-                { name: 'Features', path: '#features' },
-                { name: 'How It Works', path: '#how-it-works' },
-                { name: 'App Preview', path: '#app-preview' },
-                { name: 'Get Started', path: '../create' },
+                { name: 'Features', path: '/#features' },
+                { name: 'How It Works', path: '/how-it-works' },
+                { name: 'Logo App Preview', path: '/#app-preview' },
+                { name: 'Create Logo', path: '/create' },
               ].map((item) => (
                 <li key={item.name}>
                   <Link
@@ -44,9 +44,9 @@ export default function Footer() {
             <h4 className="mb-6 text-lg font-bold text-white">Resources</h4>
             <ul aria-label="Resource links" className="flex flex-col space-y-4">
               {[
-                { name: 'Templates', path: '/templates' },
-                { name: 'Guides', path: '/guides' },
-                { name: 'Case Studies', path: '/case-studies' },
+                { name: 'Logo Templates', path: '/templates' },
+                { name: 'Design Guides', path: '/guides' },
+                { name: 'Branding Case Studies', path: '/case-studies' },
               ].map((item) => (
                 <li key={item.name}>
                   <Link
@@ -64,10 +64,10 @@ export default function Footer() {
             <h4 className="mb-6 text-lg font-bold text-white">Company</h4>
             <ul aria-label="Company links" className="flex flex-col space-y-4">
               {[
-                { name: 'About Us', path: 'about' },
-                { name: 'Contact', path: '/contact' },
+                { name: 'About Us', path: '/about' },
+                { name: 'Contact Support', path: '/contact' },
                 { name: 'Privacy Policy', path: '/privacy' },
-                { name: 'Security', path: '/privacy#security' },
+                { name: 'Brand Security', path: '/privacy#security' },
                 { name: 'Terms of Service', path: '/terms' },
               ].map((item) => (
                 <li key={item.name}>
