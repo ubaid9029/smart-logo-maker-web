@@ -90,12 +90,12 @@ export async function authenticateRequest(request, sessionUser = undefined) {
       rateCache.set(limitKey, { count: 1, resetAt: now + (60 * 1000) });
     }
 
-    return { 
-      isValid: true, 
-      type: 'external', 
-      userId: authRecord.userId, 
+    return {
+      isValid: true,
+      type: 'external',
+      userId: authRecord.userId,
       keyId: authRecord.keyId,
-      ip 
+      ip
     };
   }
 
@@ -104,7 +104,7 @@ export async function authenticateRequest(request, sessionUser = undefined) {
   const origin = request.headers.get('origin') || '';
   const referer = request.headers.get('referer') || '';
   const appId = request.headers.get('x-app-id');
-  
+
   // Smart domain matching for smart-logomaker.com (Check Origin OR Referer)
   const isOurDomain = origin.includes('smart-logomaker.com') || referer.includes('smart-logomaker.com');
   const isWeb = isOurDomain || (isLocalhost && (!origin || origin.includes('localhost') || referer.includes('localhost')));
@@ -135,9 +135,9 @@ export async function authenticateRequest(request, sessionUser = undefined) {
 
 export function securityResponse(error, status) {
   return NextResponse.json(
-    { error }, 
-    { 
-      status, 
+    { error },
+    {
+      status,
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate',
         'Pragma': 'no-cache'

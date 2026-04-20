@@ -49,10 +49,15 @@ export default function GoogleAuthButton({
 
     try {
       const supabase = createClient();
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+          redirectTo: `${siteUrl}/auth/callback?next=${encodeURIComponent(next)}`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       });
 
