@@ -86,13 +86,16 @@ export async function authenticateRequest(request, sessionUser = undefined) {
 
   // 2. Internal App Authentication (Security layer for web/mobile)
   const isLocalhost = process.env.NODE_ENV === 'development';
-  const origin = request.headers.get('origin');
+  const origin = request.headers.get('origin') || '';
   const appId = request.headers.get('x-app-id');
   
-  const isWeb = ALLOWED_DOMAINS.includes(origin) || (isLocalhost && (!origin || origin.includes('localhost')));
+  // Smart domain matching for smart-logomaker.com
+  const isOurDomain = origin.includes('smart-logomaker.com');
+  const isWeb = isOurDomain || (isLocalhost && (!origin || origin.includes('localhost')));
   const isAuthorized = isWeb || appId === ALLOWED_APP_ID;
 
   if (!isAuthorized) {
+    console.warn(`Unauthorized API Attempt | Origin: ${origin} | IP: ${ip}`);
     return { isValid: false, status: 403, error: 'Unauthorized origin or application identity.' };
   }
 
