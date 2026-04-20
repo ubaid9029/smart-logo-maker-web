@@ -112,11 +112,10 @@ function ToolbarIconButton({ active = false, children, className = '', ...props 
   return (
     <button
       {...props}
-      className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-all ${
-        active
-          ? 'border-slate-300 bg-slate-50 text-slate-700 ring-2 ring-slate-200 scale-[1.04]'
-          : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
-      } ${className}`}
+      className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-all ${active
+        ? 'border-slate-300 bg-slate-50 text-slate-700 ring-2 ring-slate-200 scale-[1.04]'
+        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+        } ${className}`}
     >
       {active ? (
         <span className="absolute left-1/2 top-0.5 h-0.5 w-3 -translate-x-1/2 rounded-full bg-slate-500" />
@@ -130,11 +129,10 @@ function ToolbarPillButton({ active = false, children, className = '', ...props 
   return (
     <button
       {...props}
-      className={`flex h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-[13px] font-semibold transition-all ${
-        active
-          ? 'border-slate-300 bg-slate-50 text-slate-700 ring-2 ring-slate-200 scale-[1.02]'
-          : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
-      } ${className}`}
+      className={`flex h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-[13px] font-semibold transition-all ${active
+        ? 'border-slate-300 bg-slate-50 text-slate-700 ring-2 ring-slate-200 scale-[1.02]'
+        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+        } ${className}`}
     >
       {children}
     </button>
@@ -446,9 +444,9 @@ function EditorUI() {
     const transform = selectedItemData.transform || {};
     const baseMetrics = selectedCanvasItem.type === 'logo'
       ? {
-          width: Number(selectedItemData.baseWidth || selectedItemData.width || 220),
-          height: Number(selectedItemData.baseHeight || selectedItemData.height || 160),
-        }
+        width: Number(selectedItemData.baseWidth || selectedItemData.width || 220),
+        height: Number(selectedItemData.baseHeight || selectedItemData.height || 160),
+      }
       : getTextMetrics(selectedItemData);
 
     return {
@@ -500,9 +498,9 @@ function EditorUI() {
       const transform = item?.transform || {};
       const metrics = type === 'logo'
         ? {
-            width: Number(item?.baseWidth || item?.width || 220),
-            height: Number(item?.baseHeight || item?.height || 160),
-          }
+          width: Number(item?.baseWidth || item?.width || 220),
+          height: Number(item?.baseHeight || item?.height || 160),
+        }
         : getTextMetrics(item);
 
       return {
@@ -514,9 +512,9 @@ function EditorUI() {
     };
     const selectedBounds = selectedCanvasItem
       ? getBounds(
-          selectedCanvasItem.type,
-          orderedCanvasItems.find(({ type, item }) => type === selectedCanvasItem.type && item.id === selectedCanvasItem.id)?.item
-        )
+        selectedCanvasItem.type,
+        orderedCanvasItems.find(({ type, item }) => type === selectedCanvasItem.type && item.id === selectedCanvasItem.id)?.item
+      )
       : null;
     const intersects = (first, second) => {
       if (!first || !second) {
@@ -683,21 +681,21 @@ function EditorUI() {
   const selectedFillGradient = normalizeFillGradient(selectedStyle.fillGradient);
   const selectedFillPreviewStyle = selectedFillGradient
     ? {
-        background: selectedFillGradient.type === 'linear'
-          ? getLinearGradientCss(
-              selectedFillGradient.direction,
-              selectedFillGradient.startColor,
-              selectedFillGradient.endColor
-            )
-          : getRadialGradientCss(
-              selectedFillGradient.radialAngle,
-              selectedFillGradient.startColor,
-              selectedFillGradient.endColor
-            ),
-      }
+      background: selectedFillGradient.type === 'linear'
+        ? getLinearGradientCss(
+          selectedFillGradient.direction,
+          selectedFillGradient.startColor,
+          selectedFillGradient.endColor
+        )
+        : getRadialGradientCss(
+          selectedFillGradient.radialAngle,
+          selectedFillGradient.startColor,
+          selectedFillGradient.endColor
+        ),
+    }
     : {
-        backgroundColor: selectedTextColor,
-      };
+      backgroundColor: selectedTextColor,
+    };
   const selectedTextFontStyle = String(selectedItemData?.fontStyle || 'normal').toLowerCase();
   const selectedTextAlign = selectedItemData?.align || 'center';
   const selectedOpacityValue = Math.max(0.05, Math.min(1, Number(selectedItemData?.opacity ?? 1)));
@@ -732,11 +730,11 @@ function EditorUI() {
       ? 'w-[320px] xl:w-[336px]'
       : activeObjectPanel === 'positioning'
         ? 'w-[308px] xl:w-[324px]'
-      : activeObjectPanel === 'fonts'
-        ? 'w-[340px] xl:w-[380px]'
-        : activeObjectPanel === 'opacity' || activeObjectPanel === 'radius'
-          ? 'w-[300px] xl:w-[332px]'
-        : 'w-[320px] xl:w-[360px]'
+        : activeObjectPanel === 'fonts'
+          ? 'w-[340px] xl:w-[380px]'
+          : activeObjectPanel === 'opacity' || activeObjectPanel === 'radius'
+            ? 'w-[300px] xl:w-[332px]'
+            : 'w-[320px] xl:w-[360px]'
     : activeTool === 'background'
       ? activeBackgroundOption === 'background' || activeBackgroundOption === 'texture'
         ? 'w-[356px] xl:w-[400px]'
@@ -781,14 +779,14 @@ function EditorUI() {
     });
   }, [selectedToolbarKey, setSidebarOpen]);
   const floatingToolbarOffsetStyle = {
-    top: '5.1rem',
+    top: '6rem',
   };
   const mobileFloatingControlsStyle = isMobileViewport
     ? {
-        bottom: sidebarOpen && shouldShowDesktopSidebar
-          ? 'calc(4.15rem + 18.5svh + 0.3rem)'
-          : '4.4rem',
-      }
+      bottom: sidebarOpen && shouldShowDesktopSidebar
+        ? 'calc(4.15rem + 18.5svh + 0.3rem)'
+        : '4.4rem',
+    }
     : undefined;
   useEditorSidebarVisibility({ isMobileViewport, setSidebarOpen, shouldShowDesktopSidebar });
 
@@ -1124,644 +1122,639 @@ function EditorUI() {
       >
         <div className="flex h-full w-full">
           <div className="mx-auto flex h-full w-full max-w-[1800px] flex-col overflow-hidden px-3 py-3 sm:px-4 sm:py-4 lg:flex-row lg:rounded-[2rem] lg:border lg:border-slate-200/70 lg:bg-white lg:shadow-[0_24px_70px_-44px_rgba(15,23,42,0.28)]">
-          <DesktopToolRail
-            editorTools={editorTools}
-            activeTool={activeTool}
-            onToolSelect={handleEditorToolSelect}
-          />
+            <DesktopToolRail
+              editorTools={editorTools}
+              activeTool={activeTool}
+              onToolSelect={handleEditorToolSelect}
+            />
 
-          {/* DESKTOP SIDEBAR */}
-          {shouldShowDesktopSidebar && (
-            <aside className={`hidden shrink-0 flex-col border-r border-slate-200/70 bg-white lg:flex ${desktopSidebarWidthClass}`}>
-              {!selectedCanvasItem && (
-                <div className="border-b border-slate-100 px-6 py-5">
-                  <h2 className={`text-[15px] font-extrabold uppercase tracking-[0.08em] text-slate-800`}>{sidebarHeading}</h2>
+            {/* DESKTOP SIDEBAR */}
+            {shouldShowDesktopSidebar && (
+              <aside className={`hidden shrink-0 flex-col border-r border-slate-200/70 bg-white lg:flex ${desktopSidebarWidthClass}`}>
+                {!selectedCanvasItem && (
+                  <div className="border-b border-slate-100 px-6 py-5">
+                    <h2 className={`text-[15px] font-extrabold uppercase tracking-[0.08em] text-slate-800`}>{sidebarHeading}</h2>
+                  </div>
+                )}
+                <div className="flex-1 space-y-4 overflow-y-auto bg-slate-50/70 p-4">
+                  <EditorSidebarContent {...editorSidebarProps} />
                 </div>
-              )}
-              <div className="flex-1 space-y-4 overflow-y-auto bg-slate-50/70 p-4">
-                <EditorSidebarContent {...editorSidebarProps} />
-              </div>
-            </aside>
-          )}
+              </aside>
+            )}
 
-          {/* MAIN CONTENT AREA */}
-          <main className="relative flex h-full min-w-0 flex-1 flex-col bg-pink-50 lg:bg-white/70">
+            {/* MAIN CONTENT AREA */}
+            <main className="relative flex h-full min-w-0 flex-1 flex-col bg-pink-50 lg:bg-white/70">
 
-        {/* MOBILE HEADER */}
-        <MobileHeader
-          canUndo={canUndo}
-          canRedo={canRedo}
-          onUndo={handleUndo}
-          onRedo={handleRedo}
-          watermarkEnabled={logoConfig.watermarkEnabled !== false}
-          onToggleWatermark={(checked) => applyLogoConfigChange({ watermarkEnabled: checked })}
-          onPreview={handlePreviewOpen}
-          onSave={handleSaveDesign}
-          onDownload={handleOpenDownloadDialog}
-          canSave={Boolean(designId)}
-          savingChanges={savingChanges}
-        />
-
-        {/* CANVAS */}
-        <div className="relative flex-1 overflow-y-auto bg-pink-50 p-3 pb-[7.1rem] sm:p-4 sm:pb-[8rem] lg:p-4 lg:pb-24 lg:pt-28">
-          <input
-            ref={imageInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
-            className="hidden"
-            onChange={handleImageUpload}
-          />
-          <input
-            ref={backgroundImageInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/jpg,image/webp"
-            className="hidden"
-            onChange={handleBackgroundImageUpload}
-          />
-
-          <div
-            className="absolute left-3 z-20 hidden items-center gap-1 sm:left-4 lg:flex lg:bottom-auto lg:left-4 lg:top-3 lg:gap-1.5"
-            style={mobileFloatingControlsStyle}
-          >
-            <button
-              onClick={handleUndo}
-              disabled={!canUndo}
-              className={`brand-icon-button flex h-9 w-9 items-center justify-center rounded-full bg-white/95 backdrop-blur transition-all lg:h-10 lg:w-10 ${
-                !canUndo
-                  ? 'cursor-not-allowed text-slate-300'
-                  : ''
-              }`}
-              title="Undo"
-            >
-              <Undo2 size={18} />
-            </button>
-            <button
-              onClick={handleRedo}
-              disabled={!canRedo}
-              className={`brand-icon-button flex h-9 w-9 items-center justify-center rounded-full bg-white/95 backdrop-blur transition-all lg:h-10 lg:w-10 ${
-                !canRedo
-                  ? 'cursor-not-allowed text-slate-300'
-                  : ''
-              }`}
-              title="Redo"
-            >
-              <Redo2 size={18} />
-            </button>
-            <label className="flex h-9 items-center gap-2 rounded-full border border-slate-200 bg-white/95 px-3 text-[12px] font-semibold text-slate-700 backdrop-blur lg:h-10 lg:px-4 lg:text-[13px]">
-              <input
-                type="checkbox"
-                checked={logoConfig.watermarkEnabled !== false}
-                onChange={(event) => applyLogoConfigChange({ watermarkEnabled: event.target.checked })}
-                className="h-4 w-4 rounded border-slate-300 accent-slate-600"
+              {/* MOBILE HEADER */}
+              <MobileHeader
+                canUndo={canUndo}
+                canRedo={canRedo}
+                onUndo={handleUndo}
+                onRedo={handleRedo}
+                watermarkEnabled={logoConfig.watermarkEnabled !== false}
+                onToggleWatermark={(checked) => applyLogoConfigChange({ watermarkEnabled: checked })}
+                onPreview={handlePreviewOpen}
+                onSave={handleSaveDesign}
+                onDownload={handleOpenDownloadDialog}
+                canSave={Boolean(designId)}
+                savingChanges={savingChanges}
               />
-              <span>Watermark</span>
-            </label>
-          </div>
 
-          {showFloatingToolbar && (
-            <div
-              className="absolute left-1/2 z-20 hidden w-[calc(100%-2rem)] max-w-max -translate-x-1/2 sm:w-auto lg:block"
-              style={floatingToolbarOffsetStyle}
-            >
-                <div className="relative overflow-x-auto overflow-y-visible rounded-[1.25rem] border border-slate-200/80 bg-white/95 px-2.5 py-2.5 shadow-xl backdrop-blur">
-                  {selectedCanvasItem ? (
-                    canEditText && selectedItemData ? (
-                      <div className="flex min-w-max items-center gap-px text-slate-700">
-                        <button
-                          onClick={() => openSelectedPanel('fonts')}
-                          className={`flex h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-[13px] font-semibold transition-all ${
-                            activeObjectPanel === 'fonts'
-                              ? 'border-slate-300 bg-slate-50 text-slate-700 ring-2 ring-slate-200'
-                              : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
-                          }`}
-                        >
-                          <span
-                            className="max-w-[116px] truncate text-left"
-                            style={{ fontFamily: selectedTextFontFamily }}
-                          >
-                            {selectedTextFontFamily}
-                          </span>
-                          <ChevronDown size={14} />
-                        </button>
+              {/* CANVAS */}
+              <div className="relative flex-1 overflow-y-auto bg-pink-50 p-3 pb-[7.1rem] sm:p-4 sm:pb-[8rem] lg:flex lg:flex-col lg:items-center lg:overflow-hidden lg:p-4 lg:pb-0 lg:pt-28">
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                />
+                <input
+                  ref={backgroundImageInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp"
+                  className="hidden"
+                  onChange={handleBackgroundImageUpload}
+                />
 
-                        <ToolbarDivider />
+                <div
+                  className="absolute left-3 z-20 hidden items-center gap-1 sm:left-4 lg:flex lg:bottom-auto lg:left-4 lg:top-3 lg:gap-1.5"
+                  style={mobileFloatingControlsStyle}
+                >
+                  <button
+                    onClick={handleUndo}
+                    disabled={!canUndo}
+                    className={`brand-icon-button flex h-9 w-9 items-center justify-center rounded-full bg-white/95 backdrop-blur transition-all lg:h-10 lg:w-10 ${!canUndo
+                      ? 'cursor-not-allowed text-slate-300'
+                      : ''
+                      }`}
+                    title="Undo"
+                  >
+                    <Undo2 size={18} />
+                  </button>
+                  <button
+                    onClick={handleRedo}
+                    disabled={!canRedo}
+                    className={`brand-icon-button flex h-9 w-9 items-center justify-center rounded-full bg-white/95 backdrop-blur transition-all lg:h-10 lg:w-10 ${!canRedo
+                      ? 'cursor-not-allowed text-slate-300'
+                      : ''
+                      }`}
+                    title="Redo"
+                  >
+                    <Redo2 size={18} />
+                  </button>
+                  <label className="flex h-9 items-center gap-2 rounded-full border border-slate-200 bg-white/95 px-3 text-[12px] font-semibold text-slate-700 backdrop-blur lg:h-10 lg:px-4 lg:text-[13px]">
+                    <input
+                      type="checkbox"
+                      checked={logoConfig.watermarkEnabled !== false}
+                      onChange={(event) => applyLogoConfigChange({ watermarkEnabled: event.target.checked })}
+                      className="h-4 w-4 rounded border-slate-300 accent-slate-600"
+                    />
+                    <span>Watermark</span>
+                  </label>
+                </div>
 
-                        <div className="flex h-10 shrink-0 items-center rounded-xl border border-slate-200 bg-white px-1.5">
+                {showFloatingToolbar && (
+                  <div
+                    className="absolute left-1/2 z-20 hidden w-[calc(100%-2rem)] max-w-max -translate-x-1/2 sm:w-auto lg:block"
+                    style={floatingToolbarOffsetStyle}
+                  >
+                    <div className="relative overflow-x-auto overflow-y-visible rounded-[1.25rem] border border-slate-200/80 bg-white/95 px-2.5 py-2.5 shadow-xl backdrop-blur">
+                      {selectedCanvasItem ? (
+                        canEditText && selectedItemData ? (
+                          <div className="flex min-w-max items-center gap-px text-slate-700">
+                            <button
+                              onClick={() => openSelectedPanel('fonts')}
+                              className={`flex h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-[13px] font-semibold transition-all ${activeObjectPanel === 'fonts'
+                                ? 'border-slate-300 bg-slate-50 text-slate-700 ring-2 ring-slate-200'
+                                : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                                }`}
+                            >
+                              <span
+                                className="max-w-[116px] truncate text-left"
+                                style={{ fontFamily: selectedTextFontFamily }}
+                              >
+                                {selectedTextFontFamily}
+                              </span>
+                              <ChevronDown size={14} />
+                            </button>
+
+                            <ToolbarDivider />
+
+                            <div className="flex h-10 shrink-0 items-center rounded-xl border border-slate-200 bg-white px-1.5">
+                              <button
+                                onClick={() => handleSelectedTextFontSizeChange(selectedTextFontSize - 2)}
+                                className="flex h-7 w-7 items-center justify-center rounded-lg text-[13px] font-bold transition-all hover:bg-slate-100"
+                                title="Decrease font size"
+                              >
+                                -
+                              </button>
+                              <button
+                                onClick={() => openSelectedPanel('fonts')}
+                                className="min-w-[34px] px-1.5 text-[13px] font-bold text-slate-800"
+                                title="Open font settings"
+                              >
+                                {selectedTextFontSize}
+                              </button>
+                              <button
+                                onClick={() => handleSelectedTextFontSizeChange(selectedTextFontSize + 2)}
+                                className="flex h-7 w-7 items-center justify-center rounded-lg text-[13px] font-bold transition-all hover:bg-slate-100"
+                                title="Increase font size"
+                              >
+                                +
+                              </button>
+                            </div>
+
+                            <ToolbarDivider />
+
+                            <ToolbarIconButton
+                              onClick={() => openSelectedPanel('colors')}
+                              active={activeObjectPanel === 'colors'}
+                              title="Text color"
+                            >
+                              <span
+                                className="h-3.5 w-3.5 rounded-full shadow-sm"
+                                style={selectedFillPreviewStyle}
+                              />
+                            </ToolbarIconButton>
+                            <ToolbarDivider />
+
+                            <ToolbarIconButton
+                              onClick={() => handleToggleSelectedTextFontStyle('bold')}
+                              active={isBoldActive}
+                              title="Bold"
+                            >
+                              <Bold size={18} />
+                            </ToolbarIconButton>
+                            <ToolbarDivider />
+
+                            <ToolbarIconButton
+                              onClick={() => handleToggleSelectedTextFontStyle('italic')}
+                              active={isItalicActive}
+                              title="Italic"
+                            >
+                              <Italic size={18} />
+                            </ToolbarIconButton>
+                            <ToolbarDivider />
+
+                            <ToolbarIconButton
+                              onClick={() => handleSelectedTextAlignChange(nextTextAlign)}
+                              title={`Alignment: ${selectedTextAlign}. Click for ${nextTextAlign}.`}
+                            >
+                              <CurrentAlignIcon size={17} />
+                            </ToolbarIconButton>
+                            <ToolbarDivider />
+
+                            <ToolbarIconButton
+                              onClick={() => toggleToolbarPopover('opacity')}
+                              active={activeToolbarPopover === 'opacity'}
+                              title="Transparency"
+                            >
+                              <Grid3x3 size={17} />
+                            </ToolbarIconButton>
+
+                            <ToolbarDivider />
+
+                            <ToolbarPillButton
+                              onClick={() => openSelectedPanel('3D')}
+                              active={activeObjectPanel === '3D'}
+                            >
+                              <Sparkles size={14} />
+                              <span>3D</span>
+                            </ToolbarPillButton>
+                            <ToolbarDivider />
+
+                            <ToolbarPillButton
+                              onClick={() => openSelectedPanel('controls')}
+                              active={activeObjectPanel === 'controls'}
+                            >
+                              <span>Controls</span>
+                            </ToolbarPillButton>
+
+                            <ToolbarDivider />
+
+                            <ToolbarPillButton
+                              onClick={() => openSelectedPanel('positioning')}
+                              active={activeObjectPanel === 'positioning'}
+                            >
+                              <span>Positioning</span>
+                            </ToolbarPillButton>
+
+                            <ToolbarDivider />
+
+                            <button
+                              onClick={handleDuplicateSelected}
+                              className="brand-button-outline flex h-10 shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-[12px]"
+                            >
+                              <Copy size={16} />
+                            </button>
+
+                            <ToolbarDivider />
+
+                            <button
+                              onClick={handleDeleteSelected}
+                              className="brand-button-outline flex h-10 shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-[12px]"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        ) : isStylableLogoSelection ? (
+                          <div className="flex min-w-max items-center gap-px text-slate-700">
+                            <ToolbarIconButton
+                              onClick={() => openSelectedPanel('colors')}
+                              active={activeObjectPanel === 'colors'}
+                              title="Fill color"
+                            >
+                              <span
+                                className="h-3.5 w-3.5 rounded-full shadow-sm"
+                                style={selectedFillPreviewStyle}
+                              />
+                            </ToolbarIconButton>
+                            <ToolbarDivider />
+
+                            <ToolbarIconButton
+                              onClick={() => openSelectedPanel('outlines')}
+                              active={activeObjectPanel === 'outlines'}
+                              title="Outline"
+                            >
+                              <Menu size={15} />
+                            </ToolbarIconButton>
+
+                            {canRoundSelectedShape && (
+                              <>
+                                <ToolbarDivider />
+                                <ToolbarIconButton
+                                  onClick={() => openSelectedPanel('radius')}
+                                  active={activeObjectPanel === 'radius'}
+                                  title={`Corner radius: ${selectedCornerRadius}`}
+                                >
+                                  <SquareRoundCorner size={15} />
+                                </ToolbarIconButton>
+                              </>
+                            )}
+
+                            <ToolbarDivider />
+
+                            <ToolbarIconButton
+                              onClick={() => toggleToolbarPopover('opacity')}
+                              active={activeToolbarPopover === 'opacity'}
+                              title="Transparency"
+                            >
+                              <Grid3x3 size={15} />
+                            </ToolbarIconButton>
+
+                            <ToolbarDivider />
+
+                            <ToolbarPillButton
+                              onClick={() => openSelectedPanel('3D')}
+                              active={activeObjectPanel === '3D'}
+                            >
+                              <Sparkles size={13} />
+                              <span>3D</span>
+                            </ToolbarPillButton>
+                            <ToolbarDivider />
+
+                            <ToolbarPillButton
+                              onClick={() => openSelectedPanel('controls')}
+                              active={activeObjectPanel === 'controls'}
+                            >
+                              <span>Controls</span>
+                            </ToolbarPillButton>
+
+                            <ToolbarDivider />
+
+                            <ToolbarPillButton
+                              onClick={() => openSelectedPanel('positioning')}
+                              active={activeObjectPanel === 'positioning'}
+                            >
+                              <span>Positioning</span>
+                            </ToolbarPillButton>
+
+                            {canSetSelectedShapeAsBackground && (
+                              <>
+                                <ToolbarDivider />
+                                <ToolbarCheckboxToggle
+                                  checked={isSelectedItemBackground}
+                                  label="Bg"
+                                  onChange={(event) => handleToggleSelectedItemBackground(event.target.checked)}
+                                />
+                              </>
+                            )}
+
+                            <ToolbarDivider />
+
+                            <button
+                              onClick={handleDuplicateSelected}
+                              className="brand-button-outline flex h-8 shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-[11px]"
+                            >
+                              <Copy size={15} />
+                            </button>
+
+                            <ToolbarDivider />
+
+                            <button
+                              onClick={handleDeleteSelected}
+                              className="brand-button-outline flex h-8 shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-[11px]"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        ) : isRasterImageSelection ? (
+                          <div className="flex min-w-max items-center gap-px text-slate-700">
+                            <ToolbarIconButton
+                              onClick={() => toggleToolbarPopover('opacity')}
+                              active={activeToolbarPopover === 'opacity'}
+                              title="Transparency"
+                            >
+                              <Grid3x3 size={15} />
+                            </ToolbarIconButton>
+                            <ToolbarDivider />
+                            <ToolbarPillButton
+                              onClick={() => openSelectedPanel('controls')}
+                              active={activeObjectPanel === 'controls'}
+                            >
+                              <span>Controls</span>
+                            </ToolbarPillButton>
+                            <ToolbarDivider />
+                            <ToolbarPillButton
+                              onClick={() => openSelectedPanel('positioning')}
+                              active={activeObjectPanel === 'positioning'}
+                            >
+                              <span>Positioning</span>
+                            </ToolbarPillButton>
+                            {canSetSelectedShapeAsBackground && (
+                              <>
+                                <ToolbarDivider />
+                                <ToolbarCheckboxToggle
+                                  checked={isSelectedItemBackground}
+                                  label="Bg"
+                                  onChange={(event) => handleToggleSelectedItemBackground(event.target.checked)}
+                                />
+                              </>
+                            )}
+                            <ToolbarDivider />
+                            <button
+                              onClick={handleDuplicateSelected}
+                              className="brand-button-outline flex h-7 shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[10px]"
+                            >
+                              <Copy size={14} />
+                            </button>
+                            <ToolbarDivider />
+                            <button
+                              onClick={handleDeleteSelected}
+                              className="brand-button-outline flex h-7 shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[10px]"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex min-w-max items-center justify-center gap-0.5">
+                            {objectPanels.map((panel, index) => (
+                              <Fragment key={panel}>
+                                <button
+                                  onClick={() => openSelectedPanel(panel)}
+                                  className={`brand-chip-button shrink-0 px-3 py-1.5 text-[12px] font-semibold transition-all ${activeObjectPanel === panel
+                                    ? 'bg-slate-100 text-slate-700 ring-2 ring-slate-200'
+                                    : ''
+                                    }`}
+                                >
+                                  {panel}
+                                </button>
+                                {index < objectPanels.length - 1 && (
+                                  <ToolbarDivider />
+                                )}
+                              </Fragment>
+                            ))}
+                            {(objectPanels.length > 0 || canSetSelectedShapeAsBackground) && (
+                              <ToolbarDivider />
+                            )}
+                            {canSetSelectedShapeAsBackground && (
+                              <ToolbarCheckboxToggle
+                                checked={isSelectedItemBackground}
+                                label="Set As Bg"
+                                onChange={(event) => handleToggleSelectedItemBackground(event.target.checked)}
+                              />
+                            )}
+                            {canSetSelectedShapeAsBackground && (
+                              <ToolbarDivider />
+                            )}
+                            <button
+                              onClick={handleDuplicateSelected}
+                              className="brand-button-outline flex shrink-0 items-center gap-1.5 px-3 py-1.5 text-[11px]"
+                            >
+                              <Copy size={14} />
+                            </button>
+                            <ToolbarDivider />
+                            <button
+                              onClick={handleDeleteSelected}
+                              className="brand-button-outline flex shrink-0 items-center gap-1.5 px-3 py-1.5 text-[11px]"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        )
+                      ) : activeTool === 'background' ? (
+                        <div className="flex min-w-max items-center justify-center gap-1.5">
+                          {hasActiveBackgroundShape ? (
+                            <span className="flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 px-2.5 py-1.5 text-[12px] font-semibold text-slate-700">
+                              <span>Background Layers</span>
+                              <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600">
+                                {backgroundLayerCount}
+                              </span>
+                            </span>
+                          ) : null}
+                          {hasActiveBackgroundShape ? (
+                            <span className="mx-1 h-4 w-px shrink-0 bg-slate-200" aria-hidden />
+                          ) : null}
+                          {backgroundOptions.map((option, index) => {
+                            const Icon = option.icon;
+                            const isActiveOption = option.id === 'color'
+                              ? activeBackgroundOption === 'color' || activeBackgroundOption === 'gradient'
+                              : activeBackgroundOption === option.id;
+
+                            return (
+                              <Fragment key={option.id}>
+                                <button
+                                  onClick={() => handleBackgroundOptionSelect(option.id)}
+                                  className={`brand-chip-button flex shrink-0 items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold transition-all ${isActiveOption
+                                    ? 'bg-slate-100 text-slate-700 ring-2 ring-slate-200'
+                                    : ''
+                                    }`}
+                                >
+                                  <Icon size={14} />
+                                  <span>{option.label}</span>
+                                </button>
+                                {index < backgroundOptions.length - 1 && (
+                                  <span className="mx-1 h-4 w-px shrink-0 bg-slate-200" aria-hidden />
+                                )}
+                              </Fragment>
+                            );
+                          })}
+                        </div>
+                      ) : activeTool === 'images' ? (
+                        <div className="flex min-w-max items-center justify-center gap-1.5">
                           <button
-                            onClick={() => handleSelectedTextFontSizeChange(selectedTextFontSize - 2)}
-                            className="flex h-7 w-7 items-center justify-center rounded-lg text-[13px] font-bold transition-all hover:bg-slate-100"
-                            title="Decrease font size"
+                            onClick={openImageBrowser}
+                            className="brand-button-outline flex items-center gap-1.5 px-3 py-1.5 text-[11px]"
                           >
-                            -
-                          </button>
-                          <button
-                            onClick={() => openSelectedPanel('fonts')}
-                            className="min-w-[34px] px-1.5 text-[13px] font-bold text-slate-800"
-                            title="Open font settings"
-                          >
-                            {selectedTextFontSize}
-                          </button>
-                          <button
-                            onClick={() => handleSelectedTextFontSizeChange(selectedTextFontSize + 2)}
-                            className="flex h-7 w-7 items-center justify-center rounded-lg text-[13px] font-bold transition-all hover:bg-slate-100"
-                            title="Increase font size"
-                          >
-                            +
+                            <Images size={14} />
+                            <span>Browse Image</span>
                           </button>
                         </div>
-
-                      <ToolbarDivider />
-
-                      <ToolbarIconButton
-                        onClick={() => openSelectedPanel('colors')}
-                        active={activeObjectPanel === 'colors'}
-                        title="Text color"
-                      >
-                        <span
-                          className="h-3.5 w-3.5 rounded-full shadow-sm"
-                          style={selectedFillPreviewStyle}
+                      ) : activeTool === 'text' ? (
+                        <div className="flex min-w-max items-center justify-center gap-1.5">
+                          <button
+                            onClick={handleAddTextLayer}
+                            className="brand-button-outline flex items-center gap-1.5 px-3 py-1.5 text-[11px]"
+                          >
+                            <Type size={14} />
+                            <span>Add Text</span>
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                    {activeToolbarPopover === 'opacity' && selectedCanvasItem ? (
+                      <div className="absolute left-1/2 top-[calc(100%+0.35rem)] z-30 w-[192px] -translate-x-1/2 rounded-[0.95rem] border border-slate-200/80 bg-white/95 p-2.5 shadow-2xl backdrop-blur">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-[12px] font-semibold text-slate-700">Transparency</p>
+                          <span className="rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-700">
+                            {selectedOpacityPercent}
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0.05"
+                          max="1"
+                          step="0.05"
+                          value={selectedOpacityValue}
+                          onChange={(event) => handleSelectedOpacityChange(event.target.value)}
+                          className="mt-2 w-full accent-violet-500"
                         />
-                      </ToolbarIconButton>
-                      <ToolbarDivider />
-
-                        <ToolbarIconButton
-                          onClick={() => handleToggleSelectedTextFontStyle('bold')}
-                          active={isBoldActive}
-                          title="Bold"
-                        >
-                          <Bold size={18} />
-                        </ToolbarIconButton>
-                      <ToolbarDivider />
-
-                        <ToolbarIconButton
-                          onClick={() => handleToggleSelectedTextFontStyle('italic')}
-                          active={isItalicActive}
-                          title="Italic"
-                        >
-                          <Italic size={18} />
-                        </ToolbarIconButton>
-                      <ToolbarDivider />
-
-                        <ToolbarIconButton
-                          onClick={() => handleSelectedTextAlignChange(nextTextAlign)}
-                          title={`Alignment: ${selectedTextAlign}. Click for ${nextTextAlign}.`}
-                        >
-                          <CurrentAlignIcon size={17} />
-                        </ToolbarIconButton>
-                      <ToolbarDivider />
-
-                        <ToolbarIconButton
-                          onClick={() => toggleToolbarPopover('opacity')}
-                          active={activeToolbarPopover === 'opacity'}
-                          title="Transparency"
-                        >
-                          <Grid3x3 size={17} />
-                        </ToolbarIconButton>
-
-                      <ToolbarDivider />
-
-                        <ToolbarPillButton
-                          onClick={() => openSelectedPanel('3D')}
-                          active={activeObjectPanel === '3D'}
-                        >
-                          <Sparkles size={14} />
-                          <span>3D</span>
-                        </ToolbarPillButton>
-                      <ToolbarDivider />
-
-                      <ToolbarPillButton
-                        onClick={() => openSelectedPanel('controls')}
-                        active={activeObjectPanel === 'controls'}
-                      >
-                        <span>Controls</span>
-                      </ToolbarPillButton>
-
-                      <ToolbarDivider />
-
-                      <ToolbarPillButton
-                        onClick={() => openSelectedPanel('positioning')}
-                        active={activeObjectPanel === 'positioning'}
-                      >
-                        <span>Positioning</span>
-                      </ToolbarPillButton>
-
-                      <ToolbarDivider />
-
-                        <button
-                          onClick={handleDuplicateSelected}
-                          className="brand-button-outline flex h-10 shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-[12px]"
-                        >
-                          <Copy size={16} />
-                        </button>
-
-                      <ToolbarDivider />
-
-                        <button
-                          onClick={handleDeleteSelected}
-                          className="brand-button-outline flex h-10 shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-[12px]"
-                        >
-                          <Trash2 size={16} />
-                        </button>
                       </div>
-                    ) : isStylableLogoSelection ? (
-                      <div className="flex min-w-max items-center gap-px text-slate-700">
-                      <ToolbarIconButton
-                        onClick={() => openSelectedPanel('colors')}
-                        active={activeObjectPanel === 'colors'}
-                        title="Fill color"
-                      >
-                        <span
-                          className="h-3.5 w-3.5 rounded-full shadow-sm"
-                          style={selectedFillPreviewStyle}
-                        />
-                      </ToolbarIconButton>
-                      <ToolbarDivider />
-
-                      <ToolbarIconButton
-                        onClick={() => openSelectedPanel('outlines')}
-                        active={activeObjectPanel === 'outlines'}
-                        title="Outline"
-                      >
-                        <Menu size={15} />
-                      </ToolbarIconButton>
-
-                      {canRoundSelectedShape && (
-                        <>
-                          <ToolbarDivider />
-                          <ToolbarIconButton
-                            onClick={() => openSelectedPanel('radius')}
-                            active={activeObjectPanel === 'radius'}
-                            title={`Corner radius: ${selectedCornerRadius}`}
-                          >
-                            <SquareRoundCorner size={15} />
-                          </ToolbarIconButton>
-                        </>
-                      )}
-
-                      <ToolbarDivider />
-
-                      <ToolbarIconButton
-                        onClick={() => toggleToolbarPopover('opacity')}
-                        active={activeToolbarPopover === 'opacity'}
-                        title="Transparency"
-                      >
-                        <Grid3x3 size={15} />
-                      </ToolbarIconButton>
-
-                      <ToolbarDivider />
-
-                      <ToolbarPillButton
-                        onClick={() => openSelectedPanel('3D')}
-                        active={activeObjectPanel === '3D'}
-                      >
-                        <Sparkles size={13} />
-                        <span>3D</span>
-                      </ToolbarPillButton>
-                      <ToolbarDivider />
-
-                      <ToolbarPillButton
-                        onClick={() => openSelectedPanel('controls')}
-                        active={activeObjectPanel === 'controls'}
-                      >
-                        <span>Controls</span>
-                      </ToolbarPillButton>
-
-                      <ToolbarDivider />
-
-                      <ToolbarPillButton
-                        onClick={() => openSelectedPanel('positioning')}
-                        active={activeObjectPanel === 'positioning'}
-                      >
-                        <span>Positioning</span>
-                      </ToolbarPillButton>
-
-                      {canSetSelectedShapeAsBackground && (
-                        <>
-                          <ToolbarDivider />
-                          <ToolbarCheckboxToggle
-                            checked={isSelectedItemBackground}
-                            label="Bg"
-                            onChange={(event) => handleToggleSelectedItemBackground(event.target.checked)}
-                          />
-                        </>
-                      )}
-
-                      <ToolbarDivider />
-
-                      <button
-                        onClick={handleDuplicateSelected}
-                        className="brand-button-outline flex h-8 shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-[11px]"
-                      >
-                        <Copy size={15} />
-                      </button>
-
-                      <ToolbarDivider />
-
-                      <button
-                        onClick={handleDeleteSelected}
-                        className="brand-button-outline flex h-8 shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-[11px]"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                  ) : isRasterImageSelection ? (
-                    <div className="flex min-w-max items-center gap-px text-slate-700">
-                      <ToolbarIconButton
-                        onClick={() => toggleToolbarPopover('opacity')}
-                        active={activeToolbarPopover === 'opacity'}
-                        title="Transparency"
-                      >
-                        <Grid3x3 size={15} />
-                      </ToolbarIconButton>
-                      <ToolbarDivider />
-                      <ToolbarPillButton
-                        onClick={() => openSelectedPanel('controls')}
-                        active={activeObjectPanel === 'controls'}
-                      >
-                        <span>Controls</span>
-                      </ToolbarPillButton>
-                      <ToolbarDivider />
-                      <ToolbarPillButton
-                        onClick={() => openSelectedPanel('positioning')}
-                        active={activeObjectPanel === 'positioning'}
-                      >
-                        <span>Positioning</span>
-                      </ToolbarPillButton>
-                      {canSetSelectedShapeAsBackground && (
-                        <>
-                          <ToolbarDivider />
-                          <ToolbarCheckboxToggle
-                            checked={isSelectedItemBackground}
-                            label="Bg"
-                            onChange={(event) => handleToggleSelectedItemBackground(event.target.checked)}
-                          />
-                        </>
-                      )}
-                      <ToolbarDivider />
-                      <button
-                        onClick={handleDuplicateSelected}
-                        className="brand-button-outline flex h-7 shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[10px]"
-                      >
-                        <Copy size={14} />
-                      </button>
-                      <ToolbarDivider />
-                      <button
-                        onClick={handleDeleteSelected}
-                        className="brand-button-outline flex h-7 shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[10px]"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex min-w-max items-center justify-center gap-0.5">
-                      {objectPanels.map((panel, index) => (
-                        <Fragment key={panel}>
-                          <button
-                            onClick={() => openSelectedPanel(panel)}
-                            className={`brand-chip-button shrink-0 px-3 py-1.5 text-[12px] font-semibold transition-all ${
-                              activeObjectPanel === panel
-                                ? 'bg-slate-100 text-slate-700 ring-2 ring-slate-200'
-                                : ''
-                            }`}
-                          >
-                            {panel}
-                          </button>
-                          {index < objectPanels.length - 1 && (
-                            <ToolbarDivider />
-                          )}
-                        </Fragment>
-                      ))}
-                      {(objectPanels.length > 0 || canSetSelectedShapeAsBackground) && (
-                        <ToolbarDivider />
-                      )}
-                      {canSetSelectedShapeAsBackground && (
-                        <ToolbarCheckboxToggle
-                          checked={isSelectedItemBackground}
-                          label="Set As Bg"
-                          onChange={(event) => handleToggleSelectedItemBackground(event.target.checked)}
-                        />
-                      )}
-                      {canSetSelectedShapeAsBackground && (
-                        <ToolbarDivider />
-                      )}
-                      <button
-                        onClick={handleDuplicateSelected}
-                        className="brand-button-outline flex shrink-0 items-center gap-1.5 px-3 py-1.5 text-[11px]"
-                      >
-                        <Copy size={14} />
-                      </button>
-                      <ToolbarDivider />
-                      <button
-                        onClick={handleDeleteSelected}
-                        className="brand-button-outline flex shrink-0 items-center gap-1.5 px-3 py-1.5 text-[11px]"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  )
-                ) : activeTool === 'background' ? (
-                  <div className="flex min-w-max items-center justify-center gap-1.5">
-                    {hasActiveBackgroundShape ? (
-                      <span className="flex shrink-0 items-center gap-1.5 rounded-full border border-slate-200 px-2.5 py-1.5 text-[12px] font-semibold text-slate-700">
-                        <span>Background Layers</span>
-                        <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600">
-                          {backgroundLayerCount}
-                        </span>
-                      </span>
                     ) : null}
-                    {hasActiveBackgroundShape ? (
-                      <span className="mx-1 h-4 w-px shrink-0 bg-slate-200" aria-hidden />
-                    ) : null}
-                    {backgroundOptions.map((option, index) => {
-                      const Icon = option.icon;
-                      const isActiveOption = option.id === 'color'
-                        ? activeBackgroundOption === 'color' || activeBackgroundOption === 'gradient'
-                        : activeBackgroundOption === option.id;
+                  </div>
+                )}
 
-                      return (
-                        <Fragment key={option.id}>
-                          <button
-                            onClick={() => handleBackgroundOptionSelect(option.id)}
-                            className={`brand-chip-button flex shrink-0 items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold transition-all ${
-                              isActiveOption
-                                ? 'bg-slate-100 text-slate-700 ring-2 ring-slate-200'
-                                : ''
-                            }`}
-                          >
-                            <Icon size={14} />
-                            <span>{option.label}</span>
-                          </button>
-                          {index < backgroundOptions.length - 1 && (
-                            <span className="mx-1 h-4 w-px shrink-0 bg-slate-200" aria-hidden />
-                          )}
-                        </Fragment>
-                      );
-                    })}
+                <EditorOverlays
+                  editDialog={editDialog}
+                  isMobileViewport={isMobileViewport}
+                  closeEditDialog={closeEditDialog}
+                  setEditDialog={setEditDialog}
+                  handleSaveEditedText={handleSaveEditedText}
+                  colorDialogOpen={colorDialogOpen}
+                  closePickAnotherDialog={closePickAnotherDialog}
+                  backgroundColorSwatches={backgroundColorSwatches}
+                  normalizeHexColor={normalizeHexColor}
+                  dialogSelectedColor={dialogSelectedColor}
+                  setDialogBaseColor={setDialogBaseColor}
+                  setDialogSelectedColor={setDialogSelectedColor}
+                  setCustomColorValue={setCustomColorValue}
+                  dialogShadeOptions={dialogShadeOptions}
+                  customColorValue={customColorValue}
+                  handleDialogSelect={handleDialogSelect}
+                  isValidHexColor={isValidHexColor}
+                  gradientDialogOpen={gradientDialogOpen}
+                  closeGradientDialog={closeGradientDialog}
+                  gradientPreviewStyle={gradientPreviewStyle}
+                  openGradientColorDialog={openGradientColorDialog}
+                  gradientStartColor={gradientStartColor}
+                  gradientEndColor={gradientEndColor}
+                  gradientType={gradientType}
+                  setGradientType={setGradientType}
+                  gradientDirectionOptions={gradientDirectionOptions}
+                  gradientDirection={gradientDirection}
+                  setGradientDirection={setGradientDirection}
+                  gradientRadialAngle={gradientRadialAngle}
+                  setGradientRadialAngle={setGradientRadialAngle}
+                  applyGradientToBackground={applyGradientToBackground}
+                  gradientColorDialogOpen={gradientColorDialogOpen}
+                  closeGradientColorDialog={closeGradientColorDialog}
+                  gradientColorTarget={gradientColorTarget}
+                  gradientDialogShadeOptions={gradientDialogShadeOptions}
+                  gradientDialogSelectedColor={gradientDialogSelectedColor}
+                  setGradientDialogBaseColor={setGradientDialogBaseColor}
+                  setGradientDialogSelectedColor={setGradientDialogSelectedColor}
+                  setGradientCustomColorValue={setGradientCustomColorValue}
+                  gradientCustomColorValue={gradientCustomColorValue}
+                  applyGradientDialogColor={applyGradientDialogColor}
+                  assetPickerDialog={assetPickerDialog}
+                  closeAssetPickerDialog={closeAssetPickerDialog}
+                  applyPresetBackgroundImage={applyPresetBackgroundImage}
+                  previewDialogOpen={previewDialogOpen}
+                  setPreviewDialogOpen={setPreviewDialogOpen}
+                  previewImageUrl={previewImageUrl}
+                  previewElementsImageUrl={previewElementsImageUrl}
+                  setPreviewFullscreenOpen={setPreviewFullscreenOpen}
+                  previewFullscreenOpen={previewFullscreenOpen}
+                  watermarkEnabled={logoConfig.watermarkEnabled !== false}
+                />
+
+                <MobileBottomPanel
+                  sidebarOpen={sidebarOpen}
+                  shouldShowDesktopSidebar={shouldShowDesktopSidebar}
+                  mobileContextBar={mobileContextBar}
+                  sidebarContent={<EditorSidebarContent {...editorSidebarProps} />}
+                  mobileEditorTools={mobileEditorTools}
+                  selectedCanvasItem={selectedCanvasItem}
+                  activeTool={activeTool}
+                  onToolSelect={handleMobileToolSelect}
+                />
+
+                <div className="flex w-full flex-col items-center pt-1 sm:pt-2 lg:mt-12 lg:justify-center lg:pt-0">
+                  <div className="relative h-[36vh] w-full max-w-[620px] sm:h-[44vh] sm:max-w-[700px] lg:h-[50vh] lg:max-w-[720px]">
+                    <LogoCanvas
+                      config={logoConfig}
+                      onConfigChange={handleCanvasConfigChange}
+                      onSelectionChange={handleCanvasSelectionChange}
+                      selectionOverride={canvasSelectionOverride}
+                      clearSelectionToken={canvasClearSelectionToken}
+                      stageRef={stageRef}
+                      zoom={1}
+                      hasLockedSelection={hasLockedSelection}
+                      hideSelectionUi={hideCanvasSelectionUi}
+                      clipContentToCard={clipCanvasToCard}
+                      renderElementsOnly={renderCanvasElementsOnly}
+                      inlineTextEditRequest={inlineTextEditRequest}
+                      onTextEditCommit={handleInlineTextEdit}
+                    />
                   </div>
-                ) : activeTool === 'images' ? (
-                  <div className="flex min-w-max items-center justify-center gap-1.5">
-                    <button
-                      onClick={openImageBrowser}
-                      className="brand-button-outline flex items-center gap-1.5 px-3 py-1.5 text-[11px]"
-                    >
-                      <Images size={14} />
-                      <span>Browse Image</span>
-                    </button>
-                  </div>
-                ) : activeTool === 'text' ? (
-                  <div className="flex min-w-max items-center justify-center gap-1.5">
-                    <button
-                      onClick={handleAddTextLayer}
-                      className="brand-button-outline flex items-center gap-1.5 px-3 py-1.5 text-[11px]"
-                    >
-                      <Type size={14} />
-                      <span>Add Text</span>
-                    </button>
-                  </div>
-                ) : null}
-              </div>
-              {activeToolbarPopover === 'opacity' && selectedCanvasItem ? (
-                <div className="absolute left-1/2 top-[calc(100%+0.35rem)] z-30 w-[192px] -translate-x-1/2 rounded-[0.95rem] border border-slate-200/80 bg-white/95 p-2.5 shadow-2xl backdrop-blur">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[12px] font-semibold text-slate-700">Transparency</p>
-                    <span className="rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-700">
-                      {selectedOpacityPercent}
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0.05"
-                    max="1"
-                    step="0.05"
-                    value={selectedOpacityValue}
-                    onChange={(event) => handleSelectedOpacityChange(event.target.value)}
-                    className="mt-2 w-full accent-violet-500"
+
+                  <DesktopActionDock
+                    className="mt-0"
+                    onPreview={handlePreviewOpen}
+                    onSave={handleSaveDesign}
+                    onDownload={handleOpenDownloadDialog}
+                    canSave={Boolean(designId)}
+                    savingChanges={savingChanges}
                   />
                 </div>
-              ) : null}
-            </div>
-          )}
-
-          <EditorOverlays
-            editDialog={editDialog}
-            isMobileViewport={isMobileViewport}
-            closeEditDialog={closeEditDialog}
-            setEditDialog={setEditDialog}
-            handleSaveEditedText={handleSaveEditedText}
-            colorDialogOpen={colorDialogOpen}
-            closePickAnotherDialog={closePickAnotherDialog}
-            backgroundColorSwatches={backgroundColorSwatches}
-            normalizeHexColor={normalizeHexColor}
-            dialogSelectedColor={dialogSelectedColor}
-            setDialogBaseColor={setDialogBaseColor}
-            setDialogSelectedColor={setDialogSelectedColor}
-            setCustomColorValue={setCustomColorValue}
-            dialogShadeOptions={dialogShadeOptions}
-            customColorValue={customColorValue}
-            handleDialogSelect={handleDialogSelect}
-            isValidHexColor={isValidHexColor}
-            gradientDialogOpen={gradientDialogOpen}
-            closeGradientDialog={closeGradientDialog}
-            gradientPreviewStyle={gradientPreviewStyle}
-            openGradientColorDialog={openGradientColorDialog}
-            gradientStartColor={gradientStartColor}
-            gradientEndColor={gradientEndColor}
-            gradientType={gradientType}
-            setGradientType={setGradientType}
-            gradientDirectionOptions={gradientDirectionOptions}
-            gradientDirection={gradientDirection}
-            setGradientDirection={setGradientDirection}
-            gradientRadialAngle={gradientRadialAngle}
-            setGradientRadialAngle={setGradientRadialAngle}
-            applyGradientToBackground={applyGradientToBackground}
-            gradientColorDialogOpen={gradientColorDialogOpen}
-            closeGradientColorDialog={closeGradientColorDialog}
-            gradientColorTarget={gradientColorTarget}
-            gradientDialogShadeOptions={gradientDialogShadeOptions}
-            gradientDialogSelectedColor={gradientDialogSelectedColor}
-            setGradientDialogBaseColor={setGradientDialogBaseColor}
-            setGradientDialogSelectedColor={setGradientDialogSelectedColor}
-            setGradientCustomColorValue={setGradientCustomColorValue}
-            gradientCustomColorValue={gradientCustomColorValue}
-            applyGradientDialogColor={applyGradientDialogColor}
-            assetPickerDialog={assetPickerDialog}
-            closeAssetPickerDialog={closeAssetPickerDialog}
-            applyPresetBackgroundImage={applyPresetBackgroundImage}
-            previewDialogOpen={previewDialogOpen}
-            setPreviewDialogOpen={setPreviewDialogOpen}
-            previewImageUrl={previewImageUrl}
-            previewElementsImageUrl={previewElementsImageUrl}
-            setPreviewFullscreenOpen={setPreviewFullscreenOpen}
-            previewFullscreenOpen={previewFullscreenOpen}
-            watermarkEnabled={logoConfig.watermarkEnabled !== false}
-          />
-
-          <MobileBottomPanel
-            sidebarOpen={sidebarOpen}
-            shouldShowDesktopSidebar={shouldShowDesktopSidebar}
-            mobileContextBar={mobileContextBar}
-            sidebarContent={<EditorSidebarContent {...editorSidebarProps} />}
-            mobileEditorTools={mobileEditorTools}
-            selectedCanvasItem={selectedCanvasItem}
-            activeTool={activeTool}
-            onToolSelect={handleMobileToolSelect}
-          />
-
-          <div className="flex w-full flex-col items-center pt-2 sm:pt-3 lg:justify-center lg:pt-0">
-            <div className="relative h-[36vh] w-full max-w-[620px] sm:h-[44vh] sm:max-w-[700px] lg:h-[58vh] lg:max-w-[760px]">
-              <LogoCanvas
-                config={logoConfig}
-                onConfigChange={handleCanvasConfigChange}
-                onSelectionChange={handleCanvasSelectionChange}
-                selectionOverride={canvasSelectionOverride}
-                clearSelectionToken={canvasClearSelectionToken}
-                stageRef={stageRef}
-                zoom={1}
-                hasLockedSelection={hasLockedSelection}
-                hideSelectionUi={hideCanvasSelectionUi}
-                clipContentToCard={clipCanvasToCard}
-                renderElementsOnly={renderCanvasElementsOnly}
-                inlineTextEditRequest={inlineTextEditRequest}
-                onTextEditCommit={handleInlineTextEdit}
-              />
-            </div>
-
-            <DesktopActionDock
-              className="mt-2"
-              onPreview={handlePreviewOpen}
-              onSave={handleSaveDesign}
-              onDownload={handleOpenDownloadDialog}
-              canSave={Boolean(designId)}
-              savingChanges={savingChanges}
-            />
-          </div>
-        </div>
-      </main>
+              </div>
+            </main>
           </div>
         </div>
 
-      <DownloadDialog
-        open={downloadDialogOpen}
-        title="Download Edited Logo"
-        subtitle="Choose the file type you want to export from the editor."
-        downloadingFormat={downloadingFormat}
-        onClose={() => {
-          if (!downloadingFormat) {
-            setDownloadDialogOpen(false);
-          }
-        }}
-        onDownload={handleEditorDownload}
-      />
-
-      {savingChanges ? (
-        <PremiumLoaderOverlay
-          size="full"
-          text="Loading editor workspace..."
-          className="z-[340] bg-white"
+        <DownloadDialog
+          open={downloadDialogOpen}
+          title="Download Edited Logo"
+          subtitle="Choose the file type you want to export from the editor."
+          downloadingFormat={downloadingFormat}
+          onClose={() => {
+            if (!downloadingFormat) {
+              setDownloadDialogOpen(false);
+            }
+          }}
+          onDownload={handleEditorDownload}
         />
-      ) : null}
 
-      <FloatingNotice notice={authNotice} onClose={() => setAuthNotice(null)} />
+        {savingChanges ? (
+          <PremiumLoaderOverlay
+            size="full"
+            text="Loading editor workspace..."
+            className="z-[340] bg-white"
+          />
+        ) : null}
+
+        <FloatingNotice notice={authNotice} onClose={() => setAuthNotice(null)} />
       </div>
     </>
   );

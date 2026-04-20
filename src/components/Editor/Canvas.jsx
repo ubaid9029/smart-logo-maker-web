@@ -610,33 +610,33 @@ const getNodeGradientProps = (fillGradient, width, height, target = 'fill') => {
 
   const gradientProps = normalizedGradient.type === 'linear'
     ? (() => {
-        const [x0, y0, x1, y1] = getLinearGradientPoints(normalizedGradient.direction, width, height);
-        return {
-          fillLinearGradientStartPoint: { x: x0, y: y0 },
-          fillLinearGradientEndPoint: { x: x1, y: y1 },
-          fillLinearGradientColorStops: [
-            0,
-            normalizedGradient.startColor,
-            1,
-            normalizedGradient.endColor,
-          ],
-        };
-      })()
+      const [x0, y0, x1, y1] = getLinearGradientPoints(normalizedGradient.direction, width, height);
+      return {
+        fillLinearGradientStartPoint: { x: x0, y: y0 },
+        fillLinearGradientEndPoint: { x: x1, y: y1 },
+        fillLinearGradientColorStops: [
+          0,
+          normalizedGradient.startColor,
+          1,
+          normalizedGradient.endColor,
+        ],
+      };
+    })()
     : (() => {
-        const radial = getRadialGradientPoints(normalizedGradient.radialAngle, width, height);
-        return {
-          fillRadialGradientStartPoint: { x: radial.start[0], y: radial.start[1] },
-          fillRadialGradientEndPoint: { x: radial.end[0], y: radial.end[1] },
-          fillRadialGradientStartRadius: radial.startRadius,
-          fillRadialGradientEndRadius: radial.endRadius,
-          fillRadialGradientColorStops: [
-            0,
-            normalizedGradient.startColor,
-            1,
-            normalizedGradient.endColor,
-          ],
-        };
-      })();
+      const radial = getRadialGradientPoints(normalizedGradient.radialAngle, width, height);
+      return {
+        fillRadialGradientStartPoint: { x: radial.start[0], y: radial.start[1] },
+        fillRadialGradientEndPoint: { x: radial.end[0], y: radial.end[1] },
+        fillRadialGradientStartRadius: radial.startRadius,
+        fillRadialGradientEndRadius: radial.endRadius,
+        fillRadialGradientColorStops: [
+          0,
+          normalizedGradient.startColor,
+          1,
+          normalizedGradient.endColor,
+        ],
+      };
+    })();
 
   return mapGradientFillProps(gradientProps, target);
 };
@@ -1930,37 +1930,37 @@ export default function Canvas({
       [collectionName]: (config[collectionName] || []).map((item) =>
         item.id === itemId
           ? (() => {
-              if (itemType === 'text') {
-                const currentSize = getScaledCanvasItemSize(item, 'text', item.transform || {});
-                const nextSize = getScaledCanvasItemSize(item, 'text', nextTransform || item.transform || {});
-                const alreadyAtMinSize = currentSize.width <= (TEXT_MIN_TRANSFORM_WIDTH + 0.5)
-                  || currentSize.height <= (TEXT_MIN_TRANSFORM_HEIGHT + 0.5);
-                const tryingToShrinkPastMin = nextSize.width < TEXT_MIN_TRANSFORM_WIDTH
-                  || nextSize.height < TEXT_MIN_TRANSFORM_HEIGHT;
+            if (itemType === 'text') {
+              const currentSize = getScaledCanvasItemSize(item, 'text', item.transform || {});
+              const nextSize = getScaledCanvasItemSize(item, 'text', nextTransform || item.transform || {});
+              const alreadyAtMinSize = currentSize.width <= (TEXT_MIN_TRANSFORM_WIDTH + 0.5)
+                || currentSize.height <= (TEXT_MIN_TRANSFORM_HEIGHT + 0.5);
+              const tryingToShrinkPastMin = nextSize.width < TEXT_MIN_TRANSFORM_WIDTH
+                || nextSize.height < TEXT_MIN_TRANSFORM_HEIGHT;
 
-                // When text is already at minimum size, ignore further shrink attempts.
-                // This prevents small left/right nudges caused by repeated constrained transforms.
-                if (alreadyAtMinSize && tryingToShrinkPastMin) {
-                  return item;
-                }
-
-                const normalizedItem = bakeTextTransformIntoTypography(item, {
-                  transform: nextTransform,
-                  renderMode: 'text',
-                  svgDataUri: null,
-                });
-
-                return {
-                  ...normalizedItem,
-                  transform: clampTransformToCard('text', normalizedItem, normalizedItem.transform),
-                };
+              // When text is already at minimum size, ignore further shrink attempts.
+              // This prevents small left/right nudges caused by repeated constrained transforms.
+              if (alreadyAtMinSize && tryingToShrinkPastMin) {
+                return item;
               }
 
+              const normalizedItem = bakeTextTransformIntoTypography(item, {
+                transform: nextTransform,
+                renderMode: 'text',
+                svgDataUri: null,
+              });
+
               return {
-                ...item,
-                transform: clampTransformToCard(itemType, item, nextTransform),
+                ...normalizedItem,
+                transform: clampTransformToCard('text', normalizedItem, normalizedItem.transform),
               };
-            })()
+            }
+
+            return {
+              ...item,
+              transform: clampTransformToCard(itemType, item, nextTransform),
+            };
+          })()
           : item
       ),
     });
@@ -2426,8 +2426,8 @@ export default function Canvas({
               <Group
                 clipFunc={clipContentToCard
                   ? (context) => {
-                      drawRoundedRectPath(context, cardX, cardY, cardWidth, cardHeight, CARD_CORNER_RADIUS);
-                    }
+                    drawRoundedRectPath(context, cardX, cardY, cardWidth, cardHeight, CARD_CORNER_RADIUS);
+                  }
                   : undefined}
               >
                 {orderedForegroundCanvasItems.map(({ type, item }) => (
@@ -2553,9 +2553,9 @@ export default function Canvas({
             setInlineEditor((previousValue) => (
               previousValue
                 ? {
-                    ...previousValue,
-                    value: event.target.value,
-                  }
+                  ...previousValue,
+                  value: event.target.value,
+                }
                 : previousValue
             ));
           }}

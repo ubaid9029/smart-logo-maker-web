@@ -1576,12 +1576,12 @@ export const buildInitialPresent = ({
     id: 'text-1',
     ...(initialSloganValue
       ? {
-          businessValue: initialBusinessValue,
-          sloganValue: initialSloganValue,
-        }
+        businessValue: initialBusinessValue,
+        sloganValue: initialSloganValue,
+      }
       : {
-          text: initialBusinessValue,
-        }),
+        text: initialBusinessValue,
+      }),
     fontSize: fallbackTextTemplate.fontSize,
     align: fallbackTextTemplate.align,
     fill: fallbackTextTemplate.fill,

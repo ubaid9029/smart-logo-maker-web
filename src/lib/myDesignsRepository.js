@@ -345,17 +345,12 @@ const resolveSupabaseUser = async () => {
 };
 
 const fetchDesignRowsForUser = async (supabase, userId) => {
-  const { data, error } = await supabase
-    .from(DESIGNS_TABLE)
-    .select('id, user_id, image_path, design_json, created_at, updated_at')
-    .eq('user_id', userId)
-    .order('updated_at', { ascending: false })
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    throw error;
+  const response = await fetch('/api/designs');
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || `Failed to fetch designs: ${response.status}`);
   }
-
+  const data = await response.json();
   return Array.isArray(data) ? data : [];
 };
 
@@ -630,41 +625,25 @@ const upsertDesignEntry = async (design, options = {}) => {
     return nextDesigns;
   }
 
-  if (targetRow?.id) {
-    const { error } = await supabase
-      .from(DESIGNS_TABLE)
-      .update({
-        image_path: resolvedRowImagePath || targetRow.image_path || null,
-        updated_at: new Date().toISOString(),
-        design_json: nextJson,
-      })
-      .eq('user_id', user.id)
-      .eq('id', targetRow.id);
+  const apiPayload = {
+    id: targetRow?.id || existingRow?.id || existingCached?.favoriteRowKey || null,
+    designJson: nextJson,
+    imagePath: resolvedRowImagePath,
+  };
 
-    if (error) {
-      writeDesignsCache(user.id, previousDesigns);
-      throw error;
-    }
+  const response = await fetch('/api/designs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(apiPayload),
+  });
 
-    notifyFavoriteLogosChanged();
-    return nextDesigns;
-  }
-
-  const { data: inserted, error: insertError } = await supabase
-    .from(DESIGNS_TABLE)
-    .insert({
-      user_id: user.id,
-      image_path: resolvedRowImagePath,
-      design_json: nextJson,
-    })
-    .select('id, user_id, image_path, design_json, created_at, updated_at')
-    .maybeSingle();
-
-  if (insertError) {
+  if (!response.ok) {
     writeDesignsCache(user.id, previousDesigns);
-    throw insertError;
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to sync design to server');
   }
 
+  const inserted = await response.json();
   if (inserted?.id) {
     const mappedInserted = mapDesignRow(inserted);
     writeDesignsCache(user.id, replaceDesignInList(nextDesigns, mappedInserted), { fetchedAt: Date.now() });
@@ -748,20 +727,14 @@ export const deleteLibraryDesign = async (design) => {
     { fetchedAt: Date.now() }
   );
 
-  if (!rowId) {
-    notifyFavoriteLogosChanged();
-    return nextDesigns;
-  }
+  const response = await fetch(`/api/designs?id=${rowId}`, {
+    method: 'DELETE',
+  });
 
-  const { error } = await supabase
-    .from(DESIGNS_TABLE)
-    .delete()
-    .eq('user_id', user.id)
-    .eq('id', rowId);
-
-  if (error) {
+  if (!response.ok) {
     writeDesignsCache(user.id, previousDesigns);
-    throw error;
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to delete design from server');
   }
 
   notifyFavoriteLogosChanged();

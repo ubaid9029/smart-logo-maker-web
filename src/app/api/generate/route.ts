@@ -1,4 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
+import { createClient } from '@/lib/supabaseServer';
+import { validateApiRequest, securityResponse } from '@/lib/apiSecurity';
 
 const SUPPORTED_COLOR_IDS = new Set(['1', '2', '3', '4', '5', '6']);
 const DEFAULT_INDUSTRY_ID = 23;
@@ -62,6 +64,15 @@ const jsonNoStore = (body: unknown, init?: ResponseInit) => NextResponse.json(bo
 });
 
 export async function POST(request: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Security Check (Passing User ID for per-user limit)
+  const security = validateApiRequest(request, user?.id);
+  if (!security.isValid) {
+    return securityResponse(security.error, security.status);
+  }
+
   try {
     const body = await request.json();
 

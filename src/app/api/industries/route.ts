@@ -1,6 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
+import { validateApiRequest, securityResponse } from '@/lib/apiSecurity';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Security Check
+  const security = validateApiRequest(request);
+  if (!security.isValid) {
+    return securityResponse(security.error, security.status);
+  }
+
   try {
     const response = await fetch('https://www.logoai.com/api/logo/industries', {
       headers: {

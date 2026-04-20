@@ -438,41 +438,13 @@ const restoreLogoLibraryCache = (userId, logos) => {
 };
 
 const fetchLogoLibraryRowsForUser = async (supabase, userId) => {
-  const { data, error } = await supabase
-    .from(LOGO_LIBRARY_TABLE)
-    .select(`
-      id,
-      favorite_key,
-      design_id,
-      logo_name,
-      business_name,
-      slogan,
-      industry_label,
-      theme_color,
-      background_color,
-      svg_markup,
-      editable_payload,
-      preview_data_url,
-      fallback_url,
-      is_favorite,
-      favorited_at,
-      is_saved,
-      saved_at,
-      is_downloaded,
-      downloaded_at,
-      created_at,
-      updated_at
-    `)
-    .eq('user_id', userId)
-    .order('updated_at', { ascending: false });
-
-  if (error) {
-    if (isMissingLibraryStatusColumnsError(error)) {
-      throw createLogoLibraryUpgradeRequiredError();
-    }
-    throw error;
+  const response = await fetch('/api/library');
+  if (!response.ok) {
+    if (response.status === 404) return []; // Fallback for missing table/route
+    const errorData = await response.json();
+    throw new Error(errorData.error || `Failed to fetch library: ${response.status}`);
   }
-
+  const data = await response.json();
   return Array.isArray(data) ? data : [];
 };
 
@@ -627,32 +599,16 @@ const upsertLogoLibraryEntry = async (design, options = {}) => {
       : removeLogoLibraryItemFromList(logos, targetFavoriteKey))
   );
 
-  if (!hasActiveStatuses) {
-    const { error } = await supabase
-      .from(LOGO_LIBRARY_TABLE)
-      .delete()
-      .eq('user_id', user.id)
-      .eq('favorite_key', targetFavoriteKey);
+  const response = await fetch('/api/library', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rowData: nextRow, favoriteKey: targetFavoriteKey }),
+  });
 
-    if (error) {
-      restoreLogoLibraryCache(user.id, previousLogos);
-      throw error;
-    }
-
-    return nextLogos;
-  }
-
-  const { error } = await supabase
-    .from(LOGO_LIBRARY_TABLE)
-    .upsert(nextRow, { onConflict: 'user_id,favorite_key' });
-
-  if (error) {
-    if (isMissingLibraryStatusColumnsError(error)) {
-      restoreLogoLibraryCache(user.id, previousLogos);
-      throw createLogoLibraryUpgradeRequiredError();
-    }
+  if (!response.ok) {
     restoreLogoLibraryCache(user.id, previousLogos);
-    throw error;
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to sync library entry');
   }
 
   return nextLogos;
@@ -747,20 +703,19 @@ export const removeFavoriteLogo = async (favoriteId) => {
   const existingLogo = currentLogos.find((item) => item?.favoriteId === favoriteId || item?.favoriteRowKey === favoriteId) || null;
 
   if (!existingLogo) {
-    const { error } = await supabase
-      .from(LOGO_LIBRARY_TABLE)
-      .delete()
-      .eq('user_id', user.id)
-      .eq('favorite_key', favoriteId);
+  const response = await fetch(`/api/library?favoriteKey=${favoriteId}`, {
+    method: 'DELETE',
+  });
 
-    if (error) {
-      throw error;
-    }
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to delete from library');
+  }
 
-    const nextLogos = removeLogoLibraryItemFromList(currentLogos, favoriteId);
-    writeLogoLibraryCache(user.id, nextLogos);
-    notifyFavoriteLogosChanged();
-    return filterLogoLibraryItems(nextLogos, 'favorites');
+  const nextLogos = removeLogoLibraryItemFromList(currentLogos, favoriteId);
+  writeLogoLibraryCache(user.id, nextLogos);
+  notifyFavoriteLogosChanged();
+  return filterLogoLibraryItems(nextLogos, 'favorites');
   }
 
   const nextLogos = await upsertLogoLibraryEntry(existingLogo, {

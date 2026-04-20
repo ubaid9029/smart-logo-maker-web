@@ -1,9 +1,12 @@
 "use client";
 
+
 import Image from 'next/image';
 import React from 'react';
 import { Maximize2, X } from 'lucide-react';
 import { ColorPickerField, HexColorInput } from './ColorInputs';
+import AnimatedCardMockup from './AnimatedCardMockup.jsx';
+import { extractPaletteFromImage, generateSmartMockupPalette } from './colorUtils';
 
 const PREVIEW_SURFACE_OPTIONS = [
   {
@@ -16,16 +19,9 @@ const PREVIEW_SURFACE_OPTIONS = [
   {
     id: 'business-card',
     label: 'Business Card',
-    frameClassName: 'aspect-[5/4] w-full max-w-[min(86vw,520px)]',
-    fullscreenFrameClassName: 'aspect-[5/4] w-full max-w-[min(82vw,760px)]',
+    frameClassName: 'aspect-[1.7/1] w-full max-w-[min(86vw,520px)]',
+    fullscreenFrameClassName: 'aspect-[1.7/1] w-full max-w-[min(82vw,760px)]',
     type: 'business-card',
-  },
-  {
-    id: 't-shirt',
-    label: 'T-Shirt Mockup',
-    frameClassName: 'aspect-square w-full max-w-[min(86vw,520px)]',
-    fullscreenFrameClassName: 'aspect-square w-full max-w-[min(82vw,760px)]',
-    type: 't-shirt',
   },
 ];
 
@@ -42,6 +38,27 @@ function PreviewSurfaceFrame({
     : surface.frameClassName;
   const previewAssetUrl = previewElementsImageUrl || '';
   const useDarkSurface = previewElementsTone === 'light';
+
+  // Extract a palette of dominant colors from the logo image for the card backgrounds
+  // We call these hooks at the top level to follow React's Rules of Hooks
+  const [palette, setPalette] = React.useState(['#f5f9ed', '#23272f', '#ffb385']);
+  const [logoAccents, setLogoAccents] = React.useState(['#a4d65e', '#ff6b35']);
+
+  React.useEffect(() => {
+    if (!previewAssetUrl || surface.type !== 'business-card') return;
+
+    const img = new window.Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const logoColors = extractPaletteFromImage(img, 3);
+      if (logoColors && logoColors.length > 0) {
+        const smartPalette = generateSmartMockupPalette(logoColors);
+        setPalette(smartPalette);
+        setLogoAccents(logoColors.map(c => `rgb(${c.r}, ${c.g}, ${c.b})`));
+      }
+    };
+    img.src = previewAssetUrl;
+  }, [previewAssetUrl, surface.type]);
 
   if (surface.type === 'simple') {
     return (
@@ -65,56 +82,25 @@ function PreviewSurfaceFrame({
   }
 
   if (surface.type === 'business-card') {
+    // Cycle through palette for each card
     return (
-      <div className={`${frameClassName} relative flex items-center justify-center`}>
-        <div className="relative flex aspect-[1.75/1] w-full max-w-[84%] items-center justify-center overflow-hidden drop-shadow-2xl">
-          <img
-            src="/mockups/card.svg"
-            alt="Business card mockup"
-            className="absolute inset-0 h-full w-full object-contain"
-          />
+      <div className={`${frameClassName} flex items-center justify-center`}>
+        <div className="relative flex w-full max-w-[84%] items-center justify-center overflow-visible drop-shadow-2xl">
           {previewAssetUrl ? (
-            <div className="absolute inset-0 z-10 flex items-center justify-center p-[15%]">
+            <AnimatedCardMockup backgroundColor={palette} accentColors={logoAccents}>
               <img
                 src={previewAssetUrl}
                 alt="Business card logo preview"
-                className="relative max-h-full max-w-full object-contain drop-shadow-md"
+                className="relative max-h-[120px] max-w-[220px] object-contain drop-shadow-md"
+                style={{ zIndex: 2 }}
               />
-            </div>
+            </AnimatedCardMockup>
           ) : (
-            <div className="absolute inset-0 z-10 flex items-center justify-center text-sm font-semibold text-slate-500">
-              Preview unavailable
-            </div>
+            <AnimatedCardMockup backgroundColor={palette} accentColors={logoAccents}>
+              <div className="text-sm font-semibold text-slate-500">Preview unavailable</div>
+            </AnimatedCardMockup>
           )}
         </div>
-      </div>
-    );
-  }
-
-  if (surface.type === 't-shirt') {
-    const tShirtLogoUrl = previewAssetUrl || previewImageUrl || '';
-
-    return (
-      <div className={`${frameClassName} relative flex items-center justify-center overflow-hidden rounded-[1.2rem] bg-white`}>
-        <img
-          src="/mockups/T_shirt.svg"
-          alt="T-shirt mockup"
-          className="absolute inset-0 h-full w-full object-contain p-4"
-        />
-        
-        {tShirtLogoUrl ? (
-          <div className="absolute inset-x-[28%] top-[30%] bottom-[40%] z-10 flex items-center justify-center">
-            <img
-              src={tShirtLogoUrl}
-              alt="T-shirt logo preview"
-              className="relative max-h-full max-w-full object-contain drop-shadow-md"
-            />
-          </div>
-        ) : (
-          <div className="absolute inset-x-[28%] top-[30%] bottom-[40%] z-10 flex items-center justify-center text-sm font-semibold text-slate-500">
-            Preview unavailable
-          </div>
-        )}
       </div>
     );
   }
