@@ -1117,11 +1117,11 @@ function EditorUI() {
     <>
       <style jsx global>{EDITOR_FONT_FACE_CSS}</style>
       <div
-        className="fixed inset-x-0 bottom-0 top-20 flex flex-col overflow-hidden bg-pink-50 font-sans lg:flex-row"
+        className="fixed inset-x-0 bottom-0 top-20 flex flex-col overflow-y-auto bg-pink-50 font-sans lg:flex-row"
         style={{ WebkitTapHighlightColor: 'transparent' }}
       >
         <div className="flex h-full w-full">
-          <div className="mx-auto flex h-full w-full max-w-[1800px] flex-col overflow-hidden px-3 py-3 sm:px-4 sm:py-4 lg:flex-row lg:rounded-[2rem] lg:border lg:border-slate-200/70 lg:bg-white lg:shadow-[0_24px_70px_-44px_rgba(15,23,42,0.28)]">
+          <div className="mx-auto flex h-full w-full max-w-[1800px] flex-col overflow-y-auto px-3 py-3 sm:px-4 sm:py-4 lg:flex-row lg:rounded-[2rem] lg:border lg:border-slate-200/70 lg:bg-white lg:shadow-[0_24px_70px_-44px_rgba(15,23,42,0.28)]">
             <DesktopToolRail
               editorTools={editorTools}
               activeTool={activeTool}
@@ -1130,7 +1130,7 @@ function EditorUI() {
 
             {/* DESKTOP SIDEBAR */}
             {shouldShowDesktopSidebar && (
-              <aside className={`hidden shrink-0 flex-col border-r border-slate-200/70 bg-white lg:flex ${desktopSidebarWidthClass}`}>
+              <aside className={`hidden shrink-0 flex-col overflow-y-auto border-r border-slate-200/70 bg-white lg:flex ${desktopSidebarWidthClass}`}>
                 {!selectedCanvasItem && (
                   <div className="border-b border-slate-100 px-6 py-5">
                     <h2 className={`text-[15px] font-extrabold uppercase tracking-[0.08em] text-slate-800`}>{sidebarHeading}</h2>
@@ -1143,7 +1143,7 @@ function EditorUI() {
             )}
 
             {/* MAIN CONTENT AREA */}
-            <main className="relative flex h-full min-w-0 flex-1 flex-col bg-pink-50 lg:bg-white/70">
+            <main className="relative flex h-full min-w-0 flex-1 flex-col overflow-y-auto bg-pink-50 lg:bg-white/70">
 
               {/* MOBILE HEADER */}
               <MobileHeader
@@ -1161,7 +1161,7 @@ function EditorUI() {
               />
 
               {/* CANVAS */}
-              <div className="relative flex-1 overflow-y-auto bg-pink-50 p-3 pb-[7.1rem] sm:p-4 sm:pb-[8rem] lg:flex lg:flex-col lg:items-center lg:overflow-hidden lg:p-4 lg:pb-0 lg:pt-28">
+              <div className="relative flex-1 overflow-y-auto bg-pink-50 p-3 pb-[7.1rem] sm:p-4 sm:pb-[8rem] lg:flex lg:flex-col lg:items-center lg:overflow-y-auto lg:p-4 lg:pb-0 lg:pt-28">
                 <input
                   ref={imageInputRef}
                   type="file"
@@ -1177,41 +1177,46 @@ function EditorUI() {
                   onChange={handleBackgroundImageUpload}
                 />
 
-                <div
-                  className="absolute left-3 z-20 hidden items-center gap-1 sm:left-4 lg:flex lg:bottom-auto lg:left-4 lg:top-3 lg:gap-1.5"
-                  style={mobileFloatingControlsStyle}
-                >
-                  <button
-                    onClick={handleUndo}
-                    disabled={!canUndo}
-                    className={`brand-icon-button flex h-9 w-9 items-center justify-center rounded-full bg-white/95 backdrop-blur transition-all lg:h-10 lg:w-10 ${!canUndo
-                      ? 'cursor-not-allowed text-slate-300'
-                      : ''
-                      }`}
-                    title="Undo"
-                  >
-                    <Undo2 size={18} />
-                  </button>
-                  <button
-                    onClick={handleRedo}
-                    disabled={!canRedo}
-                    className={`brand-icon-button flex h-9 w-9 items-center justify-center rounded-full bg-white/95 backdrop-blur transition-all lg:h-10 lg:w-10 ${!canRedo
-                      ? 'cursor-not-allowed text-slate-300'
-                      : ''
-                      }`}
-                    title="Redo"
-                  >
-                    <Redo2 size={18} />
-                  </button>
-                  <label className="flex h-9 items-center gap-2 rounded-full border border-slate-200 bg-white/95 px-3 text-[12px] font-semibold text-slate-700 backdrop-blur lg:h-10 lg:px-4 lg:text-[13px]">
-                    <input
-                      type="checkbox"
-                      checked={logoConfig.watermarkEnabled !== false}
-                      onChange={(event) => applyLogoConfigChange({ watermarkEnabled: event.target.checked })}
-                      className="h-4 w-4 rounded border-slate-300 accent-slate-600"
-                    />
-                    <span>Watermark</span>
-                  </label>
+                {/* TOP COMPONENT: ACTIONS CONTAINER */}
+                <div className="absolute inset-x-0 top-0 z-30 flex justify-center px-6 py-6 lg:px-8">
+                  <div className="flex items-center gap-3 rounded-full border border-slate-200/60 bg-white/90 p-1.5 shadow-lg backdrop-blur-md">
+                    <div className="flex items-center gap-1.5 px-1.5">
+                      <button
+                        onClick={handleUndo}
+                        disabled={!canUndo}
+                        className={`flex h-9 w-9 items-center justify-center rounded-full transition-all ${!canUndo
+                          ? 'cursor-not-allowed text-slate-300'
+                          : 'text-slate-600 hover:bg-slate-100'
+                          }`}
+                        title="Undo"
+                      >
+                        <Undo2 size={16} />
+                      </button>
+                      <button
+                        onClick={handleRedo}
+                        disabled={!canRedo}
+                        className={`flex h-9 w-9 items-center justify-center rounded-full transition-all ${!canRedo
+                          ? 'cursor-not-allowed text-slate-300'
+                          : 'text-slate-600 hover:bg-slate-100'
+                          }`}
+                        title="Redo"
+                      >
+                        <Redo2 size={16} />
+                      </button>
+                    </div>
+
+                    <div className="h-6 w-px bg-slate-200" />
+
+                    <label className="flex h-9 cursor-pointer items-center gap-2 rounded-full px-3 text-[12px] font-bold text-slate-700 transition-colors hover:bg-slate-50">
+                      <input
+                        type="checkbox"
+                        checked={logoConfig.watermarkEnabled !== false}
+                        onChange={(event) => applyLogoConfigChange({ watermarkEnabled: event.target.checked })}
+                        className="h-4 w-4 rounded border-slate-300 accent-blue-600"
+                      />
+                      <span>Watermark</span>
+                    </label>
+                  </div>
                 </div>
 
                 {showFloatingToolbar && (
@@ -1614,21 +1619,22 @@ function EditorUI() {
                       ) : null}
                     </div>
                     {activeToolbarPopover === 'opacity' && selectedCanvasItem ? (
-                      <div className="absolute left-1/2 top-[calc(100%+0.35rem)] z-30 w-[192px] -translate-x-1/2 rounded-[0.95rem] border border-slate-200/80 bg-white/95 p-2.5 shadow-2xl backdrop-blur">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-[12px] font-semibold text-slate-700">Transparency</p>
-                          <span className="rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-700">
+                      <div className="absolute left-1/2 top-[calc(100%+0.5rem)] z-30 w-[220px] -translate-x-1/2 rounded-3xl border border-slate-200/80 bg-white/98 p-4 shadow-2xl backdrop-blur-md">
+                        <div className="mb-4 flex items-center justify-between">
+                          <span className="text-[13px] font-bold tracking-tight text-slate-800">Transparency</span>
+                          <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-black text-slate-900 shadow-sm">
                             {selectedOpacityPercent}
                           </span>
                         </div>
+
                         <input
                           type="range"
                           min="0.05"
                           max="1"
-                          step="0.05"
+                          step="0.01"
                           value={selectedOpacityValue}
                           onChange={(event) => handleSelectedOpacityChange(event.target.value)}
-                          className="mt-2 w-full accent-violet-500"
+                          className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-blue-600 transition-all hover:bg-slate-300"
                         />
                       </div>
                     ) : null}

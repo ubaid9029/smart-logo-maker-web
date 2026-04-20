@@ -9,7 +9,7 @@ export function DesktopToolRail({
   onToolSelect,
 }) {
   return (
-    <aside className="hidden h-full w-[132px] shrink-0 overflow-y-hidden border-r border-slate-200/80 bg-white/88 z-20 lg:flex lg:flex-col lg:items-center lg:px-2 lg:py-0">
+    <aside className="hidden h-full w-[132px] shrink-0 overflow-y-auto border-r border-slate-200/80 bg-white/88 z-20 lg:flex lg:flex-col lg:items-center lg:px-2 lg:py-0">
       <div className="flex w-full flex-col items-stretch gap-4">
         {editorTools.map((tool) => {
           const Icon = tool.icon;
