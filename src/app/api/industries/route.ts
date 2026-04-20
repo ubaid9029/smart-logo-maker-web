@@ -2,11 +2,9 @@ import { NextResponse, NextRequest } from 'next/server';
 import { authenticateRequest, securityResponse } from '@/lib/apiSecurity';
 
 export async function GET(request: NextRequest) {
-  // Security Check (Internal Rate Limiting)
+  // Security Check (Strict Mode)
   const auth = await authenticateRequest(request);
-  
-  // Note: We allow industries to be public but still check for overall server-side rate limiting
-  if (!auth.isValid && auth.status === 429) {
+  if (!auth.isValid) {
     return securityResponse(auth.error, auth.status);
   }
 
