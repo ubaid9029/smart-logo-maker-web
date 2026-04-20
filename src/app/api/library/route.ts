@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabaseServer';
-import { validateApiRequest, securityResponse } from '@/lib/apiSecurity';
+import { authenticateRequest, securityResponse } from '@/lib/apiSecurity';
 
 const LIBRARY_TABLE = 'favorite_logos';
 
@@ -9,9 +9,9 @@ export async function GET(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
 
   // Security Check (Passing User ID for per-user limit)
-  const security = validateApiRequest(request, user?.id);
-  if (!security.isValid) {
-    return securityResponse(security.error, security.status);
+  const auth = await authenticateRequest(request, user);
+  if (!auth.isValid) {
+    return securityResponse(auth.error, auth.status);
   }
 
   if (!user) {
@@ -36,9 +36,9 @@ export async function POST(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
 
   // Security Check
-  const security = validateApiRequest(request, user?.id);
-  if (!security.isValid) {
-    return securityResponse(security.error, security.status);
+  const auth = await authenticateRequest(request, user);
+  if (!auth.isValid) {
+    return securityResponse(auth.error, auth.status);
   }
 
   if (!user) {
@@ -63,9 +63,9 @@ export async function DELETE(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
 
   // Security Check
-  const security = validateApiRequest(request, user?.id);
-  if (!security.isValid) {
-    return securityResponse(security.error, security.status);
+  const auth = await authenticateRequest(request, user);
+  if (!auth.isValid) {
+    return securityResponse(auth.error, auth.status);
   }
 
   if (!user) {

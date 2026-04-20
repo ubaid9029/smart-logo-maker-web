@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabaseServer';
-import { validateApiRequest, securityResponse } from '@/lib/apiSecurity';
+import { authenticateRequest, securityResponse, logApiUsage } from '@/lib/apiSecurity';
 
 const SUPPORTED_COLOR_IDS = new Set(['1', '2', '3', '4', '5', '6']);
 const DEFAULT_INDUSTRY_ID = 23;
@@ -41,17 +41,11 @@ const buildGenerationPayload = ({ name, slogan, industryId, fontId, colorId }: {
 
 const parseRemotePayload = async (response: Response) => {
   const rawText = await response.text();
-
-  if (!rawText) {
-    return null;
-  }
-
+  if (!rawText) return null;
   try {
     return JSON.parse(rawText);
   } catch {
-    return {
-      message: rawText.slice(0, 400),
-    };
+    return { message: rawText.slice(0, 400) };
   }
 };
 
@@ -67,15 +61,18 @@ export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Security Check (Passing User ID for per-user limit)
-  const security = validateApiRequest(request, user?.id);
-  if (!security.isValid) {
-    return securityResponse(security.error, security.status);
+  // 1. Unified Security & Authentication Check
+  const auth = await authenticateRequest(request, user);
+  if (!auth.isValid) {
+    return securityResponse(auth.error, auth.status);
   }
+
+  const { ip, userId, keyId } = auth;
+  const endpoint = '/api/generate';
+  const method = 'POST';
 
   try {
     const body = await request.json();
-
     const name = typeof body.name === 'string' ? body.name : '';
     const slogan = typeof body.slogan === 'string' ? body.slogan : '';
     const industryId = body.industryId ?? DEFAULT_INDUSTRY_ID;
@@ -83,10 +80,12 @@ export async function POST(request: NextRequest) {
     const colorId = body.colorId || DEFAULT_COLOR_ID;
 
     if (!name.trim()) {
+      await logApiUsage({ userId, keyId, endpoint, method, statusCode: 400, ip });
       return jsonNoStore({ error: 'Business name is required.' }, { status: 400 });
     }
 
     if (!SUPPORTED_COLOR_IDS.has(String(colorId))) {
+      await logApiUsage({ userId, keyId, endpoint, method, statusCode: 400, ip });
       return jsonNoStore({ error: 'Selected color palette is not supported.' }, { status: 400 });
     }
 
@@ -107,25 +106,18 @@ export async function POST(request: NextRequest) {
     const data = await parseRemotePayload(response);
 
     if (!response.ok) {
-      const remoteMessage = typeof data?.message === 'string'
-        ? data.message
-        : `LogoAI responded with ${response.status}`;
-
-      return jsonNoStore(
-        { error: 'API call failed', details: remoteMessage },
-        { status: response.status >= 400 && response.status < 600 ? response.status : 502 }
-      );
+      const statusCode = response.status >= 400 && response.status < 600 ? response.status : 502;
+      const remoteMessage = typeof data?.message === 'string' ? data.message : `LogoAI Error ${response.status}`;
+      
+      await logApiUsage({ userId, keyId, endpoint, method, statusCode, ip });
+      return jsonNoStore({ error: 'API call failed', details: remoteMessage }, { status: statusCode });
     }
 
+    await logApiUsage({ userId, keyId, endpoint, method, statusCode: 200, ip });
     return jsonNoStore(data);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const normalizedMessage = /fetch failed|network|connect|timeout/i.test(message)
-      ? 'Unable to reach the logo generation service right now. Please try again in a moment.'
-      : message;
-
-    console.error('Fetch Error:', message);
-    return jsonNoStore({ error: 'API call failed', details: normalizedMessage }, { status: 500 });
+    await logApiUsage({ userId, keyId, endpoint, method, statusCode: 500, ip });
+    return jsonNoStore({ error: 'API call failed', details: message }, { status: 500 });
   }
 }
-

@@ -49,6 +49,7 @@ export default function Footer() {
                 { name: 'Logo Templates', path: '/templates' },
                 { name: 'Design Guides', path: '/guides' },
                 { name: 'Branding Case Studies', path: '/case-studies' },
+                { name: 'API Documentation', path: '/api-docs' },
               ].map((item) => (
                 <li key={item.name}>
                   <Link

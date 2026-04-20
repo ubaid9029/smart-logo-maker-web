@@ -29,26 +29,28 @@ export function GeometricCardLight({ backgroundColor = '#f8fafc', accentColors =
       <div
         className="absolute top-0 left-0 w-[110px] h-[55px] z-10"
         style={{
-          background: `linear-gradient(135deg, ${primaryAccent}, transparent)`,
+          background: `linear-gradient(135deg, ${primaryAccent}, rgba(0,0,0,0.5))`,
           clipPath: 'polygon(0 0, 100% 0, 75% 100%, 0 100%)',
-          filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.15)) brightness(0.6)',
+          filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.3)) brightness(0.2)',
+          opacity: 1,
         }}
       />
 
       {/* Decorative Trace */}
       <div
-        className="absolute top-0 left-0 w-[120px] h-[60px] opacity-40"
+        className="absolute top-0 left-0 w-[120px] h-[60px]"
         style={{
-          borderBottom: `2px solid ${primaryAccent}`,
-          borderRight: `2px solid ${primaryAccent}`,
+          borderBottom: `3px solid ${primaryAccent}`,
+          borderRight: `3px solid ${primaryAccent}`,
           clipPath: 'polygon(0 0, 100% 0, 75% 100%, 0 100%)',
-          filter: 'brightness(0.5)',
+          filter: 'brightness(0.3)',
+          opacity: 1,
         }}
       />
 
       {/* Bottom Wave - Larger for impact */}
-      <div className="absolute bottom-0 left-0 w-full h-[40px] opacity-25 pointer-events-none">
-        <svg viewBox="0 0 340 40" className="w-full h-full" preserveAspectRatio="none" style={{ filter: 'brightness(0.4)' }}>
+      <div className="absolute bottom-0 left-0 w-full h-[40px] pointer-events-none">
+        <svg viewBox="0 0 340 40" className="w-full h-full" preserveAspectRatio="none" style={{ filter: 'brightness(0.15)' }}>
           <path d="M0 20 Q85 0, 170 20 T340 20 L340 40 L0 40 Z" fill={primaryAccent} />
         </svg>
       </div>

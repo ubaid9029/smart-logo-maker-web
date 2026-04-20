@@ -27,17 +27,17 @@ export function OrangeCardDark({ backgroundColor = '#1e293b', accentColors = [],
 
       {/* Top Left Gradient Triangle - BIG for impact */}
       <div
-        className="absolute -top-12 -left-12 w-[180px] h-[130px] z-10 opacity-95"
+        className="absolute -top-12 -left-12 w-[180px] h-[130px] z-10"
         style={{
-          background: `linear-gradient(135deg, ${primaryAccent}, transparent)`,
+          background: `linear-gradient(135deg, ${primaryAccent}, rgba(0,0,0,0.5))`,
           clipPath: 'polygon(0 0, 100% 0, 0 100%)',
-          filter: 'drop-shadow(4px 4px 20px rgba(0,0,0,0.25)) brightness(0.4)',
+          filter: 'drop-shadow(4px 4px 20px rgba(0,0,0,0.4)) brightness(0.25)',
         }}
       />
 
       {/* Top Right Subtle Accent - Larger */}
       <div
-        className="absolute top-0 right-0 w-[80px] h-[50px] z-10 opacity-50"
+        className="absolute top-0 right-0 w-[80px] h-[50px] z-10"
         style={{
           background: primaryAccent,
           clipPath: 'polygon(100% 0, 100% 100%, 0 0)',
@@ -47,11 +47,11 @@ export function OrangeCardDark({ backgroundColor = '#1e293b', accentColors = [],
 
       {/* Bottom Right Gradient Triangle - BIG for impact */}
       <div
-        className="absolute -bottom-12 -right-12 w-[200px] h-[150px] z-10 opacity-75"
+        className="absolute -bottom-12 -right-12 w-[200px] h-[150px] z-10"
         style={{
-          background: `linear-gradient(-45deg, ${secondaryAccent}, transparent)`,
+          background: `linear-gradient(-45deg, ${secondaryAccent}, rgba(0,0,0,0.4))`,
           clipPath: 'polygon(100% 0, 100% 100%, 0 100%)',
-          filter: 'drop-shadow(-4px -4px 20px rgba(0,0,0,0.2)) brightness(0.35)',
+          filter: 'drop-shadow(-4px -4px 20px rgba(0,0,0,0.3)) brightness(0.35)',
         }}
       />
 

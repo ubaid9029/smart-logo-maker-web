@@ -49,16 +49,18 @@ export function generateSmartMockupPalette(logoColors) {
 
   return hslColors.map((color, index) => {
     let targetL;
-    let targetS = Math.max(8, Math.min(color.s, 15)); 
-    let targetH = (color.h + 180) % 360; // Back to complementary for boldness
+    // Map directly to logo's own hue for brand consistency
+    let targetH = color.h; 
+    let targetS = Math.min(color.s, 10); 
 
     if (avgLuminance > 55) {
-      // Logo is bright, use ULTRA deep premium darks
-      targetL = 4 + (index * 2); 
+      // Logo is bright: use a deep theme
+      targetL = 6 + (index * 2.5);
+      targetS = Math.max(targetS, 8);
     } else {
-      // Logo is dark, use crisp off-whites
-      targetL = 98 - (index * 1);
-      targetS = Math.min(targetS, 6);
+      // Logo is dark: use a light theme
+      targetL = 98 - (index * 1.5);
+      targetS = Math.min(targetS, 4);
     }
 
     return `hsl(${Math.round(targetH)}, ${Math.round(targetS)}%, ${Math.round(targetL)}%)`;

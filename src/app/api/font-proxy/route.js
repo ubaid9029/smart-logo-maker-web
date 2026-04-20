@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { EDITOR_FONT_CATALOG } from '../../../lib/editorFonts';
-import { validateApiRequest, securityResponse } from '../../../lib/apiSecurity';
+import { authenticateRequest, securityResponse } from '../../../lib/apiSecurity';
 
 const ALLOWED_HOSTS = new Set([
   'logoai.com',
@@ -86,9 +86,9 @@ const fetchCuratedGoogleFont = async (family, weightParam) => {
 
 export async function GET(request) {
   // Security Check
-  const security = validateApiRequest(request);
-  if (!security.isValid) {
-    return securityResponse(security.error, security.status);
+  const auth = await authenticateRequest(request);
+  if (!auth.isValid) {
+    return securityResponse(auth.error, auth.status);
   }
 
   const fontFamily = request.nextUrl.searchParams.get('family');

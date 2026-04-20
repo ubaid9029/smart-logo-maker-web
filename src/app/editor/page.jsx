@@ -1178,7 +1178,7 @@ function EditorUI() {
                 />
 
                 {/* TOP COMPONENT: ACTIONS CONTAINER */}
-                <div className="absolute inset-x-0 top-0 z-30 flex justify-center px-6 py-6 lg:px-8">
+                <div className="absolute inset-x-0 top-0 z-30 flex justify-start px-6 py-6 lg:px-8">
                   <div className="flex items-center gap-3 rounded-full border border-slate-200/60 bg-white/90 p-1.5 shadow-lg backdrop-blur-md">
                     <div className="flex items-center gap-1.5 px-1.5">
                       <button
