@@ -85,3 +85,61 @@ export async function deleteApiKey(id: string) {
 
   return { success: true };
 }
+
+/**
+ * Fetches API usage statistics for the dashboard
+ */
+export async function getUsageStats() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return [];
+
+  // Fetch usage from last 7 days
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const { data, error } = await supabase
+    .from('api_usage')
+    .select('created_at, endpoint, status_code')
+    .eq('user_id', user.id)
+    .gte('created_at', sevenDaysAgo.toISOString())
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Fetch Stats Error:', error);
+    return [];
+  }
+
+  return data;
+}
+
+/**
+ * [ADMIN ONLY] Fetches global API usage statistics for all users
+ */
+export async function getGlobalUsageStats() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Security: Check if user is the designated admin
+  // IMPORTANT: You can change this to any email you want to authorize as admin
+  const ADMIN_EMAIL = 'ubaid9029@gmail.com'; 
+  
+  if (user?.email !== ADMIN_EMAIL) {
+    return { error: 'Unauthorized', data: [] };
+  }
+
+  // Fetch total usage stats
+  const { data, error } = await supabase
+    .from('api_usage')
+    .select('created_at, endpoint, status_code, user_id')
+    .order('created_at', { ascending: false })
+    .limit(200);
+
+  if (error) {
+    console.error('Admin Stats Error:', error);
+    return { error: 'DB Error', data: [] };
+  }
+
+  return { data };
+}

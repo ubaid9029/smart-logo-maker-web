@@ -75,6 +75,21 @@ export async function authenticateRequest(request, sessionUser = undefined) {
       return { isValid: false, status: 401, error: 'Invalid or inactive API key.' };
     }
 
+    // External Key Rate Limiting (10 requests per minute)
+    const limitKey = `key:${authRecord.keyId}`;
+    const now = Date.now();
+    const entry = rateCache.get(limitKey);
+    const EXTERNAL_LIMIT = 10;
+
+    if (entry && now < entry.resetAt) {
+      if (entry.count >= EXTERNAL_LIMIT) {
+        return { isValid: false, status: 429, error: 'API Rate limit exceeded (10 calls/min). Please slow down.' };
+      }
+      entry.count += 1;
+    } else {
+      rateCache.set(limitKey, { count: 1, resetAt: now + (60 * 1000) });
+    }
+
     return { 
       isValid: true, 
       type: 'external', 

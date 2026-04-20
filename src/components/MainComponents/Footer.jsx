@@ -50,6 +50,7 @@ export default function Footer() {
                 { name: 'Design Guides', path: '/guides' },
                 { name: 'Branding Case Studies', path: '/case-studies' },
                 { name: 'API Documentation', path: '/api-docs' },
+                { name: 'Developer Dashboard', path: '/dashboard' },
               ].map((item) => (
                 <li key={item.name}>
                   <Link

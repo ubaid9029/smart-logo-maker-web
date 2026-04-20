@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
     if (!response.ok) {
       const statusCode = response.status >= 400 && response.status < 600 ? response.status : 502;
       const remoteMessage = typeof data?.message === 'string' ? data.message : `LogoAI Error ${response.status}`;
-      
+
       await logApiUsage({ userId, keyId, endpoint, method, statusCode, ip });
       return jsonNoStore({ error: 'API call failed', details: remoteMessage }, { status: statusCode });
     }

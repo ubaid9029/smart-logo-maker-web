@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
-    
+
     return NextResponse.json(data, {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
