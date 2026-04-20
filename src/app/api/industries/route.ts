@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const response = await fetch('https://www.logoai.com/api/logo/industries', {
       headers: {
         Accept: 'application/json, text/plain, */*',
-        'User-Agent': 'Mozilla/5.0',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
       },
       cache: 'no-store',
     });
@@ -31,7 +31,8 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Industries API Error:', error);
-    return NextResponse.json({ error: 'Failed to fetch industries' }, { status: 500 });
+    console.error('Industries API Error (DNS or Fetch Fail):', error);
+    // Return empty array as fallback so UI doesn't break
+    return NextResponse.json([], { status: 200 });
   }
 }

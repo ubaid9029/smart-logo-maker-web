@@ -3,7 +3,11 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from './supabaseServer';
 
-const ALLOWED_DOMAIN = 'https://www.smart-logomaker.com';
+const ALLOWED_DOMAINS = [
+  'https://www.smart-logomaker.com',
+  'https://smart-logomaker.com',
+  'http://localhost:3000'
+];
 const ALLOWED_APP_ID = 'com.devsinntechnologies.smartlogomaker';
 
 // In-memory rate limiting for internal app traffic
@@ -85,7 +89,7 @@ export async function authenticateRequest(request, sessionUser = undefined) {
   const origin = request.headers.get('origin');
   const appId = request.headers.get('x-app-id');
   
-  const isWeb = origin === ALLOWED_DOMAIN || (isLocalhost && (origin?.includes('localhost') || !origin));
+  const isWeb = ALLOWED_DOMAINS.includes(origin) || (isLocalhost && (!origin || origin.includes('localhost')));
   const isAuthorized = isWeb || appId === ALLOWED_APP_ID;
 
   if (!isAuthorized) {
