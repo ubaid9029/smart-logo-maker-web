@@ -6,7 +6,8 @@ import { createClient } from './supabaseServer';
 const ALLOWED_DOMAINS = [
   'https://www.smart-logomaker.com',
   'https://smart-logomaker.com',
-  'http://localhost:3000'
+  'http://localhost:3000',
+  'http://localhost:3001'
 ];
 const ALLOWED_APP_ID = 'com.devsinntechnologies.smartlogomaker';
 
@@ -19,7 +20,16 @@ const rateCache = new Map();
 export async function validateApiKey(apiKey) {
   if (!apiKey || typeof apiKey !== 'string') return null;
 
-  const supabase = await createClient();
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY; // Admin key to bypass RLS
+  
+  if (!url || !anonKey) return null;
+
+  // Use Service Role Key for validation if available, otherwise fallback to Anon
+  const { createClient: createSupabase } = await import('@supabase/supabase-js');
+  const supabase = createSupabase(url, serviceKey || anonKey);
+  
   const hashedKey = crypto.createHash('sha256').update(apiKey).digest('hex');
 
   const { data, error } = await supabase
@@ -29,6 +39,7 @@ export async function validateApiKey(apiKey) {
     .single();
 
   if (error || !data || !data.is_active) {
+    console.error('API Key Validation Failed:', error?.message || 'Key not found or inactive');
     return null;
   }
 
