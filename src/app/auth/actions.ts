@@ -56,6 +56,11 @@ function normalizeAuthField(value: FormDataEntryValue | null, mode: "email" | "t
 }
 
 async function resolveRequestOrigin() {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+    if (siteUrl) {
+        return siteUrl.endsWith("/") ? siteUrl.slice(0, -1) : siteUrl;
+    }
+
     const headerStore = await headers();
     const directOrigin = headerStore.get("origin")?.trim();
 
@@ -63,12 +68,12 @@ async function resolveRequestOrigin() {
         return directOrigin;
     }
 
-    const forwardedProto = headerStore.get("x-forwarded-proto")?.trim() || "http";
+    const forwardedProto = headerStore.get("x-forwarded-proto")?.trim() || "https";
     const forwardedHost = headerStore.get("x-forwarded-host")?.trim();
     const host = forwardedHost || headerStore.get("host")?.trim();
 
     if (!host) {
-        return null;
+        return "https://www.smart-logomaker.com"; // Final Fallback
     }
 
     return `${forwardedProto}://${host}`;

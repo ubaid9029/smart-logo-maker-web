@@ -438,7 +438,7 @@ export default function DashboardPage() {
               </motion.div>
             )}
 
-            {activeTab === 'settings' && (
+             {activeTab === 'settings' && (
               <motion.div key="settings" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
                 <header>
                   <h1 className="text-3xl font-black text-white mb-2">Account Settings</h1>
@@ -448,9 +448,16 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                    <div className="space-y-6">
                       <form onSubmit={handleUpdateProfile} className="p-8 bg-slate-800/20 border border-slate-700/40 rounded-[2.5rem] space-y-6">
-                         <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                            <User className="w-5 h-5 text-orange-400" /> Personal Information
-                         </h3>
+                         <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                <User className="w-5 h-5 text-orange-400" /> Personal Information
+                            </h3>
+                            {user?.app_metadata?.provider === 'google' && (
+                               <span className="px-3 py-1 bg-blue-500/10 text-blue-400 text-[10px] font-black uppercase tracking-widest rounded-full border border-blue-500/20">
+                                  Google Account
+                               </span>
+                            )}
+                         </div>
                          
                          <div className="space-y-4">
                             <div>
@@ -471,7 +478,9 @@ export default function DashboardPage() {
                                  disabled
                                  className="w-full bg-[#020617]/50 border border-slate-800/50 rounded-2xl px-6 py-4 text-slate-500 cursor-not-allowed outline-none"
                                />
-                               <p className="text-[10px] text-slate-600 mt-2 px-1 italic">Connected via Google Authentication.</p>
+                               <p className="text-[10px] text-slate-600 mt-2 px-1 italic">
+                                 {user?.app_metadata?.provider === 'google' ? 'Connected via Google Authentication.' : 'Standard email account.'}
+                               </p>
                             </div>
                          </div>
                          
@@ -479,6 +488,53 @@ export default function DashboardPage() {
                             Save Profile Changes
                          </button>
                       </form>
+                   </div>
+
+                   {/* Conditional Password Update */}
+                   <div className="space-y-6">
+                      {user?.app_metadata?.provider !== 'google' ? (
+                        <form onSubmit={handleUpdatePassword} className="p-8 bg-slate-800/10 border border-slate-800 rounded-[2.5rem] space-y-6">
+                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                <ShieldCheck className="w-5 h-5 text-emerald-400" /> Security & Password
+                            </h3>
+                            
+                            {!showPassInput ? (
+                               <div className="py-4">
+                                  <p className="text-sm text-slate-400 mb-6 font-medium">Protect your account by creating a unique password that you don't use elsewhere.</p>
+                                  <button type="button" onClick={() => setShowPassInput(true)} className="flex items-center gap-2 text-sm font-bold text-orange-400 hover:underline">
+                                     Change your password <ChevronRight className="w-4 h-4" />
+                                  </button>
+                               </div>
+                            ) : (
+                               <div className="space-y-6">
+                                  <div>
+                                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-2 px-1">New Secure Password</label>
+                                     <input 
+                                       type="password" 
+                                       name="newPassword"
+                                       required
+                                       className="w-full bg-[#020617] border border-slate-800 rounded-2xl px-6 py-4 text-slate-200 focus:border-emerald-500/50 outline-none transition-all"
+                                       placeholder="••••••••••••"
+                                     />
+                                  </div>
+                                  <div className="flex gap-4">
+                                     <button type="submit" className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-all">Update Now</button>
+                                     <button type="button" onClick={() => setShowPassInput(false)} className="text-slate-500 text-xs font-bold hover:text-slate-300">Cancel</button>
+                                  </div>
+                               </div>
+                            )}
+                        </form>
+                      ) : (
+                        <div className="p-8 bg-slate-800/5 border border-slate-800/30 rounded-[2.5rem] flex flex-col items-center justify-center text-center">
+                           <div className="w-16 h-16 rounded-3xl bg-blue-500/10 flex items-center justify-center mb-4">
+                              <ShieldCheck className="w-8 h-8 text-blue-400/40" />
+                           </div>
+                           <h3 className="font-bold text-white mb-2">Social Authentication Active</h3>
+                           <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
+                              Your account is securely linked through **Google**. Password management is handled by Google for your convenience and safety.
+                           </p>
+                        </div>
+                      )}
                    </div>
                 </div>
               </motion.div>

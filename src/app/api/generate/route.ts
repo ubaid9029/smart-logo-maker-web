@@ -113,6 +113,26 @@ export async function POST(request: NextRequest) {
       return jsonNoStore({ error: 'API call failed', details: remoteMessage }, { status: statusCode });
     }
 
+    // Save to user history if a userId exists
+    if (userId) {
+      try {
+        const { createClient: createSupabase } = await import('@supabase/supabase-js');
+        const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+        const adminSupabase = createSupabase(url, serviceKey);
+
+        await adminSupabase.from('user_logos').insert({
+          user_id: userId,
+          name: name,
+          industry_id: industryId,
+          data: data, // Store the generated logo data
+          api_generated: true
+        });
+      } catch (err) {
+        console.error('Failed to save logo to history:', err);
+      }
+    }
+
     await logApiUsage({ userId, keyId, endpoint, method, statusCode: 200, ip });
     return jsonNoStore(data);
   } catch (error: unknown) {
