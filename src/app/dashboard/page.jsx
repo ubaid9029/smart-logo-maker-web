@@ -51,6 +51,7 @@ export default function DashboardPage() {
   const [copiedKeyId, setCopiedKeyId] = useState(null);
   const [isCreatingKey, setIsCreatingKey] = useState(false);
   const [designs, setDesigns] = useState([]);
+  const [totalLogosGenerated, setTotalLogosGenerated] = useState(0);
   const [showPassInput, setShowPassInput] = useState(false);
   
   const [newKeyData, setNewKeyData] = useState(null);
@@ -88,13 +89,32 @@ export default function DashboardPage() {
   const fetchDesigns = async () => {
     try {
       const { data, error } = await supabase
-        .from('user_logos') // Assuming this is the table name
-        .select('*')
+        .from('logo_history')
+        .select('id, business_name, slogan, industry_id, logo_data, created_at')
         .order('created_at', { ascending: false });
       
-      if (!error) setDesigns(data || []);
+      if (!error && data) {
+        // Count total logos generated (each API call may return multiple logo options)
+        let total = 0;
+        const mapped = data.map(row => {
+          const logoCount = Array.isArray(row.logo_data?.data)
+            ? row.logo_data.data.length
+            : (row.logo_data ? 1 : 0);
+          total += logoCount;
+          return {
+            id: row.id,
+            businessName: row.business_name || 'Brand',
+            slogan: row.slogan || '',
+            industryId: row.industry_id,
+            logosGenerated: logoCount,
+            created_at: row.created_at,
+          };
+        });
+        setDesigns(mapped);
+        setTotalLogosGenerated(total);
+      }
     } catch (err) {
-      console.error("Failed to fetch designs:", err);
+      console.error("Failed to fetch logo history:", err);
     }
   };
 
@@ -274,7 +294,7 @@ export default function DashboardPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {[
-                    { label: 'Total Designs', value: designs.length.toString(), icon: Database, color: 'text-orange-400', bg: 'bg-orange-500/10' },
+                    { label: 'Total Logos Generated', value: totalLogosGenerated.toString(), icon: Database, color: 'text-orange-400', bg: 'bg-orange-500/10' },
                     { label: 'Weekly API Volume', value: usageLogs.length.toString(), icon: TrendingUp, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
                     { label: 'Active Keys', value: apiKeys.length.toString(), icon: Key, color: 'text-amber-400', bg: 'bg-amber-500/10' },
                   ].map((stat, i) => (
@@ -543,25 +563,26 @@ export default function DashboardPage() {
             {activeTab === 'designs' && (
               <motion.div key="designs" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
                 <header>
-                  <h1 className="text-3xl font-black text-white mb-2">Logo History</h1>
-                  <p className="text-slate-400 text-sm">A list of all logos you have generated or saved across the platform.</p>
+                  <h1 className="text-3xl font-black text-white mb-2">Logo Generation History</h1>
+                  <p className="text-slate-400 text-sm">A complete log of all logos generated via the API.</p>
                 </header>
 
                 <div className="bg-slate-800/20 border border-slate-700/40 rounded-[2rem] overflow-hidden">
                    {designs.length === 0 ? (
                      <div className="text-center py-20">
                         <History className="w-16 h-16 text-slate-700 mx-auto mb-4" />
-                        <h3 className="text-lg font-bold text-slate-400">No designs found</h3>
-                        <p className="text-sm text-slate-600 mt-1">Visit our editor to start creating professional logos.</p>
+                        <h3 className="text-lg font-bold text-slate-400">No generation history found</h3>
+                        <p className="text-sm text-slate-600 mt-1">Make an API request to see your logo generations here.</p>
                      </div>
                    ) : (
                      <div className="overflow-x-auto">
                         <table className="w-full text-left">
                            <thead>
                               <tr className="border-b border-slate-700/50 bg-slate-900/40">
-                                 <th className="px-8 py-5 text-xs font-black text-slate-500 uppercase tracking-widest">Logo Name</th>
+                                 <th className="px-8 py-5 text-xs font-black text-slate-500 uppercase tracking-widest">Business Name</th>
+                                 <th className="px-8 py-5 text-xs font-black text-slate-500 uppercase tracking-widest">Logos Generated</th>
                                  <th className="px-8 py-5 text-xs font-black text-slate-500 uppercase tracking-widest">Created At</th>
-                                 <th className="px-8 py-5 text-xs font-black text-slate-500 uppercase tracking-widest text-right">Action</th>
+                                 <th className="px-8 py-5 text-xs font-black text-slate-500 uppercase tracking-widest text-right">Status</th>
                               </tr>
                            </thead>
                            <tbody className="divide-y divide-slate-700/30">
@@ -572,14 +593,24 @@ export default function DashboardPage() {
                                          <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
                                             <LayoutGrid className="w-5 h-5 text-orange-400" />
                                          </div>
-                                         <span className="font-bold text-slate-200">{design.name || 'Untitled Design'}</span>
+                                         <div className="flex flex-col">
+                                            <span className="font-bold text-slate-200">{design.businessName}</span>
+                                            {design.slogan && <span className="text-xs text-slate-500">{design.slogan}</span>}
+                                         </div>
                                       </div>
                                    </td>
+                                   <td className="px-8 py-5">
+                                      <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-bold border border-blue-500/20">
+                                         {design.logosGenerated} Logos
+                                      </span>
+                                   </td>
                                    <td className="px-8 py-5 text-sm text-slate-500">
-                                      {new Date(design.created_at).toLocaleDateString()}
+                                      {new Date(design.created_at).toLocaleString()}
                                    </td>
                                    <td className="px-8 py-5 text-right">
-                                      <button className="text-xs font-black text-blue-400 hover:underline uppercase tracking-widest">Open Editor</button>
+                                      <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-400">
+                                         <Check className="w-4 h-4" /> Success
+                                      </span>
                                    </td>
                                 </tr>
                               ))}

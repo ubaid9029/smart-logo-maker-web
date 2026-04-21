@@ -113,23 +113,27 @@ export async function POST(request: NextRequest) {
       return jsonNoStore({ error: 'API call failed', details: remoteMessage }, { status: statusCode });
     }
 
-    // Save to user history if a userId exists
+    // Save to logo_history table for API-generated logos
     if (userId) {
       try {
         const { createClient: createSupabase } = await import('@supabase/supabase-js');
-        const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-        const adminSupabase = createSupabase(url, serviceKey);
+        const adminSupabase = createSupabase(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
 
-        await adminSupabase.from('user_logos').insert({
+        await adminSupabase.from('logo_history').insert({
           user_id: userId,
-          name: name,
-          industry_id: industryId,
-          data: data, // Store the generated logo data
-          api_generated: true
+          business_name: name,
+          slogan: slogan || '',
+          industry_id: Number(industryId),
+          api_key_id: keyId || null,
+          logo_data: data, // Full LogoAI API response
         });
+
+        console.log(`Logo history saved for user: ${userId}`);
       } catch (err) {
-        console.error('Failed to save logo to history:', err);
+        console.error('Failed to save to logo_history:', err);
       }
     }
 
