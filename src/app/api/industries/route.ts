@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { authenticateRequest, securityResponse } from '@/lib/apiSecurity';
+import { authenticateRequest, securityResponse, logApiUsage } from '@/lib/apiSecurity';
 
 export async function GET(request: NextRequest) {
   // Security Check (Strict Mode)
@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
+    await logApiUsage({ userId: auth.userId, keyId: auth.keyId, endpoint: '/api/industries', method: 'GET', statusCode: 200, ip: auth.ip });
 
     return NextResponse.json(data, {
       headers: {
@@ -32,6 +33,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Industries API Error (DNS or Fetch Fail):', error);
+    await logApiUsage({ userId: auth.userId, keyId: auth.keyId, endpoint: '/api/industries', method: 'GET', statusCode: 500, ip: auth.ip });
     // Return empty array as fallback so UI doesn't break
     return NextResponse.json([], { status: 200 });
   }
