@@ -56,27 +56,27 @@ function normalizeAuthField(value: FormDataEntryValue | null, mode: "email" | "t
 }
 
 async function resolveRequestOrigin() {
+    const headerStore = await headers();
+    const host = headerStore.get("host")?.trim() || "";
+    const directOrigin = headerStore.get("origin")?.trim();
+
+    // If we are on localhost, always prioritize localhost for testing
+    if (host.includes("localhost") || host.includes("127.0.0.1")) {
+        const protocol = host.includes("localhost") ? "http" : "https";
+        return directOrigin || `${protocol}://${host}`;
+    }
+
+    // Otherwise, use the production site URL from environment variables
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
     if (siteUrl) {
         return siteUrl.endsWith("/") ? siteUrl.slice(0, -1) : siteUrl;
     }
 
-    const headerStore = await headers();
-    const directOrigin = headerStore.get("origin")?.trim();
-
     if (directOrigin) {
         return directOrigin;
     }
 
-    const forwardedProto = headerStore.get("x-forwarded-proto")?.trim() || "https";
-    const forwardedHost = headerStore.get("x-forwarded-host")?.trim();
-    const host = forwardedHost || headerStore.get("host")?.trim();
-
-    if (!host) {
-        return "https://www.smart-logomaker.com"; // Final Fallback
-    }
-
-    return `${forwardedProto}://${host}`;
+    return "https://www.smart-logomaker.com"; // Final Fallback
 }
 
 export async function signIn(formData: FormData) {
@@ -104,6 +104,7 @@ export async function signIn(formData: FormData) {
 }
 
 export async function signUp(formData: FormData) {
+    console.log("Signup action started...");
     const supabase = await createClient();
     const origin = await resolveRequestOrigin();
     const next = await resolveNextPath(formData.get("next"));
@@ -112,25 +113,36 @@ export async function signUp(formData: FormData) {
     const email = normalizeAuthField(formData.get("email"), "email");
     const password = normalizeAuthField(formData.get("password"), "password");
 
+    console.log(`Signup attempt for: ${email}, origin: ${origin}`);
+
     if (!fullName || !email || !password) {
+        console.warn("Signup failed: Missing fields");
         redirect(`/auth/signup?error=${encodeURIComponent("Please fill in all required fields.")}&next=${encodeURIComponent(next)}`);
     }
 
-    const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-            data: { full_name: fullName },
-            emailRedirectTo: origin ? `${origin}/auth/callback?next=${encodeURIComponent(next)}` : undefined,
-        },
-    });
+    try {
+        const { error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: { full_name: fullName },
+                emailRedirectTo: origin ? `${origin}/auth/callback?next=${encodeURIComponent(next)}` : undefined,
+            },
+        });
 
-    if (error) {
-        redirect(`/auth/signup?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`);
+        if (error) {
+            console.error("Supabase Signup Error:", error.message);
+            redirect(`/auth/signup?error=${encodeURIComponent(error.message)}&next=${encodeURIComponent(next)}`);
+        }
+
+        console.log("Signup successful, redirecting to confirmation message...");
+        revalidatePath("/", "layout");
+        redirect(`/auth/signup?message=${encodeURIComponent("Check your email to confirm your account before signing in.")}&next=${encodeURIComponent(next)}`);
+    } catch (err: any) {
+        if (err?.digest?.startsWith("NEXT_REDIRECT")) throw err; // Allow Next.js redirects
+        console.error("Unexpected Signup Error:", err);
+        redirect(`/auth/signup?error=${encodeURIComponent("An unexpected error occurred. Please try again.")}&next=${encodeURIComponent(next)}`);
     }
-
-    revalidatePath("/", "layout");
-    redirect(`/auth/signup?message=${encodeURIComponent("Check your email to confirm your account before signing in.")}&next=${encodeURIComponent(next)}`);
 }
 
 export async function signOut() {
