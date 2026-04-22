@@ -112,6 +112,12 @@ export default function RootLayout({ children }) {
             gtag('config', 'G-7182ZQFKJT');
           `}
         </Script>
+        <Script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7942163788647740"
+          crossorigin="anonymous"
+          strategy="afterInteractive"
+        />
       </head>
       <body className="font-sans antialiased">
         <Providers>
