@@ -98,6 +98,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${plusJakartaSans.variable}`}>
       <head>
+        <meta name="google-adsense-account" content="ca-pub-7942163788647740" />
         <Script
           async
           src="https://www.googletagmanager.com/gtag/js?id=G-7182ZQFKJT"
