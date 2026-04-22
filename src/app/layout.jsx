@@ -3,6 +3,7 @@ import './globals.css';
 import ConditionalLayout from "../components/MainComponents/ConditionalLayout";
 import { Providers } from "./providers";
 import ClientPersistGate from "../components/ClientPersistGate";
+import Script from 'next/script';
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -96,6 +97,22 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${plusJakartaSans.variable}`}>
+      <head>
+        <Script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=G-7182ZQFKJT"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+
+            gtag('config', 'G-7182ZQFKJT');
+          `}
+        </Script>
+      </head>
       <body className="font-sans antialiased">
         <Providers>
           <ClientPersistGate>
