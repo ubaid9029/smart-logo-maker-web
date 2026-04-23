@@ -80,7 +80,7 @@ const Testimonials = () => {
 
               <div>
                 <h4 className="text-[18px] font-black text-[#0f172a]">{item.name}</h4>
-                <p className="text-gray-500 text-sm font-semibold">{item.role}</p>
+                <p className="text-slate-700 text-sm font-semibold">{item.role}</p>
               </div>
             </motion.div>
           ))}

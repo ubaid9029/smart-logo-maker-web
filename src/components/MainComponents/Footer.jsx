@@ -2,9 +2,17 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { FaFacebookF, FaInstagram, FaLinkedinIn, FaTwitter, FaYoutube } from 'react-icons/fa';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
+  const socialLinks = [
+    { name: 'Twitter', href: 'https://twitter.com/smartlogomaker', icon: FaTwitter },
+    { name: 'Facebook', href: 'https://www.facebook.com/smartlogomaker', icon: FaFacebookF },
+    { name: 'Instagram', href: 'https://www.instagram.com/smartlogomaker', icon: FaInstagram },
+    { name: 'YouTube', href: 'https://www.youtube.com/@smartlogomaker', icon: FaYoutube },
+    { name: 'LinkedIn', href: 'https://www.linkedin.com/company/smartlogomaker', icon: FaLinkedinIn },
+  ];
 
   return (
     <footer aria-label="Site footer" className="border-t border-gray-800/50 bg-[#121a31] pb-10 pt-12 sm:pt-14 md:pt-16 text-white">
@@ -17,13 +25,31 @@ export default function Footer() {
             <p className="max-w-sm text-sm leading-relaxed text-gray-400 md:text-base">
               Transform your brand vision into reality with AI-powered logo generation. Professional designs made easy.
             </p>
+
+            <div className="mt-5 flex items-center gap-2.5" aria-label="Social media links">
+              {socialLinks.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <a
+                    key={item.name}
+                    href={item.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`Follow Smart Logo Maker on ${item.name}`}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-gray-700 bg-[#1a2440] text-gray-300 transition-all hover:border-pink-400 hover:text-white"
+                  >
+                    <Icon className="text-sm" />
+                  </a>
+                );
+              })}
+            </div>
           </div>
 
           <div className="md:col-span-2 md:ml-auto">
             <h4 className="mb-6 text-lg font-bold text-white">Product</h4>
             <ul aria-label="Product links" className="flex flex-col space-y-4">
               {[
-                { name: 'Features', path: '/#features' },
+                { name: 'Features', path: '/features' },
                 { name: 'How It Works', path: '/how-it-works' },
                 { name: 'Logo App Preview', path: '/#app-preview' },
                 { name: 'Gaming Logo Maker', path: '/gaming-logo-maker' },

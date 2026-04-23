@@ -47,7 +47,7 @@ const HowItWorks = () => {
           >
             How It Works
           </motion.h2>
-          <p className="text-gray-500 text-lg md:text-xl font-medium">
+          <p className="text-slate-700 text-lg md:text-xl font-medium">
             Create your perfect logo in 5 simple steps
           </p>
         </div>
@@ -111,7 +111,7 @@ const HowItWorks = () => {
               <h3 className="text-[20px] font-extrabold text-[#0f172a] mb-3">
                 {step.title}
               </h3>
-              <p className="text-gray-500 text-[14px] leading-relaxed font-medium px-2">
+              <p className="text-slate-700 text-[14px] leading-relaxed font-medium px-2">
                 {step.desc}
               </p>
             </div>

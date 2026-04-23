@@ -10,7 +10,7 @@ const featuresData = [
   { title: "Customizable Styles", desc: "Choose from multiple font styles, vibrant color schemes, and design templates.", icon: <HiOutlineColorSwatch />, iconColor: "bg-[#F33CC0]" },
   { title: "Instant Generation", desc: "Get multiple logo variations instantly and preview them in real-time.", icon: <HiLightningBolt />, iconColor: "bg-[#A855F7]" },
   { title: "Advanced Logo Editor", desc: "Fine-tune every detail with our powerful editor. Adjust colors, fonts, layouts, and export in multiple formats.", icon: <HiOutlinePencilAlt />, iconColor: "bg-[#3B82F6]" },
-  { title: "Professional Templates", desc: "Access 25+ professionally designed templates across 6 categories to jumpstart your design.", icon: <HiOutlineTemplate />, iconColor: "bg-[#0095FF]" },
+  { title: "Professional Templates", desc: "Access professionally designed templates across multiple categories to jumpstart your design.", icon: <HiOutlineTemplate />, iconColor: "bg-[#0095FF]" },
   { title: "High-Quality Export", desc: "Download your logos in high-resolution PNG, SVG, and other formats for any use case.", icon: <HiCloudDownload />, iconColor: "bg-[#14B8A6]" }
 ];
 
@@ -19,12 +19,12 @@ const Features = () => {
     <section id="features" className="relative overflow-hidden bg-white pb-24">
       {/* Shared hero-style background gradient — continues the hero feel */}
       <div className="pointer-events-none absolute inset-0 z-0">
-        <div className="absolute inset-0 bg-gradient-to-b from-white via-pink-50/30 to-white" />
+        <div className="absolute inset-0 bg-linear-to-b from-white via-pink-50/30 to-white" />
         <div className="absolute -left-32 top-0 h-64 w-64 rounded-full bg-orange-200/20 blur-[80px] md:h-96 md:w-96" />
         <div className="absolute -right-32 bottom-0 h-64 w-64 rounded-full bg-purple-200/20 blur-[80px] md:h-96 md:w-96" />
       </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-[1440px] px-6 md:px-12">
+      <div className="relative z-10 mx-auto w-full max-w-360 px-6 md:px-12">
 
         <div className="text-center mb-16 pt-4">
           <motion.span
@@ -38,7 +38,7 @@ const Features = () => {
           <h2 className="text-[36px] md:text-[52px] font-black text-[#0f172a] mb-6 leading-tight">
             Everything You Need
           </h2>
-          <p className="text-gray-500 max-w-2xl mx-auto text-lg font-medium">
+          <p className="text-slate-700 max-w-2xl mx-auto text-lg font-medium">
             Create, customize, and perfect your brand identity with our <br /> comprehensive toolkit
           </p>
         </div>

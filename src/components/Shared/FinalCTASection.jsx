@@ -9,7 +9,7 @@ const featureBadges = ["Free to Start", "No Credit Card", "Instant Access"];
 
 const stats = [
   { value: "10K+", label: "Happy Users", gradient: "from-orange-400 to-pink-500" },
-  { value: "25+", label: "Templates", gradient: "from-pink-500 to-purple-500" },
+  { value: "50,000+", label: "Logos Created", gradient: "from-pink-500 to-purple-500" },
   { value: "4.9/5", label: "Rating", gradient: "from-purple-500 to-blue-500" },
 ];
 
@@ -39,7 +39,7 @@ export default function FinalCTASection() {
           Ready to Create Your <br className="hidden md:block" /> Perfect Logo?
         </motion.h2>
 
-        <p className="mx-auto mb-8 md:mb-10 max-w-2xl text-lg font-medium text-gray-400 md:text-xl">
+        <p className="mx-auto mb-8 md:mb-10 max-w-2xl text-lg font-medium text-slate-200 md:text-xl">
           Join thousands of creators and bring your brand to life today
         </p>
 
@@ -61,7 +61,7 @@ export default function FinalCTASection() {
           </motion.div>
         </div>
 
-        <div className="mb-12 md:mb-14 flex flex-wrap justify-center gap-6 text-[14px] font-bold uppercase tracking-widest text-gray-300">
+        <div className="mb-12 md:mb-14 flex flex-wrap justify-center gap-6 text-[14px] font-bold uppercase tracking-widest text-slate-200">
           {featureBadges.map((feature) => (
             <span
               key={feature}
@@ -79,7 +79,7 @@ export default function FinalCTASection() {
               <span className={`bg-linear-to-r ${stat.gradient} bg-clip-text text-5xl font-black text-transparent`}>
                 {stat.value}
               </span>
-              <span className="mt-2 text-[11px] font-bold uppercase tracking-[0.3em] text-gray-500">
+              <span className="mt-2 text-[11px] font-bold uppercase tracking-[0.3em] text-slate-300">
                 {stat.label}
               </span>
             </motion.div>

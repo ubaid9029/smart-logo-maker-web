@@ -22,14 +22,14 @@ const Hero = () => {
     <section className="relative overflow-hidden bg-white pt-20 pb-8 md:pb-16 w-full flex flex-col items-center">
       
       {/* Background Container — Keeps backgrounds relative to the 1440px center, preventing extreme stretching on ultra-wide screens */}
-      <div className="absolute inset-0 z-0 mx-auto w-full max-w-[1440px] pointer-events-none select-none">
+        <div className="absolute inset-0 z-0 mx-auto w-full max-w-360 pointer-events-none select-none">
         {/* Background logo decoration */}
         <Image
           src="/logos/logo1.svg"
           alt="background-decoration"
           width={750}
           height={750}
-          className="absolute -right-[5%] -bottom-[15%] w-48 rotate-12 object-cover object-top opacity-15 blur-[1px] transition-all duration-700 ease-in-out sm:w-64 md:-right-[8%] md:-bottom-[15%] md:w-96 md:rotate-15 lg:w-[480px]"
+          className="absolute -right-[5%] -bottom-[15%] w-48 rotate-12 object-cover object-top opacity-15 blur-[1px] transition-all duration-700 ease-in-out sm:w-64 md:-right-[8%] md:-bottom-[15%] md:w-96 md:rotate-15 lg:w-120"
           style={{
             maskImage: 'linear-gradient(to bottom, black 70%, transparent 100%)',
             WebkitMaskImage: 'linear-gradient(to bottom, black 70%, transparent 100%)',
@@ -75,7 +75,7 @@ const Hero = () => {
       </div>
 
       {/* Content Container — only textual/interactive content is contained within max-w-[1440px] */}
-      <div className="relative z-10 w-full max-w-[1440px] px-6 md:px-12 pb-16 md:pb-20">
+      <div className="relative z-10 w-full max-w-360 px-6 pb-16 md:px-12 md:pb-20">
         
         {/* Main content */}
         <div className="relative z-10 text-center pt-10 md:pt-14">
@@ -115,7 +115,7 @@ const Hero = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4, duration: 0.6 }}
-          className="mx-auto mb-10 max-w-2xl text-base font-medium leading-relaxed text-gray-500 md:text-xl"
+          className="mx-auto mb-10 max-w-2xl text-base font-medium leading-relaxed text-slate-700 md:text-xl"
         >
           Transform your brand vision into reality with AI-powered logo generation. Professional designs made easy.
         </motion.p>

@@ -78,8 +78,8 @@ export default function Navbar({ minimal }) {
   const signInHref = useMemo(() => `/auth/signin?next=${encodeURIComponent(currentLocation)}`, [currentLocation]);
 
   const navLinks = [
-    { name: 'Features', href: '/#features' },
-    { name: 'How It Works', href: '/#how-it-works' },
+    { name: 'Features', href: '/features' },
+    { name: 'How It Works', href: '/how-it-works' },
     { name: 'App Preview', href: '/#app-preview' },
   ];
 
