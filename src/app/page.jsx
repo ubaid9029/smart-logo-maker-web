@@ -38,9 +38,42 @@ const FinalCTA = dynamic(() => import("../components/Home/FinalCTA.jsx"), {
 });
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://smart-logomaker.com";
-const tutorialVideoUrl =
-  process.env.NEXT_PUBLIC_TUTORIAL_VIDEO_URL ||
-  "https://www.youtube.com/embed?listType=search&list=Smart+Logo+Maker+tutorial";
+const fallbackTutorialVideoId = "A4O0EoZrAMs";
+
+const getTutorialEmbedUrl = (sourceUrl) => {
+  if (!sourceUrl) {
+    return `https://www.youtube-nocookie.com/embed/${fallbackTutorialVideoId}?rel=0&modestbranding=1`;
+  }
+
+  try {
+    const parsed = new URL(sourceUrl);
+    const host = parsed.hostname.replace(/^www\./i, "").toLowerCase();
+    const pathParts = parsed.pathname.split("/").filter(Boolean);
+    let videoId = "";
+
+    if (host === "youtu.be" && pathParts[0]) {
+      videoId = pathParts[0];
+    } else if (host === "youtube.com" || host === "m.youtube.com") {
+      if (parsed.pathname === "/watch") {
+        videoId = parsed.searchParams.get("v") || "";
+      } else if (pathParts[0] === "embed" && pathParts[1]) {
+        videoId = pathParts[1];
+      }
+    } else if (host === "youtube-nocookie.com" && pathParts[0] === "embed" && pathParts[1]) {
+      videoId = pathParts[1];
+    }
+
+    if (videoId && /^[A-Za-z0-9_-]{8,20}$/.test(videoId)) {
+      return `https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1`;
+    }
+  } catch {
+    return `https://www.youtube-nocookie.com/embed/${fallbackTutorialVideoId}?rel=0&modestbranding=1`;
+  }
+
+  return `https://www.youtube-nocookie.com/embed/${fallbackTutorialVideoId}?rel=0&modestbranding=1`;
+};
+
+const tutorialVideoUrl = getTutorialEmbedUrl(process.env.NEXT_PUBLIC_TUTORIAL_VIDEO_URL);
 
 export const metadata = {
   title: "Free AI Logo Maker | No Watermark, No Signup | Smart Logo",
