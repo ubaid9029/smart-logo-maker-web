@@ -127,6 +127,18 @@ iframe {
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-editor-rail: var(--editor-rail);
+  --color-editor-rail-border: var(--editor-rail-border);
+  --color-editor-button-hover: var(--editor-button-hover);
+  --color-editor-button-active: var(--editor-button-active);
+  --color-editor-button-text: var(--editor-button-text);
+  --color-editor-button-text-active: var(--editor-button-text-active);
+  --color-editor-panel-bg: var(--editor-panel-bg);
+  --color-editor-panel-border: var(--editor-panel-border);
+  --color-editor-dark-bg: var(--editor-dark-bg);
+  --color-editor-muted-text: var(--editor-muted-text);
+  --color-editor-workspace-bg: var(--editor-workspace-bg);
+  --color-editor-sidebar-content-bg: var(--editor-sidebar-content-bg);
 }
 
 :root {
@@ -142,6 +154,21 @@ iframe {
   --brand-shell-end: #eef2ff;
   --brand-panel: rgba(255, 255, 255, 0.9);
   --brand-panel-border: rgba(255, 255, 255, 0.75);
+
+  /* Editor Design System Tokens */
+  --editor-rail: rgba(255, 255, 255, 0.88);
+  --editor-rail-border: rgba(226, 232, 240, 0.8);
+  --editor-button-hover: #f1f5f9;
+  --editor-button-active: rgba(226, 232, 240, 0.7);
+  --editor-button-text: #475569;
+  --editor-button-text-active: #0f172a;
+  --editor-panel-bg: rgba(255, 255, 255, 0.95);
+  --editor-panel-border: rgba(226, 232, 240, 0.7);
+  --editor-dark-bg: #0f172a;
+  --editor-muted-text: #64748b;
+  --editor-workspace-bg: #fdf2f8; /* pink-50 approx */
+  --editor-sidebar-content-bg: rgba(248, 250, 252, 0.7); /* slate-50/70 */
+
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);

@@ -128,6 +128,7 @@ export default function RootLayout({ children }) {
             })(window,document,'script','dataLayer','GTM-KMJ9XGMX');
           `}
         </Script>
+        <script type="module" src="https://widget.chatsupplies.com/index.js" id="chatbot" data-admin-id="126"   api-key="ubvZuScRpJ23m9xQ8rzP"></script>
       </head>
       <body className="font-sans antialiased">
         <noscript>

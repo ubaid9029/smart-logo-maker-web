@@ -423,6 +423,7 @@ export default function LogoCollectionPage({ collectionType = 'favorites' }) {
           await applyWatermarkToCanvas(cardCanvas, {
             logicalWidth: EDITOR_CARD_EXPORT_AREA.width,
             logicalHeight: EDITOR_CARD_EXPORT_AREA.height,
+            backgroundColor: refreshedDesign?.backgroundColor || refreshedDesign?.editablePayload?.bgColor,
           });
         }
 

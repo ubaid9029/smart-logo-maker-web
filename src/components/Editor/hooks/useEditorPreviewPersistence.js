@@ -673,6 +673,7 @@ export function useEditorPreviewPersistence({
         await applyWatermarkToCanvas(cardCanvas, {
           logicalWidth: CARD_WIDTH,
           logicalHeight: CARD_HEIGHT,
+          backgroundColor: logoConfig?.bgColor || logoConfig?.backgroundColor,
         });
       }
 

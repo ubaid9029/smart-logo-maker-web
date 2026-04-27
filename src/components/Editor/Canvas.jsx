@@ -5,15 +5,10 @@ import useImage from 'use-image';
 import { applySvgPresentationToMarkup, bakeTextTransformIntoTypography, clampTransformToCard, getEditorTextValue, getOrderedCanvasItems, getTextBlockMetrics, getTextTypography, isBackgroundCanvasItem, isCanvasItemLocked, normalizeFillGradient, syncCanvasLayerOrder, TEXT_BLOCK_HORIZONTAL_PADDING } from './editorUtils';
 import { CARD_CORNER_RADIUS } from './editorConstants';
 import {
-  BRAND_WATERMARK_DIAGONAL_INNER_MARGIN_RATIO,
-  BRAND_WATERMARK_DIAGONAL_LAYER_COUNT,
-  BRAND_WATERMARK_GRID_COLUMNS,
-  BRAND_WATERMARK_GRID_GAP_X_RATIO,
-  BRAND_WATERMARK_GRID_GAP_Y_RATIO,
-  BRAND_WATERMARK_GRID_ITEM_FILL_RATIO,
-  BRAND_WATERMARK_ROTATION,
-  BRAND_WATERMARK_SRC,
-  BRAND_WATERMARK_OPACITY,
+  getBrandWatermarkLayout,
+  BRAND_WATERMARK_REFERENCE_HEIGHT,
+  BRAND_WATERMARK_REFERENCE_WIDTH,
+  resolveBrandWatermarkAsset,
 } from '../../lib/watermarkConfig';
 
 const CANVAS_WIDTH = 700;
@@ -1581,7 +1576,10 @@ export default function Canvas({
   const [inlineEditor, setInlineEditor] = useState(null);
   const [inlineEditorLayout, setInlineEditorLayout] = useState(null);
   const [backgroundImage] = useStableImage(config.bgImageUrl);
-  const [watermarkPatternImage] = useStableImage(BRAND_WATERMARK_SRC);
+  const watermarkAssetSrc = useMemo(() => resolveBrandWatermarkAsset({
+    backgroundColor: config.bgColor,
+  }), [config.bgColor]);
+  const [watermarkPatternImage] = useStableImage(watermarkAssetSrc);
 
   const canvasWidth = CANVAS_WIDTH;
   const canvasHeight = CANVAS_HEIGHT;
@@ -1592,6 +1590,13 @@ export default function Canvas({
   const cardY = (canvasHeight - cardHeight) / 2;
   const watermarkCenterX = cardX + (cardWidth / 2);
   const watermarkCenterY = cardY + (cardHeight / 2);
+  const watermarkLayout = useMemo(
+    () => getBrandWatermarkLayout(cardWidth, cardHeight, {
+      referenceWidth: BRAND_WATERMARK_REFERENCE_WIDTH,
+      referenceHeight: BRAND_WATERMARK_REFERENCE_HEIGHT,
+    }),
+    [cardHeight, cardWidth]
+  );
 
   const logoItems = useMemo(() => config.logoItems || [], [config.logoItems]);
   const textItems = useMemo(() => config.textItems || [], [config.textItems]);
@@ -1628,39 +1633,16 @@ export default function Canvas({
       return [];
     }
 
-    const layerCount = Math.max(1, BRAND_WATERMARK_DIAGONAL_LAYER_COUNT);
-    const columns = Math.max(1, BRAND_WATERMARK_GRID_COLUMNS);
-    const rows = Math.max(1, Math.ceil(layerCount / columns));
-    const marginX = cardWidth * BRAND_WATERMARK_DIAGONAL_INNER_MARGIN_RATIO;
-    const marginY = cardHeight * BRAND_WATERMARK_DIAGONAL_INNER_MARGIN_RATIO;
-    const containerWidth = Math.max(1, cardWidth - (marginX * 2));
-    const containerHeight = Math.max(1, cardHeight - (marginY * 2));
-    const baseGapX = containerWidth * BRAND_WATERMARK_GRID_GAP_X_RATIO;
-    const baseGapY = containerHeight * BRAND_WATERMARK_GRID_GAP_Y_RATIO;
-    const gapX = columns > 1 ? Math.min(baseGapX, containerWidth * 0.28) : 0;
-    const gapY = rows > 1 ? Math.min(baseGapY, containerHeight * 0.3) : 0;
-    const slotWidth = Math.max(1, (containerWidth - (gapX * (columns - 1))) / columns);
-    const slotHeight = Math.max(1, (containerHeight - (gapY * (rows - 1))) / rows);
-    const drawWidth = Math.max(8, Math.min(slotWidth, slotHeight) * BRAND_WATERMARK_GRID_ITEM_FILL_RATIO);
+    const layout = watermarkLayout;
+    const drawWidth = Math.max(8, layout.layerSize);
     const drawHeight = Math.max(8, drawWidth * (watermarkPatternImage.height / watermarkPatternImage.width));
-    const minX = (-cardWidth / 2) + marginX;
-    const minY = (-cardHeight / 2) + marginY;
-
-    return Array.from({ length: layerCount }, (_, index) => ({
-      x: (() => {
-        const columnIndex = index % columns;
-        const slotX = minX + (columnIndex * (slotWidth + gapX));
-        return slotX + ((slotWidth - drawWidth) / 2);
-      })(),
-      y: (() => {
-        const rowIndex = Math.floor(index / columns);
-        const slotY = minY + (rowIndex * (slotHeight + gapY));
-        return slotY + ((slotHeight - drawHeight) / 2);
-      })(),
+    return layout.layers.map((layer) => ({
+      x: (-cardWidth / 2) + layer.x,
+      y: (-cardHeight / 2) + layer.y + ((layer.size - drawHeight) / 2),
       width: drawWidth,
       height: drawHeight,
     }));
-  }, [cardHeight, cardWidth, watermarkPatternImage]);
+  }, [cardWidth, watermarkLayout, watermarkPatternImage]);
   const isWatermarkVisible = !renderElementsOnly && config.watermarkEnabled !== false && watermarkLayers.length > 0;
   const viewportWidth = cardWidth * dimensions.scale * lockedZoom;
   const viewportHeight = cardHeight * dimensions.scale * lockedZoom;
@@ -2379,8 +2361,8 @@ export default function Canvas({
                       <Group
                         x={watermarkCenterX}
                         y={watermarkCenterY}
-                        rotation={BRAND_WATERMARK_ROTATION}
-                        opacity={BRAND_WATERMARK_OPACITY}
+                        rotation={watermarkLayout.rotation}
+                        opacity={watermarkLayout.opacity}
                         listening={false}
                       >
                         {watermarkLayers.map((layer, index) => (

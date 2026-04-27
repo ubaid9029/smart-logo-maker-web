@@ -725,25 +725,10 @@ function EditorUI() {
     activeTool === 'effect' ||
     activeTool === 'palette'
   );
-  const desktopSidebarWidthClass = selectedCanvasItem
-    ? activeObjectPanel === 'controls'
-      ? 'w-[320px] xl:w-[336px]'
-      : activeObjectPanel === 'positioning'
-        ? 'w-[308px] xl:w-[324px]'
-        : activeObjectPanel === 'fonts'
-          ? 'w-[340px] xl:w-[380px]'
-          : activeObjectPanel === 'opacity' || activeObjectPanel === 'radius'
-            ? 'w-[300px] xl:w-[332px]'
-            : 'w-[320px] xl:w-[360px]'
-    : activeTool === 'background'
-      ? activeBackgroundOption === 'background' || activeBackgroundOption === 'texture'
-        ? 'w-[356px] xl:w-[400px]'
-        : 'w-[320px] xl:w-[360px]'
-      : activeTool === 'art' || activeTool === 'effect'
-        ? 'w-[356px] xl:w-[400px]'
-        : activeTool === 'palette'
-          ? 'w-[328px] xl:w-[368px]'
-          : 'w-[340px] xl:w-[380px]';
+  const desktopSidebarWidthClass = 'w-[300px]';
+  const desktopRailWidth = 84;
+  const desktopSidebarWidth = shouldShowDesktopSidebar ? 300 : 0;
+  const desktopWorkspaceOffset = desktopRailWidth + desktopSidebarWidth;
   const mobileEditorTools = useMemo(
     () => (selectedCanvasItem ? [mobileControlsTool, ...editorTools] : editorTools),
     [selectedCanvasItem]
@@ -1084,7 +1069,7 @@ function EditorUI() {
 
   if (shouldShowEmptyEditorState) {
     return (
-      <div className="mt-20 min-h-screen bg-[radial-gradient(circle_at_top,#fff7ed_0%,#f8fafc_52%,#e0f2fe_100%)] px-5 py-14">
+      <div className="min-h-screen bg-[radial-gradient(circle_at_top,#fff7ed_0%,#f8fafc_52%,#e0f2fe_100%)] px-5 py-14">
         <div className="mx-auto max-w-3xl rounded-[2.4rem] border border-white/80 bg-white/85 p-8 text-center shadow-[0_30px_90px_-45px_rgba(15,23,42,0.35)] backdrop-blur md:p-10">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[1.4rem] bg-gradient-to-br from-orange-100 via-rose-50 to-sky-100 text-pink-500 shadow-inner">
             <Sparkles size={28} />
@@ -1117,33 +1102,38 @@ function EditorUI() {
     <>
       <style jsx global>{EDITOR_FONT_FACE_CSS}</style>
       <div
-        className="fixed inset-x-0 bottom-0 top-20 flex flex-col overflow-y-auto bg-pink-50 font-sans lg:flex-row"
+        className="fixed inset-x-0 bottom-0 top-20 flex flex-col overflow-hidden bg-editor-workspace-bg font-sans lg:flex-row"
         style={{ WebkitTapHighlightColor: 'transparent' }}
       >
-        <div className="flex h-full w-full">
-          <div className="mx-auto flex h-full w-full max-w-[1800px] flex-col overflow-y-auto px-3 py-3 sm:px-4 sm:py-4 lg:flex-row lg:rounded-[2rem] lg:border lg:border-slate-200/70 lg:bg-white lg:shadow-[0_24px_70px_-44px_rgba(15,23,42,0.28)]">
-            <DesktopToolRail
-              editorTools={editorTools}
-              activeTool={activeTool}
-              onToolSelect={handleEditorToolSelect}
-            />
+        <DesktopToolRail
+          editorTools={editorTools}
+          activeTool={activeTool}
+          onToolSelect={handleEditorToolSelect}
+        />
 
             {/* DESKTOP SIDEBAR */}
             {shouldShowDesktopSidebar && (
-              <aside className={`hidden shrink-0 flex-col overflow-y-auto border-r border-slate-200/70 bg-white lg:flex ${desktopSidebarWidthClass}`}>
+              <aside
+                className={`absolute inset-y-0 left-[84px] hidden flex-col overflow-y-auto border-r border-editor-panel-border bg-editor-panel-bg lg:flex ${desktopSidebarWidthClass}`}
+              >
                 {!selectedCanvasItem && (
-                  <div className="border-b border-slate-100 px-6 py-5">
-                    <h2 className={`text-[15px] font-extrabold uppercase tracking-[0.08em] text-slate-800`}>{sidebarHeading}</h2>
+                  <div className="border-b border-editor-panel-border px-6 py-5">
+                    <h2 className={`text-[15px] font-extrabold uppercase tracking-[0.08em] text-editor-button-text-active`}>{sidebarHeading}</h2>
                   </div>
                 )}
-                <div className="flex-1 space-y-4 overflow-y-auto bg-slate-50/70 p-4">
+                <div className="flex-1 space-y-4 overflow-y-auto bg-editor-sidebar-content-bg p-4">
                   <EditorSidebarContent {...editorSidebarProps} />
                 </div>
               </aside>
             )}
 
             {/* MAIN CONTENT AREA */}
-            <main className="relative flex h-full min-w-0 flex-1 flex-col overflow-y-auto bg-pink-50 lg:bg-white/70">
+            <main
+              className="relative flex h-full min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto bg-editor-workspace-bg lg:bg-editor-panel-bg/70"
+              style={!isMobileViewport ? {
+                marginLeft: `${desktopWorkspaceOffset}px`,
+              } : undefined}
+            >
 
               {/* MOBILE HEADER */}
               <MobileHeader
@@ -1178,7 +1168,7 @@ function EditorUI() {
                 />
 
                 {/* TOP COMPONENT: ACTIONS CONTAINER */}
-                <div className="absolute inset-x-0 top-0 z-30 flex justify-start px-6 py-6 lg:px-8">
+                <div className="absolute inset-x-0 top-0 z-30 flex justify-center px-4 py-6 lg:px-6 xl:px-8">
                   <div className="flex items-center gap-3 rounded-full border border-slate-200/60 bg-white/90 p-1.5 shadow-lg backdrop-blur-md">
                     <div className="flex items-center gap-1.5 px-1.5">
                       <button
@@ -1221,10 +1211,10 @@ function EditorUI() {
 
                 {showFloatingToolbar && (
                   <div
-                    className="absolute left-1/2 z-20 hidden w-[calc(100%-2rem)] max-w-max -translate-x-1/2 sm:w-auto lg:block"
+                    className="absolute left-1/2 z-20 hidden w-[calc(100%-1rem)] max-w-[calc(100%-1rem)] -translate-x-1/2 lg:block xl:w-[calc(100%-2rem)] xl:max-w-[calc(100%-2rem)]"
                     style={floatingToolbarOffsetStyle}
                   >
-                    <div className="relative overflow-x-auto overflow-y-visible rounded-[1.25rem] border border-slate-200/80 bg-white/95 px-2.5 py-2.5 shadow-xl backdrop-blur">
+                    <div className="relative w-full overflow-x-auto overflow-y-visible rounded-[1.25rem] border border-slate-200/80 bg-white/95 px-2 py-2.5 shadow-xl backdrop-blur xl:px-2.5">
                       {selectedCanvasItem ? (
                         canEditText && selectedItemData ? (
                           <div className="flex min-w-max items-center gap-px text-slate-700">
@@ -1736,9 +1726,6 @@ function EditorUI() {
                 </div>
               </div>
             </main>
-          </div>
-        </div>
-
         <DownloadDialog
           open={downloadDialogOpen}
           title="Download Edited Logo"

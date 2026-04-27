@@ -1,14 +1,8 @@
 import {
-  BRAND_WATERMARK_DIAGONAL_INNER_MARGIN_RATIO,
-  BRAND_WATERMARK_DIAGONAL_LAYER_COUNT,
-  BRAND_WATERMARK_GRID_COLUMNS,
-  BRAND_WATERMARK_GRID_GAP_X_RATIO,
-  BRAND_WATERMARK_GRID_GAP_Y_RATIO,
-  BRAND_WATERMARK_GRID_ITEM_FILL_RATIO,
-  BRAND_WATERMARK_OPACITY,
-  BRAND_WATERMARK_ROTATION,
   BRAND_WATERMARK_SRC,
+  getBrandWatermarkLayout,
   injectBrandWatermarkIntoSvgMarkup,
+  resolveBrandWatermarkAsset,
 } from './watermarkConfig';
 
 export const DOWNLOAD_FORMATS = [
@@ -19,8 +13,8 @@ export const DOWNLOAD_FORMATS = [
   { id: 'webp', label: 'WebP', description: 'Modern lightweight web format' },
 ];
 
-let watermarkSvgTextPromise = null;
-let watermarkSvgDataUriPromise = null;
+const watermarkSvgTextPromiseCache = new Map();
+const watermarkSvgDataUriPromiseCache = new Map();
 
 export const getDownloadBaseName = (value) => (
   (value || 'logo')
@@ -77,12 +71,14 @@ export const loadImage = (src) => new Promise((resolve, reject) => {
   image.src = src;
 });
 
-const loadWatermarkSvgText = async () => {
-  if (watermarkSvgTextPromise) {
-    return watermarkSvgTextPromise;
+const loadWatermarkSvgText = async (src = BRAND_WATERMARK_SRC) => {
+  const resolvedSrc = typeof src === 'string' && src.trim() ? src.trim() : BRAND_WATERMARK_SRC;
+  const existingPromise = watermarkSvgTextPromiseCache.get(resolvedSrc);
+  if (existingPromise) {
+    return existingPromise;
   }
 
-  watermarkSvgTextPromise = fetch(BRAND_WATERMARK_SRC, { cache: 'force-cache' })
+  const nextPromise = fetch(resolvedSrc, { cache: 'force-cache' })
     .then(async (response) => {
       if (!response.ok) {
         throw new Error('Unable to load watermark asset');
@@ -91,26 +87,30 @@ const loadWatermarkSvgText = async () => {
       return response.text();
     })
     .catch((error) => {
-      watermarkSvgTextPromise = null;
+      watermarkSvgTextPromiseCache.delete(resolvedSrc);
       throw error;
     });
 
-  return watermarkSvgTextPromise;
+  watermarkSvgTextPromiseCache.set(resolvedSrc, nextPromise);
+  return nextPromise;
 };
 
-export const getWatermarkSvgDataUri = async () => {
-  if (watermarkSvgDataUriPromise) {
-    return watermarkSvgDataUriPromise;
+export const getWatermarkSvgDataUri = async (src = BRAND_WATERMARK_SRC) => {
+  const resolvedSrc = typeof src === 'string' && src.trim() ? src.trim() : BRAND_WATERMARK_SRC;
+  const existingPromise = watermarkSvgDataUriPromiseCache.get(resolvedSrc);
+  if (existingPromise) {
+    return existingPromise;
   }
 
-  watermarkSvgDataUriPromise = loadWatermarkSvgText()
+  const nextPromise = loadWatermarkSvgText(resolvedSrc)
     .then((svgMarkup) => `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svgMarkup)}`)
     .catch((error) => {
-      watermarkSvgDataUriPromise = null;
+      watermarkSvgDataUriPromiseCache.delete(resolvedSrc);
       throw error;
     });
 
-  return watermarkSvgDataUriPromise;
+  watermarkSvgDataUriPromiseCache.set(resolvedSrc, nextPromise);
+  return nextPromise;
 };
 
 export const buildWatermarkedSvgMarkup = async (svgMarkup) => {
@@ -119,7 +119,9 @@ export const buildWatermarkedSvgMarkup = async (svgMarkup) => {
   }
 
   try {
-    const watermarkHref = await getWatermarkSvgDataUri();
+    const watermarkHref = await getWatermarkSvgDataUri(
+      resolveBrandWatermarkAsset({ svgMarkup })
+    );
     return injectBrandWatermarkIntoSvgMarkup(svgMarkup, { watermarkHref });
   } catch {
     return svgMarkup;
@@ -303,38 +305,21 @@ export const buildRasterImageSvgMarkup = (imageUrl, width, height) => {
 };
 
 const drawCanvasDiagonalWatermarks = (context, canvas, image, options) => {
-  const layerCount = Math.max(1, Math.round(Number(options.layerCount) || BRAND_WATERMARK_DIAGONAL_LAYER_COUNT));
-  const columns = Math.max(1, BRAND_WATERMARK_GRID_COLUMNS);
-  const rows = Math.max(1, Math.ceil(layerCount / columns));
-  const marginX = canvas.width * BRAND_WATERMARK_DIAGONAL_INNER_MARGIN_RATIO;
-  const marginY = canvas.height * BRAND_WATERMARK_DIAGONAL_INNER_MARGIN_RATIO;
-  const containerWidth = Math.max(1, canvas.width - (marginX * 2));
-  const containerHeight = Math.max(1, canvas.height - (marginY * 2));
-  const baseGapX = containerWidth * BRAND_WATERMARK_GRID_GAP_X_RATIO;
-  const baseGapY = containerHeight * BRAND_WATERMARK_GRID_GAP_Y_RATIO;
-  const gapX = columns > 1 ? Math.min(baseGapX, containerWidth * 0.28) : 0;
-  const gapY = rows > 1 ? Math.min(baseGapY, containerHeight * 0.3) : 0;
-  const slotWidth = Math.max(1, (containerWidth - (gapX * (columns - 1))) / columns);
-  const slotHeight = Math.max(1, (containerHeight - (gapY * (rows - 1))) / rows);
-  const baseSize = Math.min(slotWidth, slotHeight) * BRAND_WATERMARK_GRID_ITEM_FILL_RATIO;
+  const layout = getBrandWatermarkLayout(canvas.width, canvas.height, options);
   const sourceRatio = image?.width && image?.height ? (image.height / image.width) : 1;
-  const drawWidth = Math.max(8, baseSize);
-  const drawHeight = Math.max(8, baseSize * sourceRatio);
-  const minX = ((-canvas.width / 2) + marginX);
-  const minY = ((-canvas.height / 2) + marginY);
+  const minX = -canvas.width / 2;
+  const minY = -canvas.height / 2;
 
   context.save();
-  context.globalAlpha = options.opacity;
+  context.globalAlpha = options.opacity ?? layout.opacity;
   context.translate(canvas.width / 2, canvas.height / 2);
-  context.rotate((options.rotation * Math.PI) / 180);
+  context.rotate(((options.rotation ?? layout.rotation) * Math.PI) / 180);
 
-  for (let index = 0; index < layerCount; index += 1) {
-    const columnIndex = index % columns;
-    const rowIndex = Math.floor(index / columns);
-    const slotX = minX + (columnIndex * (slotWidth + gapX));
-    const slotY = minY + (rowIndex * (slotHeight + gapY));
-    const layerX = slotX + ((slotWidth - drawWidth) / 2);
-    const layerY = slotY + ((slotHeight - drawHeight) / 2);
+  for (const layer of layout.layers) {
+    const drawWidth = Math.max(8, layer.size);
+    const drawHeight = Math.max(8, layer.size * sourceRatio);
+    const layerX = minX + layer.x + ((layer.size - drawWidth) / 2);
+    const layerY = minY + layer.y + ((layer.size - drawHeight) / 2);
     context.drawImage(image, layerX, layerY, drawWidth, drawHeight);
   }
 
@@ -349,11 +334,13 @@ export const applyWatermarkToCanvas = async (canvas, options = {}) => {
   }
 
   try {
-    const watermarkImage = await loadImage(await getWatermarkSvgDataUri());
+    const watermarkSrc = resolveBrandWatermarkAsset({
+      backgroundColor: options.backgroundColor,
+      svgMarkup: options.svgMarkup,
+    });
+    const watermarkImage = await loadImage(await getWatermarkSvgDataUri(watermarkSrc));
     drawCanvasDiagonalWatermarks(context, canvas, watermarkImage, {
-      opacity: BRAND_WATERMARK_OPACITY,
-      rotation: BRAND_WATERMARK_ROTATION,
-      layerCount: BRAND_WATERMARK_DIAGONAL_LAYER_COUNT,
+      ...options,
     });
   } catch {
     return canvas;
