@@ -145,6 +145,7 @@ export default function AppPreview() {
                     width={777}
                     height={1558}
                     quality={100}
+                    unoptimized
                     sizes="(min-width: 1024px) 18rem, (min-width: 640px) 40vw, 90vw"
                     className="h-auto w-full"
                     priority={step.id === 1}
@@ -178,6 +179,7 @@ export default function AppPreview() {
                   alt="Download Smart Logo Maker on Google Play"
                   width={200}
                   height={40}
+                  unoptimized
                   className="h-15 w-52 object-contain"
                 />
                 Available on Play Store
@@ -239,6 +241,7 @@ export default function AppPreview() {
               width={777}
               height={1558}
               quality={100}
+              unoptimized
               sizes="(max-width: 768px) 90vw, 35vw"
               className="h-auto w-full rounded-2xl object-contain shadow-[0_20px_80px_rgba(0,0,0,0.5)]"
               priority

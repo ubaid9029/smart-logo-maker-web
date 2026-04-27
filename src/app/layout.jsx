@@ -96,7 +96,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={`${plusJakartaSans.variable}`}>
+    <html lang="en" className={`${plusJakartaSans.variable}`} suppressHydrationWarning>
       <head>
         <meta name="google-adsense-account" content="ca-pub-7942163788647740" />
         <Script
