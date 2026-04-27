@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Group, Image as KonvaImage, Layer, Line, Path as KonvaPath, Rect, Shape as KonvaShape, Stage, Text, Transformer } from 'react-konva';
 import useImage from 'use-image';
-import { applySvgPresentationToMarkup, bakeTextTransformIntoTypography, clampTransformToCard, getEditorTextValue, getOrderedCanvasItems, getTextBlockMetrics, getTextTypography, isBackgroundCanvasItem, isCanvasItemLocked, normalizeFillGradient, syncCanvasLayerOrder, TEXT_BLOCK_HORIZONTAL_PADDING } from './editorUtils';
+import { applySvgPresentationToMarkup, clampTransformToCard, getEditorTextValue, getOrderedCanvasItems, getTextBlockMetrics, getTextTypography, isBackgroundCanvasItem, isCanvasItemLocked, normalizeFillGradient, syncCanvasLayerOrder } from './editorUtils';
 import { CARD_CORNER_RADIUS } from './editorConstants';
 import {
   getBrandWatermarkLayout,
@@ -1504,14 +1504,14 @@ function TextNode({
       >
         {selected && !isInlineEditing && (
           <Rect
-            x={-10}
-            y={-10}
-            width={blockWidth + 20}
-            height={blockHeight + 20}
+            x={0}
+            y={0}
+            width={blockWidth}
+            height={blockHeight}
             stroke="#2563EB"
             strokeWidth={2}
             dash={[8, 5]}
-            cornerRadius={14}
+            cornerRadius={10}
           />
         )}
         {shouldRenderSvgText && svgTextImage ? (
@@ -1926,15 +1926,9 @@ export default function Canvas({
                 return item;
               }
 
-              const normalizedItem = bakeTextTransformIntoTypography(item, {
-                transform: nextTransform,
-                renderMode: 'text',
-                svgDataUri: null,
-              });
-
               return {
-                ...normalizedItem,
-                transform: clampTransformToCard('text', normalizedItem, normalizedItem.transform),
+                ...item,
+                transform: clampTransformToCard('text', item, nextTransform),
               };
             }
 

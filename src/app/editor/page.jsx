@@ -105,14 +105,14 @@ const LogoCanvas = dynamic(() => import('../../components/Editor/Canvas'), {
 const EDITOR_FONT_FACE_CSS = getEditorFontFaceCss();
 
 function ToolbarDivider() {
-  return <span className="mx-1 h-4 w-px shrink-0 bg-slate-200" aria-hidden />;
+  return <span className="mx-0.5 h-4 w-px shrink-0 bg-slate-200 xl:mx-1" aria-hidden />;
 }
 
 function ToolbarIconButton({ active = false, children, className = '', ...props }) {
   return (
     <button
       {...props}
-      className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-all ${active
+      className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-[0.9rem] border transition-all xl:h-10 xl:w-10 xl:rounded-xl ${active
         ? 'border-slate-300 bg-slate-50 text-slate-700 ring-2 ring-slate-200 scale-[1.04]'
         : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
         } ${className}`}
@@ -129,7 +129,7 @@ function ToolbarPillButton({ active = false, children, className = '', ...props 
   return (
     <button
       {...props}
-      className={`flex h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-[13px] font-semibold transition-all ${active
+      className={`flex h-8 shrink-0 items-center gap-1 rounded-[0.9rem] border px-2.5 text-[11px] font-semibold transition-all xl:h-10 xl:gap-1.5 xl:rounded-xl xl:px-3 xl:text-[13px] ${active
         ? 'border-slate-300 bg-slate-50 text-slate-700 ring-2 ring-slate-200 scale-[1.02]'
         : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
         } ${className}`}
@@ -141,7 +141,7 @@ function ToolbarPillButton({ active = false, children, className = '', ...props 
 
 function ToolbarCheckboxToggle({ checked, label, onChange }) {
   return (
-    <label className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 text-[12px] font-semibold text-slate-700">
+    <label className="flex h-8 shrink-0 items-center gap-1 rounded-[0.9rem] border border-slate-200 px-2 text-[11px] font-semibold text-slate-700 xl:gap-1.5 xl:rounded-lg xl:px-2.5 xl:text-[12px]">
       <input
         type="checkbox"
         checked={checked}
@@ -725,9 +725,9 @@ function EditorUI() {
     activeTool === 'effect' ||
     activeTool === 'palette'
   );
-  const desktopSidebarWidthClass = 'w-[300px]';
-  const desktopRailWidth = 84;
-  const desktopSidebarWidth = shouldShowDesktopSidebar ? 300 : 0;
+  const desktopSidebarWidthClass = 'w-[280px] xl:w-[300px]';
+  const desktopRailWidth = 88;
+  const desktopSidebarWidth = shouldShowDesktopSidebar ? 280 : 0;
   const desktopWorkspaceOffset = desktopRailWidth + desktopSidebarWidth;
   const mobileEditorTools = useMemo(
     () => (selectedCanvasItem ? [mobileControlsTool, ...editorTools] : editorTools),
@@ -737,6 +737,9 @@ function EditorUI() {
   const activeToolbarPopover = toolbarPopoverState.selectionKey === selectedToolbarKey
     ? toolbarPopoverState.popover
     : null;
+  const floatingToolbarViewportRef = useRef(null);
+  const floatingToolbarContentRef = useRef(null);
+  const [floatingToolbarScale, setFloatingToolbarScale] = useState(1);
   const openSelectedPanel = useCallback((panelId) => {
     if (!panelId) {
       return;
@@ -773,6 +776,63 @@ function EditorUI() {
         : '4.4rem',
     }
     : undefined;
+
+  useEffect(() => {
+    if (!showFloatingToolbar || typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const viewportNode = floatingToolbarViewportRef.current;
+    const contentNode = floatingToolbarContentRef.current;
+
+    if (!viewportNode || !contentNode) {
+      return undefined;
+    }
+
+    let frameId = null;
+
+    const measureToolbar = () => {
+      const viewportWidth = viewportNode.clientWidth;
+      const contentWidth = contentNode.offsetWidth;
+
+      if (!viewportWidth || !contentWidth) {
+        return;
+      }
+
+      const nextScale = Math.min(1, Math.max(0.38, viewportWidth / contentWidth));
+      setFloatingToolbarScale((currentScale) => (
+        Math.abs(currentScale - nextScale) > 0.01 ? nextScale : currentScale
+      ));
+    };
+
+    const queueMeasurement = () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+
+      frameId = window.requestAnimationFrame(measureToolbar);
+    };
+
+    queueMeasurement();
+
+    const resizeObserver = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(queueMeasurement)
+      : null;
+
+    resizeObserver?.observe(viewportNode);
+    resizeObserver?.observe(contentNode);
+    window.addEventListener('resize', queueMeasurement);
+
+    return () => {
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', queueMeasurement);
+    };
+  }, [activeObjectPanel, activeToolbarPopover, selectedCanvasItem, showFloatingToolbar]);
+
   useEditorSidebarVisibility({ isMobileViewport, setSidebarOpen, shouldShowDesktopSidebar });
 
   const {
@@ -1114,14 +1174,14 @@ function EditorUI() {
             {/* DESKTOP SIDEBAR */}
             {shouldShowDesktopSidebar && (
               <aside
-                className={`absolute inset-y-0 left-[84px] hidden flex-col overflow-y-auto border-r border-editor-panel-border bg-editor-panel-bg lg:flex ${desktopSidebarWidthClass}`}
+                className={`absolute inset-y-0 left-[88px] hidden flex-col overflow-y-auto border-r border-editor-panel-border bg-editor-panel-bg lg:flex ${desktopSidebarWidthClass}`}
               >
                 {!selectedCanvasItem && (
-                  <div className="border-b border-editor-panel-border px-6 py-5">
+                  <div className="border-b border-editor-panel-border px-4 py-4 xl:px-6 xl:py-5">
                     <h2 className={`text-[15px] font-extrabold uppercase tracking-[0.08em] text-editor-button-text-active`}>{sidebarHeading}</h2>
                   </div>
                 )}
-                <div className="flex-1 space-y-4 overflow-y-auto bg-editor-sidebar-content-bg p-4">
+                <div className="flex-1 space-y-3 overflow-y-auto bg-editor-sidebar-content-bg p-3 xl:space-y-4 xl:p-4">
                   <EditorSidebarContent {...editorSidebarProps} />
                 </div>
               </aside>
@@ -1132,6 +1192,8 @@ function EditorUI() {
               className="relative flex h-full min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto bg-editor-workspace-bg lg:bg-editor-panel-bg/70"
               style={!isMobileViewport ? {
                 marginLeft: `${desktopWorkspaceOffset}px`,
+                width: `calc(100% - ${desktopWorkspaceOffset}px)`,
+                maxWidth: `calc(100% - ${desktopWorkspaceOffset}px)`,
               } : undefined}
             >
 
@@ -1168,7 +1230,7 @@ function EditorUI() {
                 />
 
                 {/* TOP COMPONENT: ACTIONS CONTAINER */}
-                <div className="absolute inset-x-0 top-0 z-30 flex justify-center px-4 py-6 lg:px-6 xl:px-8">
+                <div className="absolute inset-x-0 top-0 z-30 flex justify-start px-4 py-6 lg:px-6 xl:px-8">
                   <div className="flex items-center gap-3 rounded-full border border-slate-200/60 bg-white/90 p-1.5 shadow-lg backdrop-blur-md">
                     <div className="flex items-center gap-1.5 px-1.5">
                       <button
@@ -1211,22 +1273,34 @@ function EditorUI() {
 
                 {showFloatingToolbar && (
                   <div
-                    className="absolute left-1/2 z-20 hidden w-[calc(100%-1rem)] max-w-[calc(100%-1rem)] -translate-x-1/2 lg:block xl:w-[calc(100%-2rem)] xl:max-w-[calc(100%-2rem)]"
+                    className="absolute left-1/2 z-20 hidden w-[calc(100%-0.5rem)] max-w-[calc(100%-0.5rem)] -translate-x-1/2 lg:block xl:w-[calc(100%-2rem)] xl:max-w-[calc(100%-2rem)]"
                     style={floatingToolbarOffsetStyle}
                   >
-                    <div className="relative w-full overflow-x-auto overflow-y-visible rounded-[1.25rem] border border-slate-200/80 bg-white/95 px-2 py-2.5 shadow-xl backdrop-blur xl:px-2.5">
-                      {selectedCanvasItem ? (
+                    <div
+                      ref={floatingToolbarViewportRef}
+                      className="overflow-x-hidden overflow-y-visible"
+                    >
+                      <div className="flex justify-center overflow-visible">
+                        <div
+                          ref={floatingToolbarContentRef}
+                          className="relative overflow-visible rounded-[1rem] border border-slate-200/80 bg-white/95 px-1 py-1.5 shadow-xl backdrop-blur xl:rounded-[1.1rem] xl:px-2.5 xl:py-2.5"
+                          style={{
+                            transform: `scale(${floatingToolbarScale})`,
+                            transformOrigin: 'top center',
+                          }}
+                        >
+                          {selectedCanvasItem ? (
                         canEditText && selectedItemData ? (
                           <div className="flex min-w-max items-center gap-px text-slate-700">
                             <button
                               onClick={() => openSelectedPanel('fonts')}
-                              className={`flex h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-[13px] font-semibold transition-all ${activeObjectPanel === 'fonts'
+                              className={`flex h-9 shrink-0 items-center gap-1 rounded-xl border px-2.5 text-[12px] font-semibold transition-all xl:h-10 xl:gap-1.5 xl:px-3 xl:text-[13px] ${activeObjectPanel === 'fonts'
                                 ? 'border-slate-300 bg-slate-50 text-slate-700 ring-2 ring-slate-200'
                                 : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
                                 }`}
                             >
                               <span
-                                className="max-w-[116px] truncate text-left"
+                                className="max-w-[92px] truncate text-left xl:max-w-[116px]"
                                 style={{ fontFamily: selectedTextFontFamily }}
                               >
                                 {selectedTextFontFamily}
@@ -1236,24 +1310,24 @@ function EditorUI() {
 
                             <ToolbarDivider />
 
-                            <div className="flex h-10 shrink-0 items-center rounded-xl border border-slate-200 bg-white px-1.5">
+                            <div className="flex h-9 shrink-0 items-center rounded-xl border border-slate-200 bg-white px-1 xl:h-10 xl:px-1.5">
                               <button
                                 onClick={() => handleSelectedTextFontSizeChange(selectedTextFontSize - 2)}
-                                className="flex h-7 w-7 items-center justify-center rounded-lg text-[13px] font-bold transition-all hover:bg-slate-100"
+                                className="flex h-7 w-7 items-center justify-center rounded-lg text-[12px] font-bold transition-all hover:bg-slate-100 xl:text-[13px]"
                                 title="Decrease font size"
                               >
                                 -
                               </button>
                               <button
                                 onClick={() => openSelectedPanel('fonts')}
-                                className="min-w-[34px] px-1.5 text-[13px] font-bold text-slate-800"
+                                className="min-w-[30px] px-1 text-[12px] font-bold text-slate-800 xl:min-w-[34px] xl:px-1.5 xl:text-[13px]"
                                 title="Open font settings"
                               >
                                 {selectedTextFontSize}
                               </button>
                               <button
                                 onClick={() => handleSelectedTextFontSizeChange(selectedTextFontSize + 2)}
-                                className="flex h-7 w-7 items-center justify-center rounded-lg text-[13px] font-bold transition-all hover:bg-slate-100"
+                                className="flex h-7 w-7 items-center justify-center rounded-lg text-[12px] font-bold transition-all hover:bg-slate-100 xl:text-[13px]"
                                 title="Increase font size"
                               >
                                 +
@@ -1339,7 +1413,7 @@ function EditorUI() {
 
                             <button
                               onClick={handleDuplicateSelected}
-                              className="brand-button-outline flex h-10 shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-[12px]"
+                              className="brand-button-outline flex h-9 shrink-0 items-center gap-1 rounded-xl px-2.5 py-1.5 text-[11px] xl:h-10 xl:gap-1.5 xl:px-3 xl:text-[12px]"
                             >
                               <Copy size={16} />
                             </button>
@@ -1348,7 +1422,7 @@ function EditorUI() {
 
                             <button
                               onClick={handleDeleteSelected}
-                              className="brand-button-outline flex h-10 shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-[12px]"
+                              className="brand-button-outline flex h-9 shrink-0 items-center gap-1 rounded-xl px-2.5 py-1.5 text-[11px] xl:h-10 xl:gap-1.5 xl:px-3 xl:text-[12px]"
                             >
                               <Trash2 size={16} />
                             </button>
@@ -1361,7 +1435,7 @@ function EditorUI() {
                               title="Fill color"
                             >
                               <span
-                                className="h-3.5 w-3.5 rounded-full shadow-sm"
+                                className="h-2 w-2 rounded-full shadow-sm"
                                 style={selectedFillPreviewStyle}
                               />
                             </ToolbarIconButton>
@@ -1440,7 +1514,7 @@ function EditorUI() {
 
                             <button
                               onClick={handleDuplicateSelected}
-                              className="brand-button-outline flex h-8 shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-[11px]"
+                              className="brand-button-outline flex h-8 shrink-0 items-center gap-1 rounded-lg px-2.5 py-1.5 text-[10px] xl:px-3 xl:text-[11px]"
                             >
                               <Copy size={15} />
                             </button>
@@ -1449,7 +1523,7 @@ function EditorUI() {
 
                             <button
                               onClick={handleDeleteSelected}
-                              className="brand-button-outline flex h-8 shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-[11px]"
+                              className="brand-button-outline flex h-8 shrink-0 items-center gap-1 rounded-lg px-2.5 py-1.5 text-[10px] xl:px-3 xl:text-[11px]"
                             >
                               <Trash2 size={15} />
                             </button>
@@ -1588,25 +1662,27 @@ function EditorUI() {
                         </div>
                       ) : activeTool === 'images' ? (
                         <div className="flex min-w-max items-center justify-center gap-1.5">
-                          <button
-                            onClick={openImageBrowser}
-                            className="brand-button-outline flex items-center gap-1.5 px-3 py-1.5 text-[11px]"
-                          >
-                            <Images size={14} />
-                            <span>Browse Image</span>
+                            <button
+                              onClick={openImageBrowser}
+                              className="brand-button-outline flex items-center gap-1 px-2.5 py-1.5 text-[10px] xl:gap-1.5 xl:px-3 xl:text-[11px]"
+                            >
+                              <Images size={14} />
+                              <span>Browse Image</span>
                           </button>
                         </div>
                       ) : activeTool === 'text' ? (
                         <div className="flex min-w-max items-center justify-center gap-1.5">
-                          <button
-                            onClick={handleAddTextLayer}
-                            className="brand-button-outline flex items-center gap-1.5 px-3 py-1.5 text-[11px]"
-                          >
-                            <Type size={14} />
-                            <span>Add Text</span>
-                          </button>
+                            <button
+                              onClick={handleAddTextLayer}
+                              className="brand-button-outline flex items-center gap-1 px-2.5 py-1.5 text-[10px] xl:gap-1.5 xl:px-3 xl:text-[11px]"
+                            >
+                              <Type size={14} />
+                              <span>Add Text</span>
+                            </button>
+                          </div>
+                        ) : null}
                         </div>
-                      ) : null}
+                      </div>
                     </div>
                     {activeToolbarPopover === 'opacity' && selectedCanvasItem ? (
                       <div className="absolute left-1/2 top-[calc(100%+0.5rem)] z-30 w-[220px] -translate-x-1/2 rounded-3xl border border-slate-200/80 bg-white/98 p-4 shadow-2xl backdrop-blur-md">

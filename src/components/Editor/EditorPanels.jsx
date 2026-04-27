@@ -125,15 +125,36 @@ function CompactActionButton({ disabled, icon, label, onClick }) {
 }
 
 function AdvancedNumberField({ disabled = false, label, onChange, value }) {
+  const [draftValue, setDraftValue] = useState(String(value ?? ''));
+
+  React.useEffect(() => {
+    setDraftValue(String(value ?? ''));
+  }, [value]);
+
+  const commitValue = () => {
+    const normalizedValue = draftValue.trim();
+    onChange({
+      target: {
+        value: normalizedValue === '' ? String(value ?? 0) : normalizedValue,
+      },
+    });
+  };
+
   return (
-    <label className="flex flex-col gap-2">
+    <label className="flex min-w-0 flex-col gap-2">
       <span className={SECTION_LABEL_CLASS}>{label}</span>
       <input
         type="number"
-        value={value}
-        onChange={onChange}
+        value={draftValue}
+        onChange={(event) => setDraftValue(event.target.value)}
+        onBlur={commitValue}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.currentTarget.blur();
+          }
+        }}
         disabled={disabled}
-        className={`h-10 rounded-xl border px-3 text-sm font-semibold outline-none transition-all ${disabled
+        className={`h-12 w-full min-w-0 rounded-[1rem] border px-4 text-[15px] font-semibold outline-none transition-all ${disabled
             ? 'cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300'
             : 'border-slate-200 bg-white text-slate-800 focus:border-orange-300 focus:ring-2 focus:ring-orange-100'
           }`}
@@ -146,7 +167,7 @@ function SegmentedToggleButton({ active, children, onClick, withIcon = false }) 
   return (
     <button
       onClick={onClick}
-      className={`rounded-[1.1rem] px-4 py-3 text-sm font-black transition-all ${active
+      className={`rounded-[1rem] px-3 py-2.5 text-[13px] font-black transition-all ${active
           ? 'bg-white text-slate-900 shadow-sm'
           : 'text-slate-600'
         } ${withIcon ? 'flex items-center justify-center gap-2' : ''}`}
@@ -498,7 +519,7 @@ export function EditorSidebarContent(props) {
       aria-label={label}
       onClick={onClick}
       disabled={selectionEditingDisabled}
-      className={`flex h-[62px] w-[86px] items-center justify-center rounded-[1.35rem] transition-all ${selectionEditingDisabled
+      className={`flex h-[54px] w-full max-w-[72px] items-center justify-center rounded-[1.1rem] transition-all xl:h-[58px] xl:max-w-[78px] xl:rounded-[1.25rem] ${selectionEditingDisabled
           ? 'cursor-not-allowed bg-slate-100 text-slate-300'
           : tone === 'accent'
             ? 'bg-orange-50 text-orange-600 hover:bg-orange-100'
@@ -682,19 +703,19 @@ export function EditorSidebarContent(props) {
       return (
         <div className="space-y-3">
           {activeObjectPanel === 'controls' ? (
-            <div className="mx-auto mt-1 max-w-[290px] space-y-3">
-              <div className="rounded-[1.22rem] border border-slate-100 bg-white p-2.5 shadow-sm">
+            <div className="mx-auto mt-1 max-w-full space-y-2.5">
+              <div className="rounded-[1.12rem] border border-slate-100 bg-white p-2 shadow-sm">
                 <p className={SECTION_LABEL_CLASS}>Position</p>
-                <div className="mt-2.5 space-y-2">
+                <div className="mt-2 space-y-1.5">
                   <div className="flex justify-center">
                     {renderIconClusterButton('Top', <ArrowUp size={22} />, () => handleNudge(0, -movementStep))}
                   </div>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 gap-2">
                     {renderIconClusterButton('Left', <ArrowLeft size={22} />, () => handleNudge(-movementStep, 0))}
                     {renderIconClusterButton('Center X', <AlignHorizontalJustifyCenter size={22} />, () => handleCenter('x'), 'accent')}
                     {renderIconClusterButton('Right', <ArrowRight size={22} />, () => handleNudge(movementStep, 0))}
                   </div>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 gap-2">
                     <div />
                     {renderIconClusterButton('Bottom', <ArrowDown size={22} />, () => handleNudge(0, movementStep))}
                     {renderIconClusterButton('Center Y', <AlignVerticalJustifyCenter size={22} />, () => handleCenter('y'), 'accent')}
@@ -702,13 +723,13 @@ export function EditorSidebarContent(props) {
                 </div>
               </div>
 
-              <div className="rounded-[1.22rem] border border-slate-100 bg-white p-2.5 shadow-sm">
+              <div className="rounded-[1.12rem] border border-slate-100 bg-white p-2 shadow-sm">
                 <p className={SECTION_LABEL_CLASS}>Transform</p>
-                <div className="mt-2.5 space-y-2">
+                <div className="mt-2 space-y-1.5">
                   <div className="flex justify-center">
                     {renderIconClusterButton('Zoom In', <Maximize2 size={22} />, () => handleScaleSelected((Math.abs(selectedItemData.transform?.scaleX ?? 1) || 1) + 0.1))}
                   </div>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 gap-2">
                     {renderIconClusterButton('Rotate -', <RotateCcw size={22} />, () => handleRotateSelected(Number(selectedItemData.transform?.rotation ?? 0) - 15))}
                     {renderIconClusterButton('Reset', <RefreshCcw size={22} />, handleResetSelectedTransform, 'accent')}
                     {renderIconClusterButton('Rotate +', <RotateCw size={22} />, () => handleRotateSelected(Number(selectedItemData.transform?.rotation ?? 0) + 15))}
@@ -745,10 +766,10 @@ export function EditorSidebarContent(props) {
                       ))}
                     </div>
                   </div>
-                  <div className="rounded-[1.05rem] border border-slate-100 bg-slate-50/70 p-2 shadow-sm">
+                  <div className="rounded-[1.05rem] border border-slate-100 bg-white p-3 shadow-sm">
                     <p className={SECTION_LABEL_CLASS}>Advanced</p>
-                    <div className="mt-2 space-y-2">
-                      <div className="grid grid-cols-2 gap-2">
+                    <div className="mt-3 space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
                         {arrangePrimaryFields.map((field) => (
                           <AdvancedNumberField
                             key={field.key}
@@ -759,7 +780,7 @@ export function EditorSidebarContent(props) {
                           />
                         ))}
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-2 gap-3">
                         {arrangeSecondaryFields.slice(0, 2).map((field) => (
                           <AdvancedNumberField
                             key={field.key}
@@ -770,22 +791,20 @@ export function EditorSidebarContent(props) {
                           />
                         ))}
                       </div>
-                      <div className="mx-auto grid max-w-[320px] grid-cols-2 gap-2">
-                        <div className="min-w-0">
-                          <AdvancedNumberField
-                            key={arrangeSecondaryFields[2].key}
-                            disabled={selectionEditingDisabled}
-                            label={arrangeSecondaryFields[2].label}
-                            value={arrangeSecondaryFields[2].value}
-                            onChange={(event) => handleSingleSelectedNumericChange(arrangeSecondaryFields[2].key, event.target.value)}
-                          />
-                        </div>
-                        <label className="flex flex-col gap-2">
+                      <div className="grid grid-cols-2 gap-3">
+                        <AdvancedNumberField
+                          key={arrangeSecondaryFields[2].key}
+                          disabled={selectionEditingDisabled}
+                          label={arrangeSecondaryFields[2].label}
+                          value={arrangeSecondaryFields[2].value}
+                          onChange={(event) => handleSingleSelectedNumericChange(arrangeSecondaryFields[2].key, event.target.value)}
+                        />
+                        <label className="flex min-w-0 flex-col gap-2">
                           <span className={SECTION_LABEL_CLASS}>Ratio</span>
                           <button
                             type="button"
                             onClick={() => handleToggleSelectedLock(!shouldUnlockSelection)}
-                            className={`flex h-10 w-full items-center justify-center rounded-xl border transition-all ${selectionEditingDisabled
+                            className={`flex h-12 w-full items-center justify-center rounded-[1rem] border transition-all ${selectionEditingDisabled
                                 ? 'border-slate-900 bg-slate-900 text-white'
                                 : 'border-slate-200 bg-white text-slate-700 hover:border-orange-200 hover:text-orange-600'
                               }`}
@@ -861,7 +880,7 @@ export function EditorSidebarContent(props) {
             </div>
 
             {activeElementFillTab === 'color' ? (
-              <div className="rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
+              <div className="min-h-[216px] rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
                 <p className={MICRO_LABEL_CLASS}>
                   Fill Color
                 </p>
@@ -876,13 +895,13 @@ export function EditorSidebarContent(props) {
                     placeholder="#111827"
                   />
                 </div>
-                <div className="mt-2 flex items-center gap-1 overflow-x-auto pb-1">
+                <div className="mt-3 grid grid-cols-5 gap-2 pb-1">
                   {colorSwatches.map((color) => (
                     <button
                       key={color}
                       title={color}
                       onClick={() => applySelectedFillColor(color)}
-                      className={`h-7 w-7 shrink-0 rounded-full shadow-sm transition-all ${selectedStyle.fillColor === color && !selectedFillGradient ? 'scale-105 ring-2 ring-orange-300' : ''
+                      className={`h-9 w-9 rounded-full shadow-sm transition-all ${selectedStyle.fillColor === color && !selectedFillGradient ? 'scale-105 ring-2 ring-orange-300' : ''
                         }`}
                       style={{ backgroundColor: color }}
                     />
@@ -947,7 +966,7 @@ export function EditorSidebarContent(props) {
                   </div>
 
                   {elementGradientType === 'linear' ? (
-                    <div className="mt-2 flex items-center gap-1 overflow-x-auto">
+                    <div className="sidebar-fit-row mt-2 flex items-center gap-1 overflow-x-auto">
                       {gradientDirectionOptions.map((option) => {
                         const Icon = option.icon;
                         const isActive = elementGradientDirection === option.id;
@@ -1011,7 +1030,7 @@ export function EditorSidebarContent(props) {
           </div>
 
           {activeElementFillTab === 'color' ? (
-            <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+            <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
               <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
                 Fill Color
               </p>
@@ -1026,13 +1045,13 @@ export function EditorSidebarContent(props) {
                   placeholder="#111827"
                 />
               </div>
-              <div className="mt-4 grid grid-cols-6 gap-2">
+              <div className="mt-4 grid grid-cols-5 gap-1.5">
                 {colorSwatches.map((color) => (
                   <button
                     key={color}
                     title={color}
                     onClick={() => applySelectedFillColor(color)}
-                    className={`h-10 w-10 rounded-full shadow-sm transition-all ${selectedStyle.fillColor === color && !selectedFillGradient ? 'scale-105 ring-2 ring-orange-300' : ''
+                    className={`h-9 w-9 rounded-full shadow-sm transition-all xl:h-10 xl:w-10 ${selectedStyle.fillColor === color && !selectedFillGradient ? 'scale-105 ring-2 ring-orange-300' : ''
                       }`}
                     style={{ backgroundColor: color }}
                   />
@@ -1041,7 +1060,7 @@ export function EditorSidebarContent(props) {
             </div>
           ) : (
             <>
-              <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+              <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
                     Gradient
@@ -1064,53 +1083,53 @@ export function EditorSidebarContent(props) {
                 <div className="mt-3 h-16 rounded-[1rem] shadow-sm" style={elementGradientPreviewStyle} />
               </div>
 
-              <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
+              <div className="rounded-3xl border border-slate-100 bg-white p-3.5 shadow-sm">
                 <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
                   Colors
                 </p>
-                <div className="mt-3 space-y-2.5">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                <div className="mt-3 space-y-2">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-2.5 py-2">
                     <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">Start</p>
-                    <div className="mt-2 flex min-w-0 items-center gap-2">
+                    <div className="mt-1.5 flex min-w-0 items-center gap-2">
                       <ColorPickerField
                         value={elementGradientStartColor}
                         onChange={(event) => updateElementFillDraft({ gradientStartColor: normalizeHexColor(event.target.value, '#111827') })}
-                        className="h-10 w-10"
+                        className="h-9 w-9"
                       />
                       <HexColorInput
                         value={elementGradientStartColor}
                         onValidColorChange={(nextValue) => updateElementFillDraft({ gradientStartColor: normalizeHexColor(nextValue, '#111827') })}
                         placeholder="#111827"
-                        className="h-10 min-w-0 flex-1 px-3 text-xs"
+                        className="h-9 min-w-0 flex-1 px-2.5 text-[11px]"
                       />
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 px-2.5 py-2">
                     <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">End</p>
-                    <div className="mt-2 flex min-w-0 items-center gap-2">
+                    <div className="mt-1.5 flex min-w-0 items-center gap-2">
                       <ColorPickerField
                         value={elementGradientEndColor}
                         onChange={(event) => updateElementFillDraft({ gradientEndColor: normalizeHexColor(event.target.value, '#64748B') })}
-                        className="h-10 w-10"
+                        className="h-9 w-9"
                       />
                       <HexColorInput
                         value={elementGradientEndColor}
                         onValidColorChange={(nextValue) => updateElementFillDraft({ gradientEndColor: normalizeHexColor(nextValue, '#64748B') })}
                         placeholder="#64748B"
-                        className="h-10 min-w-0 flex-1 px-3 text-xs"
+                        className="h-9 min-w-0 flex-1 px-2.5 text-[11px]"
                       />
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
+              <div className="rounded-3xl border border-slate-100 bg-white p-3.5 shadow-sm">
                 <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
                   Direction
                 </p>
                 {elementGradientType === 'linear' ? (
-                  <div className="mt-3 grid grid-cols-4 gap-2">
+                  <div className="mt-3 grid grid-cols-4 gap-1.5">
                     {gradientDirectionOptions.map((option) => {
                       const Icon = option.icon;
                       const isActive = elementGradientDirection === option.id;
@@ -1162,7 +1181,7 @@ export function EditorSidebarContent(props) {
       if (isMobileViewport) {
         return (
           <div className={`space-y-2 ${!isMobileViewport && activeBackgroundOption ? 'block' : 'lg:hidden'}`}>
-            <div className="flex items-center gap-2 overflow-x-auto rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
+            <div className="sidebar-fit-row flex items-center gap-2 overflow-x-auto rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
               {fontStyleOptions.map((styleOption) => {
                 const isActiveStyle = selectedFontStyle === styleOption.id;
 
@@ -1181,7 +1200,7 @@ export function EditorSidebarContent(props) {
               })}
             </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
+            <div className="sidebar-fit-row flex items-center gap-2 overflow-x-auto rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
               {AVAILABLE_EDITOR_FONTS.map((fontOption) => {
                 const isActiveFont = selectedFontFamily === fontOption.family;
 
@@ -1266,7 +1285,7 @@ export function EditorSidebarContent(props) {
 
       return (
         <div className="space-y-4">
-          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+                <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
                 Opacity
@@ -1377,13 +1396,13 @@ export function EditorSidebarContent(props) {
                   />
                 </div>
               </div>
-              <div className="mt-2 flex items-center gap-0.5 overflow-x-auto pb-1">
+              <div className="mt-3 grid grid-cols-5 gap-2 pb-1">
                 {colorSwatches.map((color) => (
                   <button
                     key={color}
                     title={color}
                     onClick={() => updateSelectedItemStyle({ outlineColor: color })}
-                    className={`h-7 w-7 shrink-0 rounded-full shadow-sm transition-all ${selectedStyle.outlineColor === color ? 'scale-105 ring-2 ring-orange-300' : ''
+                    className={`h-9 w-9 rounded-full shadow-sm transition-all ${selectedStyle.outlineColor === color ? 'scale-105 ring-2 ring-orange-300' : ''
                       }`}
                     style={{ backgroundColor: color }}
                   />
@@ -1411,7 +1430,7 @@ export function EditorSidebarContent(props) {
                 placeholder="#111827"
               />
             </div>
-            <div className="mt-4 grid grid-cols-6 gap-1">
+            <div className="mt-4 grid grid-cols-5 gap-1.5">
               {colorSwatches.map((color) => (
                 <button
                   key={color}
@@ -1546,7 +1565,7 @@ export function EditorSidebarContent(props) {
                         placeholder="#FFFFFF"
                       />
                     </div>
-                    <div className="mt-2 flex items-center gap-0.5 overflow-x-auto pb-1">
+                    <div className="mt-3 grid grid-cols-5 gap-2 pb-1">
                       {backgroundColorSwatches.map((color) => (
                         <button
                           key={color}
@@ -1558,7 +1577,7 @@ export function EditorSidebarContent(props) {
                             setCustomColorValue(safeColor);
                             applyBackgroundColor(safeColor);
                           }}
-                          className={`h-7 w-7 shrink-0 rounded-full shadow-sm transition-all ${dialogSelectedColor === normalizeHexColor(color, '#FFFFFF')
+                          className={`h-9 w-9 rounded-full shadow-sm transition-all ${dialogSelectedColor === normalizeHexColor(color, '#FFFFFF')
                               ? 'scale-105 ring-2 ring-orange-300'
                               : ''
                             }`}
@@ -1619,7 +1638,7 @@ export function EditorSidebarContent(props) {
                         className="min-w-0 flex-1"
                       />
                     </div>
-                    <div className="mt-4 grid grid-cols-6 gap-1">
+                    <div className="mt-4 grid grid-cols-5 gap-1.5">
                       {backgroundColorSwatches.map((color) => (
                         <button
                           key={color}
@@ -1631,7 +1650,7 @@ export function EditorSidebarContent(props) {
                             setCustomColorValue(safeColor);
                             applyBackgroundColor(safeColor);
                           }}
-                          className={`h-10 w-10 rounded-full shadow-sm transition-all ${dialogSelectedColor === normalizeHexColor(color, '#FFFFFF')
+                          className={`h-9 w-9 rounded-full shadow-sm transition-all xl:h-10 xl:w-10 ${dialogSelectedColor === normalizeHexColor(color, '#FFFFFF')
                               ? 'scale-105 ring-2 ring-orange-300'
                               : ''
                             }`}
@@ -1653,7 +1672,7 @@ export function EditorSidebarContent(props) {
                   <p className="mt-1 text-[11px] font-medium text-slate-500">
                     Shape add hogi as movable element. Select karke `Set As Bg` se multiple background layers bana sakte ho.
                   </p>
-                  <div className="mt-2 flex items-center gap-1.5 overflow-x-auto pb-1">
+                  <div className="sidebar-fit-row mt-2 flex items-center gap-1.5 overflow-x-auto pb-1">
                     {backgroundShapeOptions.map((shapeOption) => {
                       const Icon = shapeOption.icon;
                       const isRemoveAction = shapeOption.id === 'none';
@@ -1730,7 +1749,7 @@ export function EditorSidebarContent(props) {
                     </div>
 
                     {gradientType === 'linear' ? (
-                      <div className="mt-2 flex items-center gap-1 overflow-x-auto">
+                      <div className="sidebar-fit-row mt-2 flex items-center gap-1 overflow-x-auto">
                         {gradientDirectionOptions.map((option) => {
                           const Icon = option.icon;
                           const isActive = gradientDirection === option.id;
@@ -1790,7 +1809,7 @@ export function EditorSidebarContent(props) {
                     </SegmentedToggleButton>
                   </div>
                 </div>
-                <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
+                <div className="rounded-3xl border border-slate-100 bg-white p-3.5 shadow-sm">
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
                       Gradient
@@ -1813,7 +1832,7 @@ export function EditorSidebarContent(props) {
                   <div className="mt-3 h-16 rounded-[1rem] border border-slate-100" style={gradientPreviewStyle} />
                 </div>
 
-                <div className="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
+                <div className="rounded-3xl border border-slate-100 bg-white p-3.5 shadow-sm">
                   <p className="text-xs font-black uppercase tracking-[0.25em] text-slate-500">
                     Colors
                   </p>
@@ -1859,7 +1878,7 @@ export function EditorSidebarContent(props) {
                     Direction
                   </p>
                   {gradientType === 'linear' ? (
-                    <div className="mt-3 grid grid-cols-4 gap-2">
+                    <div className="mt-3 grid grid-cols-4 gap-1.5">
                       {gradientDirectionOptions.map((option) => {
                         const Icon = option.icon;
                         const isActive = gradientDirection === option.id;
@@ -1905,7 +1924,7 @@ export function EditorSidebarContent(props) {
             )}
 
             {isMobileViewport && activeBackgroundOption === 'background' && (
-              <div className="flex items-center gap-2 overflow-x-auto rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
+              <div className="sidebar-fit-row flex items-center gap-2 overflow-x-auto rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
                 {backgroundLibraryImages.map((imageUrl, index) => (
                   <button
                     key={imageUrl}
@@ -1942,7 +1961,7 @@ export function EditorSidebarContent(props) {
             )}
 
             {isMobileViewport && activeBackgroundOption === 'texture' && (
-              <div className="flex items-center gap-2 overflow-x-auto rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
+              <div className="sidebar-fit-row flex items-center gap-2 overflow-x-auto rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
                 {textureLibraryImages.map((imageUrl, index) => (
                   <button
                     key={imageUrl}
@@ -2035,7 +2054,7 @@ export function EditorSidebarContent(props) {
     if (activeTool === 'effect') {
       if (isMobileViewport) {
         return (
-          <div className="flex items-center gap-2 overflow-x-auto rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
+          <div className="sidebar-fit-row flex items-center gap-2 overflow-x-auto rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
             {effectLibraryImages.map((imageUrl, index) => (
               <button
                 key={imageUrl}
@@ -2073,7 +2092,7 @@ export function EditorSidebarContent(props) {
     if (activeTool === 'palette') {
       if (isMobileViewport) {
         return (
-          <div className="flex items-stretch gap-2 overflow-x-auto rounded-[1.1rem] border border-slate-100 bg-white p-2 shadow-sm">
+          <div className="sidebar-fit-row flex items-stretch gap-2 overflow-x-auto rounded-[1.1rem] border border-slate-100 bg-white p-2 shadow-sm">
             {designPalettes.map((palette) => {
               return (
                 <button
@@ -2135,7 +2154,7 @@ export function EditorSidebarContent(props) {
                       </div>
                     </div>
                   </div>
-                  <div className="mt-7 rounded-[1.35rem] border border-slate-100 bg-slate-50/85 p-3.5">
+                  <div className="mt-7 rounded-[1.35rem] border border-slate-100 bg-slate-50/85">
                     <div className="grid grid-cols-4 gap-2.5">
                       {palette.colors.map((color) => (
                         <div
@@ -2161,7 +2180,7 @@ export function EditorSidebarContent(props) {
     if (activeTool === 'art') {
       if (isMobileViewport) {
         return (
-          <div className="flex items-center gap-2 overflow-x-auto rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
+          <div className="sidebar-fit-row flex items-center gap-2 overflow-x-auto rounded-[1rem] border border-slate-100 bg-white p-2.5 shadow-sm">
             {artLibraryImages.map((imageUrl, index) => (
               <button
                 key={imageUrl}
@@ -2208,7 +2227,11 @@ export function EditorSidebarContent(props) {
 
   };
 
-  return renderSidebarContent();
+  return (
+    <div className="min-w-0 overflow-x-hidden lg:[&_.sidebar-fit-row]:flex-wrap lg:[&_.sidebar-fit-row]:overflow-visible lg:[&_.sidebar-fit-row]:pb-0">
+      {renderSidebarContent()}
+    </div>
+  );
 }
 
 export function EditorMobileContextBar(props) {
@@ -2535,8 +2558,3 @@ export function EditorMobileContextBar(props) {
 
   return renderMobileContextBar();
 }
-
-
-
-
-

@@ -19,7 +19,6 @@ import {
   moveCanvasLayers,
   normalizeTextFontWeight,
   preserveTextAnchorTransform,
-  preserveTextCenterTransform,
   preserveTextPositionTransform,
   syncCanvasLayerOrder,
   withMeasuredTextBox,
@@ -415,7 +414,7 @@ export function useEditorObjectActions({
 
       // Text-mode items: update fontSize directly (scaleY is always ±1 after baking).
       return buildMeasuredTextUpdate(item, {
-        fontSize: safeTargetFontSize,
+        fontSize: resolveTextFontSizeFromRenderedTarget(item, safeTargetFontSize),
       }, { preserveCenter: true });
     });
   }, [buildMeasuredTextUpdate, updateSelectedTextElements]);
@@ -429,7 +428,7 @@ export function useEditorObjectActions({
       // Including fontSize makes isTypographyResizeUpdate=true inside buildMeasuredTextUpdate,
       // which lets the text reflow within the full card width (not the item's current SVG
       // pixel width). It also keeps the displayed font size stable across style changes.
-      fontSize: getEditableTextBaseFontSize(getResolvedTextProps(item)),
+      fontSize: getEffectiveTextFontSize(item),
     }, { preserveCenter: true }));
   }, [buildMeasuredTextUpdate, getResolvedTextProps, normalizeFontStyleValue, syncFontWeightWithStyle, updateSelectedTextElements]);
 
@@ -457,7 +456,7 @@ export function useEditorObjectActions({
         fontWeight: syncFontWeightWithStyle(getResolvedTextProps(item), nextFontStyle),
         // Same reason as handleSelectedTextFontStyleChange: keeps displayed size stable
         // and prevents text from being squeezed into its current SVG pixel width.
-        fontSize: getEditableTextBaseFontSize(getResolvedTextProps(item)),
+        fontSize: getEffectiveTextFontSize(item),
       }, { preserveCenter: true });
     });
   }, [buildMeasuredTextUpdate, getResolvedTextProps, normalizeFontStyleValue, syncFontWeightWithStyle, updateSelectedTextElements]);

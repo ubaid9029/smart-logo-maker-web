@@ -9,8 +9,8 @@ export function DesktopToolRail({
   onToolSelect,
 }) {
   return (
-    <aside className="absolute inset-y-0 left-0 hidden min-w-[84px] max-w-[84px] w-[84px] shrink-0 overflow-x-hidden overflow-y-auto border-r border-editor-rail-border bg-editor-rail z-20 lg:flex lg:flex-col lg:items-center lg:px-1 lg:py-0">
-      <div className="flex w-full flex-col items-stretch gap-2">
+    <aside className="absolute inset-y-0 left-0 z-20 hidden w-[88px] min-w-[88px] max-w-[88px] shrink-0 overflow-x-hidden overflow-y-auto border-r border-editor-rail-border bg-editor-rail lg:flex lg:flex-col lg:items-center lg:px-1 lg:py-1">
+      <div className="flex w-full flex-col items-stretch gap-1.5">
         {editorTools.map((tool) => {
           const Icon = tool.icon;
           const isActive = activeTool === tool.id;
@@ -20,13 +20,13 @@ export function DesktopToolRail({
               key={tool.id}
               onClick={() => onToolSelect(tool.id)}
               title={tool.label}
-              className={`brand-icon-button flex min-h-[68px] w-full flex-col items-center justify-center gap-0 rounded-[1.25rem] text-editor-button-text transition-all !border-none !shadow-none ${isActive ? 'scale-[1.03]' : ''} ${isActive
+              className={`brand-icon-button flex min-h-[62px] w-full flex-col items-center justify-center gap-1 rounded-[1.1rem] px-1 text-editor-button-text transition-all !border-none !shadow-none ${isActive ? 'scale-[1.03]' : ''} ${isActive
                 ? 'bg-editor-button-active text-editor-button-text-active'
                 : 'bg-transparent hover:bg-editor-button-hover hover:text-editor-button-text-active'
                 }`}
             >
               <Icon size={18} />
-              <span className="max-w-full whitespace-normal px-1 text-center text-[9px] font-extrabold uppercase leading-tight tracking-[0.02em]">
+              <span className="max-w-full whitespace-normal break-words text-center text-[7px] font-extrabold uppercase leading-[1.05] tracking-[0.04em]">
                 {tool.label}
               </span>
             </button>
@@ -136,9 +136,9 @@ export function MobileBottomPanel({
     <div className="fixed inset-x-0 bottom-0 z-[120] lg:hidden">
       <div className="overflow-hidden border-t border-editor-panel-border bg-editor-dark-bg shadow-[0_-10px_30px_rgba(15,23,42,0.18)]">
         <div
-          className={`overflow-hidden bg-editor-panel-bg transition-all duration-300 ${sidebarOpen && shouldShowDesktopSidebar ? 'max-h-[56svh] border-b border-editor-panel-border opacity-100' : 'max-h-0 opacity-0'}`}
+          className={`overflow-hidden bg-editor-panel-bg transition-all duration-300 ${sidebarOpen && shouldShowDesktopSidebar ? 'max-h-[68svh] border-b border-editor-panel-border opacity-100' : 'max-h-0 opacity-0'}`}
         >
-          <div className="max-h-[56svh] overflow-y-auto overflow-x-hidden px-2.5 pb-2 pt-2">
+          <div className="max-h-[68svh] overflow-y-auto overflow-x-hidden px-2.5 pb-2 pt-2">
             {mobileContextBar && (
               <div className="-mx-2.5 mb-1.5 border-b border-editor-panel-border bg-editor-panel-bg px-2.5 pb-1.5">
                 {mobileContextBar}
