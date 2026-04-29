@@ -43,6 +43,21 @@ export default function Footer() {
                 );
               })}
             </div>
+                <div className="my-6 ">
+            <a
+              href="https://www.producthunt.com/products/smart-logo-maker-ai-generated-logos?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-smart-logo-maker-ai-generated-logos"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Smart Logo Maker on Product Hunt"
+            >
+              <img
+                alt="Smart Logo Maker: AI-Generated Logos - AI generated, 100% Free, No Sign up and No Watermark | Product Hunt"
+                width="250"
+                height="54"
+                src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1133966&theme=dark&t=1777461844128"
+              />
+            </a>
+          </div>
           </div>
 
           <div className="md:col-span-2 md:ml-auto">
@@ -114,6 +129,7 @@ export default function Footer() {
         </div>
 
         <div className="flex flex-col items-center border-t border-gray-800/50 pt-8">
+      
           <p className="text-center text-[13px] text-gray-300">
             &copy; {currentYear} Smart Logo Maker. All rights reserved. Made with care by creators, for creators.
           </p>
