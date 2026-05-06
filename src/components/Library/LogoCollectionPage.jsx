@@ -31,7 +31,6 @@ import {
 } from '../../lib/favoriteLogosRepository';
 import {
   buildRasterImageSvgMarkup,
-  buildWatermarkedSvgMarkup,
   buildPdfBlobFromJpegBytes,
   canvasToBlob,
   cropCanvasToLogicalArea,
@@ -46,9 +45,7 @@ import {
   CARD_HEIGHT,
   CARD_WIDTH,
 } from '../Editor/editorConstants';
-import {
-  injectBrandWatermarkIntoSvgMarkup,
-} from '../../lib/watermarkConfig';
+
 
 const EDITOR_CARD_EXPORT_AREA = {
   x: 40,
@@ -419,14 +416,6 @@ export default function LogoCollectionPage({ collectionType = 'favorites' }) {
         const { canvas } = await renderDataUrlToCanvas(refreshedDesign.previewDataUrl);
         const cardCanvas = cropCanvasToLogicalArea(canvas, EDITOR_CARD_EXPORT_AREA, EDITOR_LOGICAL_CANVAS_SIZE);
 
-        if (refreshedDesign?.editablePayload?.watermarkEnabled !== false) {
-          await applyWatermarkToCanvas(cardCanvas, {
-            logicalWidth: EDITOR_CARD_EXPORT_AREA.width,
-            logicalHeight: EDITOR_CARD_EXPORT_AREA.height,
-            backgroundColor: refreshedDesign?.backgroundColor || refreshedDesign?.editablePayload?.bgColor,
-          });
-        }
-
         if (format === 'svg') {
           const svgMarkup = buildRasterImageSvgMarkup(cardCanvas.toDataURL('image/png'), cardCanvas.width, cardCanvas.height);
           triggerBlobDownload(new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' }), `${safeBaseName}.svg`);
@@ -460,9 +449,7 @@ export default function LogoCollectionPage({ collectionType = 'favorites' }) {
         }
       }
 
-      const exportSvgMarkup = refreshedDesign?.editablePayload?.watermarkEnabled === false
-        ? refreshedSvgMarkup
-        : await buildWatermarkedSvgMarkup(refreshedSvgMarkup);
+      const exportSvgMarkup = refreshedSvgMarkup;
 
       if (format === 'svg') {
         triggerBlobDownload(new Blob([exportSvgMarkup], { type: 'image/svg+xml;charset=utf-8' }), `${safeBaseName}.svg`);
@@ -556,8 +543,6 @@ export default function LogoCollectionPage({ collectionType = 'favorites' }) {
             {collectionLogos.map((design) => {
               const previewSvgMarkup = design.svgMarkup
                 || (design.previewDataUrl ? buildRasterSvgMarkup(design.previewDataUrl) : null);
-              const shouldApplyCardWatermark =
-                design?.editablePayload?.watermarkEnabled !== false && !design.previewDataUrl;
 
               return (
                 <div
@@ -567,9 +552,7 @@ export default function LogoCollectionPage({ collectionType = 'favorites' }) {
                   <div className="relative aspect-[7/5] w-full overflow-hidden rounded-[1.15rem] bg-slate-50 sm:rounded-[1.5rem]">
                     {previewSvgMarkup ? (
                       <InlineSvgPreview
-                        svgMarkup={shouldApplyCardWatermark
-                          ? injectBrandWatermarkIntoSvgMarkup(previewSvgMarkup)
-                          : previewSvgMarkup}
+                        svgMarkup={previewSvgMarkup}
                         alt={design.name}
                       />
                     ) : design.fallbackUrl ? (

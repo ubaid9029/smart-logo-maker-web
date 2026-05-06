@@ -3,9 +3,10 @@
 
 import Image from 'next/image';
 import React from 'react';
-import { Maximize2, X } from 'lucide-react';
+import { Download, Maximize2, X } from 'lucide-react';
 import { ColorPickerField, HexColorInput } from './ColorInputs';
 import AnimatedCardMockup from './AnimatedCardMockup.jsx';
+import MockupPreviewGallery from './MockupPreviewGallery';
 import { extractPaletteFromImage, generateSmartMockupPalette } from './colorUtils';
 
 const PREVIEW_SURFACE_OPTIONS = [
@@ -17,11 +18,11 @@ const PREVIEW_SURFACE_OPTIONS = [
     type: 'simple',
   },
   {
-    id: 'business-card',
-    label: 'Business Card',
-    frameClassName: 'aspect-[1.7/1] w-full max-w-[min(86vw,520px)]',
-    fullscreenFrameClassName: 'aspect-[1.7/1] w-full max-w-[min(82vw,760px)]',
-    type: 'business-card',
+    id: 'mockups',
+    label: 'Mockups',
+    frameClassName: 'w-full max-w-[min(90vw,680px)]',
+    fullscreenFrameClassName: 'w-full max-w-[min(90vw,900px)]',
+    type: 'mockups',
   },
 ];
 
@@ -32,6 +33,10 @@ function PreviewSurfaceFrame({
   previewElementsTone = 'dark',
   previewNeedsContrastBoost = false,
   fullscreen = false,
+  onBackToSimple,
+  previewWatermarkEnabled,
+  onTogglePreviewWatermark,
+  onOpenDownloadDialog,
 }) {
   const frameClassName = fullscreen
     ? surface.fullscreenFrameClassName
@@ -62,15 +67,55 @@ function PreviewSurfaceFrame({
 
   if (surface.type === 'simple') {
     return (
-      <div className={`${frameClassName} flex items-center justify-center`}>
+      <div className={`${frameClassName} relative flex items-center justify-center overflow-hidden`}>
+        <label className="absolute left-4 top-4 z-20 inline-flex items-center gap-2 rounded-full border border-white/15 bg-slate-950/70 px-4 py-2 text-[12px] font-semibold tracking-[0.08em] text-white shadow-[0_10px_30px_rgba(15,23,42,0.25)] backdrop-blur-xl transition-colors hover:bg-slate-950/80">
+          <input
+            type="checkbox"
+            checked={previewWatermarkEnabled}
+            onChange={(e) => onTogglePreviewWatermark?.(e.target.checked)}
+            className="h-4 w-4 rounded border-white/30 accent-orange-500"
+          />
+          <span>Watermark</span>
+        </label>
+
         {previewImageUrl ? (
-          <div className="relative h-full w-full">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={previewImageUrl}
-              alt={fullscreen ? 'Full screen edited logo preview' : 'Edited logo preview'}
-              className="h-full w-full object-contain"
-            />
+          <div className="relative h-full w-full pt-12 flex items-center justify-center">
+            <div
+              className="relative overflow-hidden"
+              style={{
+                width: 'min(80vw,400px)',
+                aspectRatio: '340/250',
+                background: '#ffffff',
+                border: '4px solid #ffffff',
+                boxSizing: 'border-box',
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={previewImageUrl}
+                alt={fullscreen ? 'Full screen edited logo preview' : 'Edited logo preview'}
+                className="h-full w-full object-contain"
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              />
+
+              {previewWatermarkEnabled ? (
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 z-10"
+                  style={{
+                    backgroundImage: 'url(/logos/logo3.svg)',
+                    backgroundRepeat: 'repeat',
+                    backgroundSize: '90px 90px',
+                    backgroundPosition: '0 0',
+                    opacity: 0.12,
+                    mixBlendMode: 'multiply',
+                    transform: 'rotate(-25deg)',
+                    transformOrigin: 'center center',
+                    willChange: 'transform',
+                  }}
+                />
+              ) : null}
+            </div>
           </div>
         ) : (
           <div className={`flex h-full w-full items-center justify-center text-sm font-semibold ${fullscreen ? 'text-white/70' : 'text-slate-500'}`.trim()}>
@@ -81,33 +126,17 @@ function PreviewSurfaceFrame({
     );
   }
 
-  if (surface.type === 'business-card') {
-    // Cycle through palette for each card
+  if (surface.type === 'mockups') {
     return (
       <div className={`${frameClassName} flex items-center justify-center`}>
-        <div className="relative flex w-full max-w-[84%] items-center justify-center overflow-visible drop-shadow-2xl">
-          {previewAssetUrl ? (
-            <AnimatedCardMockup backgroundColor={palette} accentColors={logoAccents}>
-              <img
-                src={previewAssetUrl}
-                alt="Business card logo preview"
-                className="relative max-h-[120px] max-w-[220px] object-contain drop-shadow-md"
-                style={{ zIndex: 2 }}
-              />
-            </AnimatedCardMockup>
-          ) : (
-            <AnimatedCardMockup backgroundColor={palette} accentColors={logoAccents}>
-              <div className="text-sm font-semibold text-slate-500">Preview unavailable</div>
-            </AnimatedCardMockup>
-          )}
-        </div>
+        <MockupPreviewGallery
+          logoUrl={previewAssetUrl || previewImageUrl}
+          fullscreen={fullscreen}
+          onBack={onBackToSimple}
+        />
       </div>
     );
   }
-
-  return (
-    null
-  );
 }
 
 export function EditorOverlays({
@@ -159,6 +188,9 @@ export function EditorOverlays({
   setPreviewDialogOpen,
   previewImageUrl,
   previewElementsImageUrl,
+  previewWatermarkEnabled,
+  onTogglePreviewWatermark,
+  onOpenDownloadDialog,
   setPreviewFullscreenOpen,
   previewFullscreenOpen,
 }) {
@@ -273,6 +305,7 @@ export function EditorOverlays({
     () => PREVIEW_SURFACE_OPTIONS.find((option) => option.id === activePreviewSurfaceId) || PREVIEW_SURFACE_OPTIONS[0],
     [activePreviewSurfaceId]
   );
+  const isMockupsPreview = activePreviewSurface.type === 'mockups';
 
   return (
     <>
@@ -816,23 +849,33 @@ export function EditorOverlays({
             className="relative mt-8 flex w-full max-w-[min(92vw,580px)] flex-col items-center justify-center gap-2.5"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex flex-wrap items-center justify-center gap-1.5 rounded-[1.1rem] bg-white/95 p-1.5 shadow-[0_18px_45px_rgba(15,23,42,0.2)] backdrop-blur">
-              {PREVIEW_SURFACE_OPTIONS.map((option) => {
-                const isActive = option.id === activePreviewSurface.id;
-                return (
-                  <button
-                    key={option.id}
-                    onClick={() => setActivePreviewSurfaceId(option.id)}
-                    className={`rounded-xl px-3 py-1.5 text-[11px] font-bold transition-all sm:text-xs ${isActive
-                      ? 'bg-[#ff6b00] text-white shadow-[0_10px_24px_rgba(255,107,0,0.28)]'
-                      : 'border border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:text-[#ff6b00]'
-                      }`}
-                  >
-                    {option.label}
-                  </button>
-                );
-              })}
-            </div>
+            <button
+              onClick={() => setPreviewDialogOpen(false)}
+              className="brand-icon-button absolute right-0 top-0 z-30 h-11 w-11 p-0"
+              title="Close preview"
+            >
+              <X size={22} />
+            </button>
+
+            {!isMockupsPreview && (
+              <div className="flex flex-wrap items-center justify-center gap-1.5 rounded-[1.1rem] bg-white/95 p-1.5 shadow-[0_18px_45px_rgba(15,23,42,0.2)] backdrop-blur">
+                {PREVIEW_SURFACE_OPTIONS.map((option) => {
+                  const isActive = option.id === activePreviewSurface.id;
+                  return (
+                    <button
+                      key={option.id}
+                      onClick={() => setActivePreviewSurfaceId(option.id)}
+                      className={`rounded-xl px-3 py-1.5 text-[11px] font-bold transition-all sm:text-xs ${isActive
+                        ? 'bg-[#ff6b00] text-white shadow-[0_10px_24px_rgba(255,107,0,0.28)]'
+                        : 'border border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:text-[#ff6b00]'
+                        }`}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             <PreviewSurfaceFrame
               surface={activePreviewSurface}
@@ -840,23 +883,29 @@ export function EditorOverlays({
               previewElementsImageUrl={previewElementsImageUrl}
               previewElementsTone={previewElementsTone}
               previewNeedsContrastBoost={previewNeedsContrastBoost}
+              previewWatermarkEnabled={previewWatermarkEnabled}
+              onTogglePreviewWatermark={onTogglePreviewWatermark}
+              onBackToSimple={() => setActivePreviewSurfaceId('simple')}
             />
 
-            <div className="flex flex-col gap-2 rounded-full bg-white/95 p-1.5 shadow-[0_18px_45px_rgba(15,23,42,0.2)] backdrop-blur sm:flex-row">
-              <button
-                onClick={() => setPreviewFullscreenOpen(true)}
-                className="brand-button-outline flex min-w-28 items-center justify-center gap-2 rounded-2xl px-4 py-2.5"
-              >
-                <Maximize2 size={18} />
-                Full View
-              </button>
-              <button
-                onClick={() => setPreviewDialogOpen(false)}
-                className="brand-button-outline flex min-w-28 items-center justify-center rounded-2xl px-4 py-2.5"
-              >
-                Close
-              </button>
-            </div>
+            {!isMockupsPreview && (
+              <div className="flex flex-col gap-2 rounded-full bg-white/95 p-1.5 shadow-[0_18px_45px_rgba(15,23,42,0.2)] backdrop-blur sm:flex-row">
+                <button
+                  onClick={() => setPreviewFullscreenOpen(true)}
+                  className="brand-button-outline flex min-w-28 items-center justify-center gap-2 rounded-2xl px-4 py-2.5"
+                >
+                  <Maximize2 size={18} />
+                  Full View
+                </button>
+                <button
+                  onClick={() => onOpenDownloadDialog?.()}
+                  className="brand-button-outline flex min-w-28 items-center justify-center gap-2 rounded-2xl px-4 py-2.5"
+                >
+                  <Download size={18} />
+                  Download
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -879,23 +928,25 @@ export function EditorOverlays({
 
             <div className="flex h-full w-full items-center justify-center overflow-hidden">
               <div className="mt-8 flex h-full w-full flex-col items-center justify-center gap-2.5">
-                <div className="flex max-w-full flex-wrap items-center justify-center gap-1.5 rounded-[1.1rem] bg-white/95 p-1.5 shadow-[0_18px_45px_rgba(15,23,42,0.2)] backdrop-blur">
-                  {PREVIEW_SURFACE_OPTIONS.map((option) => {
-                    const isActive = option.id === activePreviewSurface.id;
-                    return (
-                      <button
-                        key={`fullscreen-${option.id}`}
-                        onClick={() => setActivePreviewSurfaceId(option.id)}
-                        className={`rounded-xl px-3 py-1.5 text-[11px] font-bold transition-all sm:text-xs ${isActive
-                          ? 'bg-[#ff6b00] text-white shadow-[0_10px_24px_rgba(255,107,0,0.28)]'
-                          : 'border border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:text-[#ff6b00]'
-                          }`}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
+                {!isMockupsPreview && (
+                  <div className="flex max-w-full flex-wrap items-center justify-center gap-1.5 rounded-[1.1rem] bg-white/95 p-1.5 shadow-[0_18px_45px_rgba(15,23,42,0.2)] backdrop-blur">
+                    {PREVIEW_SURFACE_OPTIONS.map((option) => {
+                      const isActive = option.id === activePreviewSurface.id;
+                      return (
+                        <button
+                          key={`fullscreen-${option.id}`}
+                          onClick={() => setActivePreviewSurfaceId(option.id)}
+                          className={`rounded-xl px-3 py-1.5 text-[11px] font-bold transition-all sm:text-xs ${isActive
+                            ? 'bg-[#ff6b00] text-white shadow-[0_10px_24px_rgba(255,107,0,0.28)]'
+                            : 'border border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:text-[#ff6b00]'
+                            }`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
 
                 <PreviewSurfaceFrame
                   surface={activePreviewSurface}
@@ -903,7 +954,10 @@ export function EditorOverlays({
                   previewElementsImageUrl={previewElementsImageUrl}
                   previewElementsTone={previewElementsTone}
                   previewNeedsContrastBoost={previewNeedsContrastBoost}
+                  previewWatermarkEnabled={previewWatermarkEnabled}
+                  onTogglePreviewWatermark={onTogglePreviewWatermark}
                   fullscreen
+                  onBackToSimple={() => setActivePreviewSurfaceId('simple')}
                 />
               </div>
             </div>

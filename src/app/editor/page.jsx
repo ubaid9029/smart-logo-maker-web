@@ -618,6 +618,8 @@ function EditorUI() {
     setPreviewFullscreenOpen,
     previewImageUrl,
     previewElementsImageUrl,
+    previewWatermarkEnabled,
+    handlePreviewWatermarkToggle,
     hideCanvasSelectionUi,
     clipCanvasToCard,
     renderCanvasElementsOnly,
@@ -1203,11 +1205,8 @@ function EditorUI() {
                 canRedo={canRedo}
                 onUndo={handleUndo}
                 onRedo={handleRedo}
-                watermarkEnabled={logoConfig.watermarkEnabled !== false}
-                onToggleWatermark={(checked) => applyLogoConfigChange({ watermarkEnabled: checked })}
                 onPreview={handlePreviewOpen}
                 onSave={handleSaveDesign}
-                onDownload={handleOpenDownloadDialog}
                 canSave={Boolean(designId)}
                 savingChanges={savingChanges}
               />
@@ -1259,15 +1258,7 @@ function EditorUI() {
 
                     <div className="h-6 w-px bg-slate-200" />
 
-                    <label className="flex h-9 cursor-pointer items-center gap-2 rounded-full px-3 text-[12px] font-bold text-slate-700 transition-colors hover:bg-slate-50">
-                      <input
-                        type="checkbox"
-                        checked={logoConfig.watermarkEnabled !== false}
-                        onChange={(event) => applyLogoConfigChange({ watermarkEnabled: event.target.checked })}
-                        className="h-4 w-4 rounded border-slate-300 accent-blue-600"
-                      />
-                      <span>Watermark</span>
-                    </label>
+
                   </div>
                 </div>
 
@@ -1756,9 +1747,11 @@ function EditorUI() {
                   setPreviewDialogOpen={setPreviewDialogOpen}
                   previewImageUrl={previewImageUrl}
                   previewElementsImageUrl={previewElementsImageUrl}
+                  previewWatermarkEnabled={previewWatermarkEnabled}
+                  onTogglePreviewWatermark={handlePreviewWatermarkToggle}
+                  onOpenDownloadDialog={handleOpenDownloadDialog}
                   setPreviewFullscreenOpen={setPreviewFullscreenOpen}
                   previewFullscreenOpen={previewFullscreenOpen}
-                  watermarkEnabled={logoConfig.watermarkEnabled !== false}
                 />
 
                 <MobileBottomPanel
@@ -1786,6 +1779,7 @@ function EditorUI() {
                       hideSelectionUi={hideCanvasSelectionUi}
                       clipContentToCard={clipCanvasToCard}
                       renderElementsOnly={renderCanvasElementsOnly}
+                      hideWatermark={true}
                       inlineTextEditRequest={inlineTextEditRequest}
                       onTextEditCommit={handleInlineTextEdit}
                     />
@@ -1795,7 +1789,6 @@ function EditorUI() {
                     className="mt-0"
                     onPreview={handlePreviewOpen}
                     onSave={handleSaveDesign}
-                    onDownload={handleOpenDownloadDialog}
                     canSave={Boolean(designId)}
                     savingChanges={savingChanges}
                   />

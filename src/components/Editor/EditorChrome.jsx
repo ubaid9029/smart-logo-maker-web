@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Download, Eye, Redo2, Save, Undo2 } from 'lucide-react';
+import { Eye, Redo2, Save, Undo2 } from 'lucide-react';
 
 export function DesktopToolRail({
   editorTools,
@@ -42,18 +42,15 @@ export function MobileHeader({
   canRedo,
   onUndo,
   onRedo,
-  watermarkEnabled,
-  onToggleWatermark,
   onPreview,
   onSave,
-  onDownload,
   canSave,
   savingChanges,
 }) {
   return (
     <div className="z-[100] shrink-0 border-b border-editor-panel-border bg-editor-panel-bg px-4 py-3 backdrop-blur lg:hidden">
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
           <button
             onClick={onUndo}
             disabled={!canUndo}
@@ -76,15 +73,6 @@ export function MobileHeader({
           >
             <Redo2 size={18} />
           </button>
-          <label className="flex h-10 items-center gap-2 rounded-xl bg-editor-button-hover px-3 text-[12px] font-semibold text-editor-button-text">
-            <input
-              type="checkbox"
-              checked={watermarkEnabled !== false}
-              onChange={(event) => onToggleWatermark?.(event.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 accent-slate-600"
-            />
-            <span>Watermark</span>
-          </label>
         </div>
         <h1 className="min-w-0 flex-1 text-center text-xl font-black tracking-tight text-editor-button-text-active">
           Logo Maker
@@ -108,13 +96,6 @@ export function MobileHeader({
             aria-busy={savingChanges ? 'true' : 'false'}
           >
             <Save size={18} />
-          </button>
-          <button
-            onClick={onDownload}
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-editor-button-hover text-editor-button-text transition-all"
-            title="Download"
-          >
-            <Download size={18} />
           </button>
         </div>
       </div>
@@ -188,7 +169,6 @@ export function DesktopActionDock({
   className = '',
   onPreview,
   onSave,
-  onDownload,
   canSave,
   savingChanges,
 }) {
@@ -210,13 +190,6 @@ export function DesktopActionDock({
           aria-busy={savingChanges ? 'true' : 'false'}
         >
           <Save size={15} />
-        </button>
-        <button
-          onClick={onDownload}
-          className="brand-icon-button flex h-12 w-12 items-center justify-center rounded-full transition-all"
-          title="Download"
-        >
-          <Download size={15} />
         </button>
       </div>
     </div>

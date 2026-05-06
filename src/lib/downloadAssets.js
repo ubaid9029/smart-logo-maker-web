@@ -1,9 +1,4 @@
-import {
-  BRAND_WATERMARK_SRC,
-  getBrandWatermarkLayout,
-  injectBrandWatermarkIntoSvgMarkup,
-  resolveBrandWatermarkAsset,
-} from './watermarkConfig';
+
 
 export const DOWNLOAD_FORMATS = [
   { id: 'svg', label: 'SVG', description: 'Best for editing and print' },
@@ -13,8 +8,6 @@ export const DOWNLOAD_FORMATS = [
   { id: 'webp', label: 'WebP', description: 'Modern lightweight web format' },
 ];
 
-const watermarkSvgTextPromiseCache = new Map();
-const watermarkSvgDataUriPromiseCache = new Map();
 
 export const getDownloadBaseName = (value) => (
   (value || 'logo')
@@ -70,63 +63,6 @@ export const loadImage = (src) => new Promise((resolve, reject) => {
   image.onerror = reject;
   image.src = src;
 });
-
-const loadWatermarkSvgText = async (src = BRAND_WATERMARK_SRC) => {
-  const resolvedSrc = typeof src === 'string' && src.trim() ? src.trim() : BRAND_WATERMARK_SRC;
-  const existingPromise = watermarkSvgTextPromiseCache.get(resolvedSrc);
-  if (existingPromise) {
-    return existingPromise;
-  }
-
-  const nextPromise = fetch(resolvedSrc, { cache: 'force-cache' })
-    .then(async (response) => {
-      if (!response.ok) {
-        throw new Error('Unable to load watermark asset');
-      }
-
-      return response.text();
-    })
-    .catch((error) => {
-      watermarkSvgTextPromiseCache.delete(resolvedSrc);
-      throw error;
-    });
-
-  watermarkSvgTextPromiseCache.set(resolvedSrc, nextPromise);
-  return nextPromise;
-};
-
-export const getWatermarkSvgDataUri = async (src = BRAND_WATERMARK_SRC) => {
-  const resolvedSrc = typeof src === 'string' && src.trim() ? src.trim() : BRAND_WATERMARK_SRC;
-  const existingPromise = watermarkSvgDataUriPromiseCache.get(resolvedSrc);
-  if (existingPromise) {
-    return existingPromise;
-  }
-
-  const nextPromise = loadWatermarkSvgText(resolvedSrc)
-    .then((svgMarkup) => `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svgMarkup)}`)
-    .catch((error) => {
-      watermarkSvgDataUriPromiseCache.delete(resolvedSrc);
-      throw error;
-    });
-
-  watermarkSvgDataUriPromiseCache.set(resolvedSrc, nextPromise);
-  return nextPromise;
-};
-
-export const buildWatermarkedSvgMarkup = async (svgMarkup) => {
-  if (!svgMarkup || typeof svgMarkup !== 'string') {
-    return svgMarkup;
-  }
-
-  try {
-    const watermarkHref = await getWatermarkSvgDataUri(
-      resolveBrandWatermarkAsset({ svgMarkup })
-    );
-    return injectBrandWatermarkIntoSvgMarkup(svgMarkup, { watermarkHref });
-  } catch {
-    return svgMarkup;
-  }
-};
 
 export const renderSvgToCanvas = async (svgMarkup, scale = 4) => {
   const svgBlob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
@@ -302,51 +238,6 @@ export const buildRasterImageSvgMarkup = (imageUrl, width, height) => {
     `<image href="${escapeXmlAttribute(imageUrl)}" x="0" y="0" width="${safeWidth}" height="${safeHeight}" preserveAspectRatio="none" />`,
     '</svg>',
   ].join('');
-};
-
-const drawCanvasDiagonalWatermarks = (context, canvas, image, options) => {
-  const layout = getBrandWatermarkLayout(canvas.width, canvas.height, options);
-  const sourceRatio = image?.width && image?.height ? (image.height / image.width) : 1;
-  const minX = -canvas.width / 2;
-  const minY = -canvas.height / 2;
-
-  context.save();
-  context.globalAlpha = options.opacity ?? layout.opacity;
-  context.translate(canvas.width / 2, canvas.height / 2);
-  context.rotate(((options.rotation ?? layout.rotation) * Math.PI) / 180);
-
-  for (const layer of layout.layers) {
-    const drawWidth = Math.max(8, layer.size);
-    const drawHeight = Math.max(8, layer.size * sourceRatio);
-    const layerX = minX + layer.x + ((layer.size - drawWidth) / 2);
-    const layerY = minY + layer.y + ((layer.size - drawHeight) / 2);
-    context.drawImage(image, layerX, layerY, drawWidth, drawHeight);
-  }
-
-  context.restore();
-};
-
-export const applyWatermarkToCanvas = async (canvas, options = {}) => {
-  const context = canvas?.getContext?.('2d');
-
-  if (!context) {
-    throw new Error('Canvas context unavailable');
-  }
-
-  try {
-    const watermarkSrc = resolveBrandWatermarkAsset({
-      backgroundColor: options.backgroundColor,
-      svgMarkup: options.svgMarkup,
-    });
-    const watermarkImage = await loadImage(await getWatermarkSvgDataUri(watermarkSrc));
-    drawCanvasDiagonalWatermarks(context, canvas, watermarkImage, {
-      ...options,
-    });
-  } catch {
-    return canvas;
-  }
-
-  return canvas;
 };
 
 export const canvasToBlob = (canvas, type, quality) => new Promise((resolve, reject) => {

@@ -11,6 +11,7 @@ import {
   resolveBrandWatermarkAsset,
 } from '../../lib/watermarkConfig';
 
+
 const CANVAS_WIDTH = 700;
 const CANVAS_HEIGHT = 500;
 const TEXT_MIN_TRANSFORM_WIDTH = 70;
@@ -1560,6 +1561,7 @@ export default function Canvas({
   hideSelectionUi = false,
   clipContentToCard = false,
   renderElementsOnly = false,
+  hideWatermark = false,
 }) {
   const containerRef = useRef(null);
   const transformerRef = useRef(null);
@@ -1643,7 +1645,7 @@ export default function Canvas({
       height: drawHeight,
     }));
   }, [cardWidth, watermarkLayout, watermarkPatternImage]);
-  const isWatermarkVisible = !renderElementsOnly && config.watermarkEnabled !== false && watermarkLayers.length > 0;
+  const isWatermarkVisible = !renderElementsOnly && !hideWatermark && config.watermarkEnabled !== false && watermarkLayers.length > 0;
   const viewportWidth = cardWidth * dimensions.scale * lockedZoom;
   const viewportHeight = cardHeight * dimensions.scale * lockedZoom;
   const viewportOffsetX = cardX * dimensions.scale * lockedZoom;

@@ -9,7 +9,6 @@ import DownloadDialog from '../../components/DownloadDialog';
 import FloatingNotice from '../../components/MainComponents/FloatingNotice';
 import PremiumLoader from '../../components/Shared/PremiumLoader';
 import {
-  buildWatermarkedSvgMarkup,
   buildPdfBlobFromJpegBytes,
   canvasToBlob,
   getDownloadBaseName,
@@ -26,9 +25,6 @@ import {
 } from '../../lib/logoSvg';
 import { openEditorWindowWithPayload, saveTemporaryEditorPayload } from '../../lib/editorPayloadStorage';
 import { loadGeneratedResultsSnapshot, saveGeneratedResultsSnapshot } from '../../lib/generatedResultsStorage';
-import {
-  injectBrandWatermarkIntoSvgMarkup,
-} from '../../lib/watermarkConfig';
 import {
   getLogoLibraryUpgradeMessage,
   isAuthRequiredError,
@@ -428,7 +424,7 @@ const ResultsPage = () => {
     setDownloadingFormat(format);
 
     try {
-      const exportSvgMarkup = await buildWatermarkedSvgMarkup(design.svgMarkup);
+      const exportSvgMarkup = design.svgMarkup;
 
       if (format === 'svg') {
         triggerBlobDownload(new Blob([exportSvgMarkup], { type: 'image/svg+xml;charset=utf-8' }), `${safeBaseName}.svg`);
@@ -543,7 +539,7 @@ const ResultsPage = () => {
             >
               <div className="relative aspect-[7/5] w-full overflow-hidden rounded-[1.15rem] bg-slate-50 sm:rounded-[1.5rem]">
                 {design.svgMarkup ? (
-                  <InlineSvgPreview svgMarkup={injectBrandWatermarkIntoSvgMarkup(design.svgMarkup)} alt={design.name} />
+                  <InlineSvgPreview svgMarkup={design.svgMarkup} alt={design.name} />
                 ) : design.fallbackUrl ? (
                   <Image
                     src={design.fallbackUrl}

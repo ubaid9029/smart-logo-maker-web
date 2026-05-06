@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  applyWatermarkToCanvas,
   buildRasterImageSvgMarkup,
   buildPdfBlobFromJpegBytes,
   canvasToBlob,
   cropCanvasToLogicalArea,
   cropCanvasToVisibleContent,
   getDownloadBaseName,
+  loadImage,
   renderDataUrlToCanvas,
   triggerBlobDownload,
 } from '../../../lib/downloadAssets';
@@ -77,6 +77,45 @@ const buildPreviewSvgMarkup = (imageUrl) => {
     `<image href="${imageUrl}" x="0" y="0" width="${CARD_WIDTH}" height="${CARD_HEIGHT}" preserveAspectRatio="none" />`,
     '</svg>',
   ].join('');
+};
+
+const applyDownloadWatermarkOverlay = async (sourceCanvas) => {
+  if (!sourceCanvas) {
+    return sourceCanvas;
+  }
+
+  const watermarkImage = await loadImage('/logos/logo3.svg');
+  const outputCanvas = document.createElement('canvas');
+  outputCanvas.width = sourceCanvas.width;
+  outputCanvas.height = sourceCanvas.height;
+
+  const context = outputCanvas.getContext('2d');
+  if (!context) {
+    return sourceCanvas;
+  }
+
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = 'high';
+  context.drawImage(sourceCanvas, 0, 0);
+
+  context.save();
+  context.globalAlpha = 0.12;
+  context.translate(outputCanvas.width / 2, outputCanvas.height / 2);
+  context.rotate((-25 * Math.PI) / 180);
+  context.translate(-outputCanvas.width / 2, -outputCanvas.height / 2);
+
+  const tileSize = 130;
+  const stepX = tileSize * 2;
+  const stepY = tileSize * 2;
+
+  for (let y = -tileSize; y < outputCanvas.height + tileSize; y += stepY) {
+    for (let x = -tileSize; x < outputCanvas.width + tileSize; x += stepX) {
+      context.drawImage(watermarkImage, x, y, tileSize, tileSize);
+    }
+  }
+
+  context.restore();
+  return outputCanvas;
 };
 
 const resolvePrimaryTextItem = (logoConfig) => {
@@ -219,6 +258,7 @@ export function useEditorPreviewPersistence({
   const [previewFullscreenOpen, setPreviewFullscreenOpen] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState('');
   const [previewElementsImageUrl, setPreviewElementsImageUrl] = useState('');
+  const [previewWatermarkEnabled, setPreviewWatermarkEnabled] = useState(true);
   const [hideCanvasSelectionUi, setHideCanvasSelectionUi] = useState(false);
   const [clipCanvasToCard, setClipCanvasToCard] = useState(false);
   const [renderCanvasElementsOnly, setRenderCanvasElementsOnly] = useState(false);
@@ -582,7 +622,9 @@ export function useEditorPreviewPersistence({
   }, [buildEditableSavePayload, designId, persistDraftSnapshot]);
 
   const handlePreviewOpen = useCallback(async () => {
-    const nextPreviewImageUrl = await captureEditorPreview(2, { hideSelection: true });
+    const nextPreviewImageUrl = await captureEditorPreview(2, {
+      hideSelection: true,
+    });
     if (!nextPreviewImageUrl) {
       return;
     }
@@ -598,16 +640,35 @@ export function useEditorPreviewPersistence({
       skipFavoriteSync: true,
     });
     const previewCardDataUrl = await cropPreviewDataUrlToEditorCard(nextPreviewImageUrl);
+    setPreviewImageUrl(previewCardDataUrl || '');
     let previewElementsCardDataUrl = '';
     if (nextElementsPreviewImageUrl) {
       const { canvas: elementsCanvas } = await renderDataUrlToCanvas(nextElementsPreviewImageUrl);
       const trimmedCanvas = cropCanvasToVisibleContent(elementsCanvas, { padding: 18 });
       previewElementsCardDataUrl = trimmedCanvas.toDataURL('image/png');
     }
-    setPreviewImageUrl(previewCardDataUrl || '');
     setPreviewElementsImageUrl(previewElementsCardDataUrl || '');
     setPreviewDialogOpen(true);
   }, [captureEditorPreview, persistEditorChanges]);
+
+  const handlePreviewWatermarkToggle = useCallback(async (checked) => {
+    setPreviewWatermarkEnabled(checked);
+
+    if (!previewDialogOpen && !previewFullscreenOpen) {
+      return;
+    }
+
+    const nextPreviewImageUrl = await captureEditorPreview(2, {
+      hideSelection: true,
+    });
+
+    if (!nextPreviewImageUrl) {
+      return;
+    }
+
+    const previewCardDataUrl = await cropPreviewDataUrlToEditorCard(nextPreviewImageUrl);
+    setPreviewImageUrl(previewCardDataUrl || '');
+  }, [captureEditorPreview, previewDialogOpen, previewFullscreenOpen]);
 
   const handleSaveDesign = useCallback(async () => {
     const canSave = await ensureSignedIn();
@@ -668,54 +729,49 @@ export function useEditorPreviewPersistence({
 
       const { canvas } = await renderDataUrlToCanvas(pngDataUrl);
       const cardCanvas = cropCanvasToLogicalArea(canvas, EDITOR_CARD_AREA, EDITOR_LOGICAL_CANVAS_SIZE);
-
-      if (logoConfig?.watermarkEnabled !== false) {
-        await applyWatermarkToCanvas(cardCanvas, {
-          logicalWidth: CARD_WIDTH,
-          logicalHeight: CARD_HEIGHT,
-          backgroundColor: logoConfig?.bgColor || logoConfig?.backgroundColor,
-        });
-      }
+      const exportCanvas = previewWatermarkEnabled
+        ? await applyDownloadWatermarkOverlay(cardCanvas)
+        : cardCanvas;
 
       if (format === 'svg') {
-        const svgMarkup = buildRasterImageSvgMarkup(cardCanvas.toDataURL('image/png'), cardCanvas.width, cardCanvas.height);
+        const svgMarkup = buildRasterImageSvgMarkup(exportCanvas.toDataURL('image/png'), exportCanvas.width, exportCanvas.height);
         triggerBlobDownload(new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' }), `${safeBaseName}.svg`);
         setDownloadDialogOpen(false);
         return;
       }
 
       if (format === 'png') {
-        const blob = await canvasToBlob(cardCanvas, 'image/png');
+        const blob = await canvasToBlob(exportCanvas, 'image/png');
         triggerBlobDownload(blob, `${safeBaseName}.png`);
         setDownloadDialogOpen(false);
         return;
       }
 
       if (format === 'jpg') {
-        const blob = await canvasToBlob(cardCanvas, 'image/jpeg', 0.96);
+        const blob = await canvasToBlob(exportCanvas, 'image/jpeg', 0.96);
         triggerBlobDownload(blob, `${safeBaseName}.jpg`);
         setDownloadDialogOpen(false);
         return;
       }
 
       if (format === 'webp') {
-        const blob = await canvasToBlob(cardCanvas, 'image/webp', 0.96);
+        const blob = await canvasToBlob(exportCanvas, 'image/webp', 0.96);
         triggerBlobDownload(blob, `${safeBaseName}.webp`);
         setDownloadDialogOpen(false);
         return;
       }
 
       if (format === 'pdf') {
-        const jpegBlob = await canvasToBlob(cardCanvas, 'image/jpeg', 0.98);
+        const jpegBlob = await canvasToBlob(exportCanvas, 'image/jpeg', 0.98);
         const jpegBytes = new Uint8Array(await jpegBlob.arrayBuffer());
-        const pdfBlob = buildPdfBlobFromJpegBytes(jpegBytes, cardCanvas.width, cardCanvas.height);
+        const pdfBlob = buildPdfBlobFromJpegBytes(jpegBytes, exportCanvas.width, exportCanvas.height);
         triggerBlobDownload(pdfBlob, `${safeBaseName}.pdf`);
         setDownloadDialogOpen(false);
       }
     } finally {
       setDownloadingFormat(null);
     }
-  }, [buildEditableSavePayload, captureEditorPreview, ensureSignedIn, handleLibrarySyncError, initialBusinessValue, logoConfig?.textItems, logoConfig?.watermarkEnabled, persistDraftSnapshot, stageRef, syncLibraryRecord]);
+  }, [buildEditableSavePayload, captureEditorPreview, ensureSignedIn, handleLibrarySyncError, initialBusinessValue, logoConfig?.textItems, persistDraftSnapshot, previewWatermarkEnabled, stageRef, syncLibraryRecord]);
 
   return {
     captureEditorPreview,
@@ -736,6 +792,9 @@ export function useEditorPreviewPersistence({
     previewImageUrl,
     previewElementsImageUrl,
     setPreviewImageUrl,
+    previewWatermarkEnabled,
+    setPreviewWatermarkEnabled,
+    handlePreviewWatermarkToggle,
     hideCanvasSelectionUi,
     clipCanvasToCard,
     renderCanvasElementsOnly,
