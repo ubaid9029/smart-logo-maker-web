@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabaseServer';
 import { authenticateRequest, securityResponse, logApiUsage } from '@/lib/apiSecurity';
+import { withApiLogger, apiLoggedResponse } from '@/lib/apiLogger';
 
 const SUPPORTED_COLOR_IDS = new Set(['1', '2', '3', '4', '5', '6']);
 const DEFAULT_INDUSTRY_ID = 23;
@@ -57,7 +58,7 @@ const jsonNoStore = (body: unknown, init?: ResponseInit) => NextResponse.json(bo
   },
 });
 
-export async function POST(request: NextRequest) {
+export const POST = withApiLogger('/api/generate', async function POST(request: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -70,6 +71,8 @@ export async function POST(request: NextRequest) {
   const { ip, userId, keyId } = auth;
   const endpoint = '/api/generate';
   const method = 'POST';
+  const appSource = auth.type || 'unknown';
+  const requestType = auth.keyId ? 'api-key' : 'session';
 
   try {
     const body = await request.json();
@@ -81,12 +84,38 @@ export async function POST(request: NextRequest) {
 
     if (!name.trim()) {
       await logApiUsage({ userId, keyId, endpoint, method, statusCode: 400, ip });
-      return jsonNoStore({ error: 'Business name is required.' }, { status: 400 });
+      return apiLoggedResponse(
+        jsonNoStore({ error: 'Business name is required.' }, { status: 400 }),
+        {
+          userId,
+          apiKeyId: keyId,
+          appSource,
+          requestType,
+          eventName: 'logo_generate',
+          isSuccess: false,
+          businessName: name,
+          industryId: Number(industryId),
+          errorCode: 'BUSINESS_NAME_REQUIRED',
+        }
+      );
     }
 
     if (!SUPPORTED_COLOR_IDS.has(String(colorId))) {
       await logApiUsage({ userId, keyId, endpoint, method, statusCode: 400, ip });
-      return jsonNoStore({ error: 'Selected color palette is not supported.' }, { status: 400 });
+      return apiLoggedResponse(
+        jsonNoStore({ error: 'Selected color palette is not supported.' }, { status: 400 }),
+        {
+          userId,
+          apiKeyId: keyId,
+          appSource,
+          requestType,
+          eventName: 'logo_generate',
+          isSuccess: false,
+          businessName: name,
+          industryId: Number(industryId),
+          errorCode: 'UNSUPPORTED_COLOR_ID',
+        }
+      );
     }
 
     const response = await fetch('https://www.logoai.com/api/getAllInfo', {
@@ -110,7 +139,20 @@ export async function POST(request: NextRequest) {
       const remoteMessage = typeof data?.message === 'string' ? data.message : `LogoAI Error ${response.status}`;
 
       await logApiUsage({ userId, keyId, endpoint, method, statusCode, ip });
-      return jsonNoStore({ error: 'API call failed', details: remoteMessage }, { status: statusCode });
+      return apiLoggedResponse(
+        jsonNoStore({ error: 'API call failed', details: remoteMessage }, { status: statusCode }),
+        {
+          userId,
+          apiKeyId: keyId,
+          appSource,
+          requestType,
+          eventName: 'logo_generate',
+          isSuccess: false,
+          businessName: name,
+          industryId: Number(industryId),
+          errorCode: `UPSTREAM_${statusCode}`,
+        }
+      );
     }
 
     // Save to logo_history table for API-generated logos
@@ -138,10 +180,34 @@ export async function POST(request: NextRequest) {
     }
 
     await logApiUsage({ userId, keyId, endpoint, method, statusCode: 200, ip });
-    return jsonNoStore(data);
+    return apiLoggedResponse(
+      jsonNoStore(data),
+      {
+        userId,
+        apiKeyId: keyId,
+        appSource,
+        requestType,
+        eventName: 'logo_generate',
+        isSuccess: true,
+        businessName: name,
+        industryId: Number(industryId),
+        logoCount: Array.isArray(data?.data) ? data.data.length : 0,
+      }
+    );
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     await logApiUsage({ userId, keyId, endpoint, method, statusCode: 500, ip });
-    return jsonNoStore({ error: 'API call failed', details: message }, { status: 500 });
+    return apiLoggedResponse(
+      jsonNoStore({ error: 'API call failed', details: message }, { status: 500 }),
+      {
+        userId,
+        apiKeyId: keyId,
+        appSource,
+        requestType,
+        eventName: 'logo_generate',
+        isSuccess: false,
+        errorCode: 'INTERNAL_GENERATE_ERROR',
+      }
+    );
   }
-}
+});

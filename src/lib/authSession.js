@@ -1,6 +1,6 @@
 "use client";
 
-const AUTH_SESSION_ENDPOINT = "/auth/session";
+const AUTH_SESSION_ENDPOINT = "/api/auth/session";
 
 export async function readAuthSession() {
   const response = await fetch(AUTH_SESSION_ENDPOINT, {

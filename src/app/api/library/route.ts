@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabaseServer';
 import { authenticateRequest, securityResponse } from '@/lib/apiSecurity';
+import { withApiLogger, apiLoggedResponse } from '@/lib/apiLogger';
 
 const LIBRARY_TABLE = 'favorite_logos';
 
-export async function GET(request: NextRequest) {
+export const GET = withApiLogger('/api/library', async function GET(request: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -13,9 +14,22 @@ export async function GET(request: NextRequest) {
   if (!auth.isValid) {
     return securityResponse(auth.error, auth.status);
   }
+  const appSource = auth.type || 'unknown';
+  const requestType = auth.keyId ? 'api-key' : 'session';
 
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return apiLoggedResponse(
+      NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+      {
+        userId: auth.userId,
+        apiKeyId: auth.keyId,
+        appSource,
+        requestType,
+        eventName: 'favorite_logos_fetch',
+        isSuccess: false,
+        errorCode: 'UNAUTHORIZED_LIBRARY_ACCESS',
+      }
+    );
   }
 
   const { data, error } = await supabase
@@ -25,13 +39,34 @@ export async function GET(request: NextRequest) {
     .order('updated_at', { ascending: false });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return apiLoggedResponse(
+      NextResponse.json({ error: error.message }, { status: 500 }),
+      {
+        userId: user.id,
+        apiKeyId: auth.keyId,
+        appSource,
+        requestType,
+        eventName: 'favorite_logos_fetch',
+        isSuccess: false,
+        errorCode: 'LIBRARY_FETCH_FAILED',
+      }
+    );
   }
 
-  return NextResponse.json(data);
-}
+  return apiLoggedResponse(
+    NextResponse.json(data),
+    {
+      userId: user.id,
+      apiKeyId: auth.keyId,
+      appSource,
+      requestType,
+      eventName: 'favorite_logos_fetch',
+      isSuccess: true,
+    }
+  );
+});
 
-export async function POST(request: NextRequest) {
+export const POST = withApiLogger('/api/library', async function POST(request: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -40,9 +75,22 @@ export async function POST(request: NextRequest) {
   if (!auth.isValid) {
     return securityResponse(auth.error, auth.status);
   }
+  const appSource = auth.type || 'unknown';
+  const requestType = auth.keyId ? 'api-key' : 'session';
 
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return apiLoggedResponse(
+      NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+      {
+        userId: auth.userId,
+        apiKeyId: auth.keyId,
+        appSource,
+        requestType,
+        eventName: 'favorite_logo_save',
+        isSuccess: false,
+        errorCode: 'UNAUTHORIZED_LIBRARY_SAVE',
+      }
+    );
   }
 
   const body = await request.json();
@@ -54,11 +102,35 @@ export async function POST(request: NextRequest) {
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
-}
+  if (error) {
+    return apiLoggedResponse(
+      NextResponse.json({ error: error.message }, { status: 500 }),
+      {
+        userId: user.id,
+        apiKeyId: auth.keyId,
+        appSource,
+        requestType,
+        eventName: 'favorite_logo_save',
+        isSuccess: false,
+        errorCode: 'LIBRARY_SAVE_FAILED',
+      }
+    );
+  }
 
-export async function DELETE(request: NextRequest) {
+  return apiLoggedResponse(
+    NextResponse.json(data),
+    {
+      userId: user.id,
+      apiKeyId: auth.keyId,
+      appSource,
+      requestType,
+      eventName: 'favorite_logo_save',
+      isSuccess: true,
+    }
+  );
+});
+
+export const DELETE = withApiLogger('/api/library', async function DELETE(request: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -67,16 +139,40 @@ export async function DELETE(request: NextRequest) {
   if (!auth.isValid) {
     return securityResponse(auth.error, auth.status);
   }
+  const appSource = auth.type || 'unknown';
+  const requestType = auth.keyId ? 'api-key' : 'session';
 
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return apiLoggedResponse(
+      NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+      {
+        userId: auth.userId,
+        apiKeyId: auth.keyId,
+        appSource,
+        requestType,
+        eventName: 'favorite_logo_delete',
+        isSuccess: false,
+        errorCode: 'UNAUTHORIZED_LIBRARY_DELETE',
+      }
+    );
   }
 
   const { searchParams } = new URL(request.url);
   const favoriteKey = searchParams.get('favoriteKey');
 
   if (!favoriteKey) {
-    return NextResponse.json({ error: 'Favorite Key is required' }, { status: 400 });
+    return apiLoggedResponse(
+      NextResponse.json({ error: 'Favorite Key is required' }, { status: 400 }),
+      {
+        userId: user.id,
+        apiKeyId: auth.keyId,
+        appSource,
+        requestType,
+        eventName: 'favorite_logo_delete',
+        isSuccess: false,
+        errorCode: 'FAVORITE_KEY_REQUIRED',
+      }
+    );
   }
 
   const { error } = await supabase
@@ -85,6 +181,30 @@ export async function DELETE(request: NextRequest) {
     .eq('user_id', user.id)
     .eq('favorite_key', favoriteKey);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true });
-}
+  if (error) {
+    return apiLoggedResponse(
+      NextResponse.json({ error: error.message }, { status: 500 }),
+      {
+        userId: user.id,
+        apiKeyId: auth.keyId,
+        appSource,
+        requestType,
+        eventName: 'favorite_logo_delete',
+        isSuccess: false,
+        errorCode: 'LIBRARY_DELETE_FAILED',
+      }
+    );
+  }
+
+  return apiLoggedResponse(
+    NextResponse.json({ success: true }),
+    {
+      userId: user.id,
+      apiKeyId: auth.keyId,
+      appSource,
+      requestType,
+      eventName: 'favorite_logo_delete',
+      isSuccess: true,
+    }
+  );
+});

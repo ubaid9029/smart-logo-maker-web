@@ -126,6 +126,16 @@ const Category = ({ onNext, onBack, data, setData }) => {
   const fetchIndustries = async () => {
     try {
       const res = await fetch('/api/industries');
+      const contentType = res.headers.get('content-type') || '';
+
+      if (!res.ok) {
+        throw new Error(`Industries request failed with status ${res.status}`);
+      }
+
+      if (!contentType.includes('application/json')) {
+        throw new Error('Industries endpoint did not return JSON.');
+      }
+
       const apiData = await res.json();
 
       const usedIcons = new Set();
